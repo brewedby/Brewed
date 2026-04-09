@@ -25,6 +25,7 @@ export const eventSchema = z.object({
   status: z.enum(STATUSES as [string, ...string[]]),
   notes: z.string().optional(),
   company_id: z.string().optional(),
+  application_url: z.string().optional(),
   gross_sales: z.coerce.number().min(0),
   cost_of_goods: z.coerce.number().min(0),
   pitch_fee: z.coerce.number().min(0),

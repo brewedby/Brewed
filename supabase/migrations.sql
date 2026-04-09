@@ -165,3 +165,38 @@ CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.staffing_entries
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.infrastructure_items
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+
+-- ============================================================
+-- Migration 002: Event discovery, URL monitoring, push tokens
+-- ============================================================
+
+-- Add push token to profiles
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS push_token TEXT,
+  ADD COLUMN IF NOT EXISTS business_name_updated TEXT;
+
+-- Add URL monitoring fields to events
+ALTER TABLE public.events
+  ADD COLUMN IF NOT EXISTS application_url TEXT,
+  ADD COLUMN IF NOT EXISTS page_hash TEXT,
+  ADD COLUMN IF NOT EXISTS url_last_checked_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS url_changed BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Enable pg_cron and pg_net for scheduled URL checks
+-- (run separately if these extensions are not already enabled)
+-- CREATE EXTENSION IF NOT EXISTS pg_cron;
+-- CREATE EXTENSION IF NOT EXISTS pg_net;
+
+-- Schedule the check-application-urls edge function to run daily at 8am UTC
+-- Uncomment and update YOUR_SUPABASE_PROJECT_REF and YOUR_ANON_KEY after setup:
+-- SELECT cron.schedule(
+--   'check-application-urls-daily',
+--   '0 8 * * *',
+--   $$
+--   SELECT net.http_post(
+--     url := 'https://YOUR_SUPABASE_PROJECT_REF.supabase.co/functions/v1/check-application-urls',
+--     headers := '{"Content-Type": "application/json", "Authorization": "Bearer YOUR_ANON_KEY"}'::jsonb,
+--     body := '{}'::jsonb
+--   );
+--   $$
+-- );

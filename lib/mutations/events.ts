@@ -21,6 +21,7 @@ export function useCreateEvent() {
           status: data.status as any,
           notes: data.notes || null,
           company_id: data.company_id || null,
+          application_url: (data as any).application_url || null,
         })
         .select()
         .single();
@@ -107,6 +108,8 @@ export function useUpdateEvent() {
           status: data.status as any,
           notes: data.notes || null,
           company_id: data.company_id || null,
+          application_url: (data as any).application_url || null,
+          url_changed: false,
         })
         .eq('id', id);
       if (eventError) throw eventError;

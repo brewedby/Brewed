@@ -32,6 +32,17 @@ export interface EventDetail extends EventWithFinancials {
   infrastructure_items: InfrastructureItem[];
 }
 
+export interface DiscoveredEvent {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  source: string;
+  location: string | null;
+  dateHint: string | null;
+  category: string;
+}
+
 export interface CompanyWithStats extends ConcessionsCompany {
   totalEvents: number;
   acceptedEvents: number;

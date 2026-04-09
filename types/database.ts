@@ -19,16 +19,19 @@ export interface Database {
         Row: {
           id: string;
           business_name: string | null;
+          push_token: string | null;
           created_at: string;
         };
         Insert: {
           id: string;
           business_name?: string | null;
+          push_token?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           business_name?: string | null;
+          push_token?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -84,6 +87,10 @@ export interface Database {
           status: ApplicationStatus;
           notes: string | null;
           company_id: string | null;
+          application_url: string | null;
+          page_hash: string | null;
+          url_last_checked_at: string | null;
+          url_changed: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -99,6 +106,10 @@ export interface Database {
           status?: ApplicationStatus;
           notes?: string | null;
           company_id?: string | null;
+          application_url?: string | null;
+          page_hash?: string | null;
+          url_last_checked_at?: string | null;
+          url_changed?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -114,6 +125,10 @@ export interface Database {
           status?: ApplicationStatus;
           notes?: string | null;
           company_id?: string | null;
+          application_url?: string | null;
+          page_hash?: string | null;
+          url_last_checked_at?: string | null;
+          url_changed?: boolean;
           updated_at?: string;
         };
         Relationships: [
