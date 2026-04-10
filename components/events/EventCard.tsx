@@ -15,21 +15,38 @@ export function EventCard({ event }: Props) {
   const fin = event.event_financials;
   const calc = event.calculations;
   const dotColor = STATUS_COLORS[event.status]?.dot ?? '#a8a29e';
+  const unitName = (event as any).units?.name as string | undefined;
 
   return (
     <TouchableOpacity
       onPress={() => router.push(`/(tabs)/events/${event.id}`)}
       className="bg-white rounded-2xl mb-3 border border-slate-100 overflow-hidden"
       activeOpacity={0.7}
-      style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}
+      style={{
+        elevation: 1,
+        shadowColor: '#000',
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 1 },
+      }}
     >
       {/* Status colour strip on left */}
       <View style={{ flexDirection: 'row' }}>
-        <View style={{ width: 4, backgroundColor: dotColor, borderTopLeftRadius: 16, borderBottomLeftRadius: 16 }} />
+        <View
+          style={{
+            width: 4,
+            backgroundColor: dotColor,
+            borderTopLeftRadius: 16,
+            borderBottomLeftRadius: 16,
+          }}
+        />
         <View style={{ flex: 1, padding: 14 }}>
           <View className="flex-row items-start justify-between mb-1.5">
             <View className="flex-1 mr-3">
-              <Text className="font-bold text-slate-900 text-[15px] leading-snug" numberOfLines={2}>
+              <Text
+                className="font-bold text-slate-900 text-[15px] leading-snug"
+                numberOfLines={2}
+              >
                 {event.name}
               </Text>
               <Text className="text-slate-500 text-xs mt-0.5" numberOfLines={1}>
@@ -40,10 +57,17 @@ export function EventCard({ event }: Props) {
           </View>
 
           <View className="flex-row items-center flex-wrap gap-x-3 gap-y-1 mt-1">
-            <Text className="text-slate-400 text-xs">📅 {formatDateRange(event.date, event.end_date)}</Text>
+            <Text className="text-slate-400 text-xs">
+              📅 {formatDateRange(event.date, event.end_date)}
+            </Text>
             {event.concessions_companies && (
               <Text className="text-slate-400 text-xs" numberOfLines={1}>
                 🏢 {event.concessions_companies.name}
+              </Text>
+            )}
+            {unitName && (
+              <Text className="text-slate-400 text-xs" numberOfLines={1}>
+                🚐 {unitName}
               </Text>
             )}
             {(event as any).url_changed && (
@@ -57,17 +81,31 @@ export function EventCard({ event }: Props) {
             <View className="flex-row mt-3 pt-3 border-t border-slate-50 gap-5">
               <View>
                 <Text className="text-slate-400 text-xs">Gross Sales</Text>
-                <Text className="font-bold text-slate-900 text-sm">{formatCurrency(fin.gross_sales)}</Text>
+                <Text className="font-bold text-slate-900 text-sm">
+                  {formatCurrency(fin.gross_sales)}
+                </Text>
               </View>
               <View>
                 <Text className="text-slate-400 text-xs">Net Profit</Text>
-                <Text className={`font-bold text-sm ${calc.netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                <Text
+                  className={`font-bold text-sm ${
+                    calc.netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'
+                  }`}
+                >
                   {formatCurrency(calc.netProfit)}
                 </Text>
               </View>
               <View>
                 <Text className="text-slate-400 text-xs">Margin</Text>
-                <Text className={`font-bold text-sm ${calc.profitMargin >= 20 ? 'text-emerald-600' : calc.profitMargin >= 0 ? 'text-amber-600' : 'text-red-500'}`}>
+                <Text
+                  className={`font-bold text-sm ${
+                    calc.profitMargin >= 20
+                      ? 'text-emerald-600'
+                      : calc.profitMargin >= 0
+                      ? 'text-amber-600'
+                      : 'text-red-500'
+                  }`}
+                >
                   {calc.profitMargin.toFixed(1)}%
                 </Text>
               </View>
