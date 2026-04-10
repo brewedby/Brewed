@@ -17,6 +17,17 @@ import type { ConcessionsCompany, ApplicationStatus, InfrastructureCategory } fr
 
 const TABS = ['Details', 'Financials', 'Staffing', 'Costs', 'Notes'] as const;
 
+/** Convert DD/MM/YYYY → YYYY-MM-DD. Passes through ISO dates and empty strings unchanged. */
+function ukToIso(val: string | undefined | null): string {
+  if (!val) return '';
+  const match = val.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (match) {
+    const [, d, m, y] = match;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  return val;
+}
+
 interface Props {
   defaultValues?: Partial<EventFormValues>;
   companies: ConcessionsCompany[];
@@ -51,7 +62,13 @@ export function EventForm({ defaultValues, companies, onSubmit, submitLabel = 'S
   async function handleFormSubmit(data: any) {
     setLoading(true);
     try {
-      await onSubmit(data);
+      const converted = {
+        ...data,
+        date: ukToIso(data.date),
+        end_date: data.end_date ? ukToIso(data.end_date) : data.end_date,
+        application_date: data.application_date ? ukToIso(data.application_date) : data.application_date,
+      };
+      await onSubmit(converted);
       router.back();
     } catch (e: any) {
       Alert.alert('Error', e.message ?? 'Failed to save');
@@ -98,7 +115,7 @@ export function EventForm({ defaultValues, companies, onSubmit, submitLabel = 'S
                   render={({ field }) => (
                     <FormField label="Start Date" required value={field.value}
                       onChangeText={field.onChange} error={errors.date?.message}
-                      placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" />
+                      placeholder="DD/MM/YYYY" keyboardType="numbers-and-punctuation" />
                   )}
                 />
               </View>
@@ -106,7 +123,7 @@ export function EventForm({ defaultValues, companies, onSubmit, submitLabel = 'S
                 <Controller control={control} name="end_date"
                   render={({ field }) => (
                     <FormField label="End Date" value={field.value ?? ''}
-                      onChangeText={field.onChange} placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" />
+                      onChangeText={field.onChange} placeholder="DD/MM/YYYY" keyboardType="numbers-and-punctuation" />
                   )}
                 />
               </View>
@@ -123,7 +140,7 @@ export function EventForm({ defaultValues, companies, onSubmit, submitLabel = 'S
             <Controller control={control} name="application_date"
               render={({ field }) => (
                 <FormField label="Applied On" value={field.value ?? ''}
-                  onChangeText={field.onChange} placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" />
+                  onChangeText={field.onChange} placeholder="DD/MM/YYYY" keyboardType="numbers-and-punctuation" />
               )}
             />
 
