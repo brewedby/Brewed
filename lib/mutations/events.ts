@@ -44,7 +44,11 @@ export function useCreateEvent() {
       // 3. Create financials
       const { error: finError } = await supabase.from('event_financials').insert({
         event_id: event.id,
-        gross_sales: data.gross_sales,
+        gross_sales: (data.zero_rated_sales ?? 0) + (data.standard_rated_sales ?? 0) || data.gross_sales,
+        zero_rated_sales: data.zero_rated_sales ?? 0,
+        standard_rated_sales: data.standard_rated_sales ?? 0,
+        concessions_commission_pct: data.concessions_commission_pct ?? 0,
+        pitch_fee_refund_pct: data.pitch_fee_refund_pct ?? 0,
         cost_of_goods: data.cost_of_goods,
         pitch_fee: data.pitch_fee,
         travel_costs: data.travel_costs,
@@ -132,7 +136,11 @@ export function useUpdateEvent() {
         .from('event_financials')
         .upsert({
           event_id: id,
-          gross_sales: data.gross_sales,
+          gross_sales: (data.zero_rated_sales ?? 0) + (data.standard_rated_sales ?? 0) || data.gross_sales,
+          zero_rated_sales: data.zero_rated_sales ?? 0,
+          standard_rated_sales: data.standard_rated_sales ?? 0,
+          concessions_commission_pct: data.concessions_commission_pct ?? 0,
+          pitch_fee_refund_pct: data.pitch_fee_refund_pct ?? 0,
           cost_of_goods: data.cost_of_goods,
           pitch_fee: data.pitch_fee,
           travel_costs: data.travel_costs,

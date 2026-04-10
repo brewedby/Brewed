@@ -14,6 +14,16 @@ export type InfrastructureItem = Tables['infrastructure_items']['Row'];
 export type InfrastructureCategory = 'pitch_fee' | 'travel' | 'equipment' | 'supplies' | 'other';
 
 export interface EventCalculations {
+  // VAT breakdown
+  standardRatedNet: number;
+  vatCollected: number;
+  totalNetSales: number;
+  // Commission & pitch fee settlement
+  commissionAmount: number;
+  pitchFeeRefundGross: number;
+  netRefund: number;
+  effectivePitchFee: number;
+  // Summary
   grossProfit: number;
   totalCosts: number;
   netProfit: number;
@@ -113,6 +123,10 @@ export interface EventFormValues {
   notes?: string;
   company_id?: string;
   gross_sales: number;
+  zero_rated_sales: number;
+  standard_rated_sales: number;
+  concessions_commission_pct: number;
+  pitch_fee_refund_pct: number;
   cost_of_goods: number;
   pitch_fee: number;
   travel_costs: number;

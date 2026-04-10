@@ -146,6 +146,10 @@ export interface Database {
           id: string;
           event_id: string;
           gross_sales: number;
+          zero_rated_sales: number;
+          standard_rated_sales: number;
+          concessions_commission_pct: number;
+          pitch_fee_refund_pct: number;
           cost_of_goods: number;
           pitch_fee: number;
           travel_costs: number;
@@ -159,6 +163,10 @@ export interface Database {
           id?: string;
           event_id: string;
           gross_sales?: number;
+          zero_rated_sales?: number;
+          standard_rated_sales?: number;
+          concessions_commission_pct?: number;
+          pitch_fee_refund_pct?: number;
           cost_of_goods?: number;
           pitch_fee?: number;
           travel_costs?: number;
@@ -172,6 +180,10 @@ export interface Database {
           id?: string;
           event_id?: string;
           gross_sales?: number;
+          zero_rated_sales?: number;
+          standard_rated_sales?: number;
+          concessions_commission_pct?: number;
+          pitch_fee_refund_pct?: number;
           cost_of_goods?: number;
           pitch_fee?: number;
           travel_costs?: number;

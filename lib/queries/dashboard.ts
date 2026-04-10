@@ -49,7 +49,7 @@ export function useDashboard(year?: number) {
           ...e,
           calculations: e.event_financials
             ? calcEventFinancials(e.event_financials)
-            : { grossProfit: 0, totalCosts: 0, netProfit: 0, profitMargin: 0, totalStaffingCost: 0 },
+            : { standardRatedNet: 0, vatCollected: 0, totalNetSales: 0, commissionAmount: 0, pitchFeeRefundGross: 0, netRefund: 0, effectivePitchFee: 0, grossProfit: 0, totalCosts: 0, netProfit: 0, profitMargin: 0, totalStaffingCost: 0 },
         }));
 
       const monthlyMap = new Map<number, MonthlyRevenue>();

@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator,
 } from 'react-native';
-import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import { useForm, Controller, useFieldArray, Control, UseFormWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
 import { eventSchema } from '@/lib/validations/event.schema';
 import type { EventFormValues } from '@/lib/validations/event.schema';
 import { FormField } from '@/components/shared/FormField';
 import { CurrencyInput } from '@/components/shared/CurrencyInput';
+import { formatCurrency } from '@/lib/formatters';
 import {
   STATUSES, STATUS_LABELS, STATUS_COLORS,
   INFRASTRUCTURE_CATEGORIES, INFRASTRUCTURE_CATEGORY_LABELS,
@@ -26,6 +27,141 @@ function ukToIso(val: string | undefined | null): string {
     return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
   }
   return val;
+}
+
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <Text className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 mb-1">
+      {title}
+    </Text>
+  );
+}
+
+function CalcRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <View className="flex-row justify-between items-center py-1">
+      <Text className={`text-xs ${highlight ? 'font-semibold text-slate-800' : 'text-slate-500'}`}>{label}</Text>
+      <Text className={`text-xs font-semibold ${highlight ? 'text-slate-900' : 'text-slate-600'}`}>{value}</Text>
+    </View>
+  );
+}
+
+function FinancialsTabContent({
+  control,
+  watch,
+}: {
+  control: Control<EventFormValues>;
+  watch: UseFormWatch<EventFormValues>;
+}) {
+  const zeroRated = watch('zero_rated_sales') ?? 0;
+  const standardRated = watch('standard_rated_sales') ?? 0;
+  const commissionPct = watch('concessions_commission_pct') ?? 0;
+  const pitchFee = watch('pitch_fee') ?? 0;
+  const refundPct = watch('pitch_fee_refund_pct') ?? 0;
+
+  const standardRatedNet = standardRated / 1.2;
+  const vatCollected = standardRated - standardRatedNet;
+  const totalNetSales = zeroRated + standardRatedNet;
+
+  const commissionAmount = totalNetSales * (commissionPct / 100);
+  const pitchFeeRefundGross = pitchFee * (refundPct / 100);
+  const netRefund = pitchFeeRefundGross - commissionAmount;
+  const effectivePitchFee = pitchFee - pitchFeeRefundGross + commissionAmount;
+
+  return (
+    <View className="gap-4">
+      <View className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+        <Text className="text-amber-800 text-sm font-medium mb-0.5">Recording financials</Text>
+        <Text className="text-amber-700 text-xs">Fill in after the event. Profit is calculated on net (ex-VAT) sales.</Text>
+      </View>
+
+      {/* ── SALES & VAT ── */}
+      <SectionHeader title="Sales & VAT" />
+      <View className="bg-white rounded-xl p-4 border border-slate-100 gap-3">
+        <Controller control={control} name="zero_rated_sales"
+          render={({ field }) => (
+            <CurrencyInput label="Zero-rated sales — 0% VAT (food, hot drinks)" value={field.value} onChangeValue={field.onChange} />
+          )}
+        />
+        <Controller control={control} name="standard_rated_sales"
+          render={({ field }) => (
+            <CurrencyInput label="Standard-rated sales — 20% VAT (cold drinks, alcohol)" value={field.value} onChangeValue={field.onChange} />
+          )}
+        />
+        {(zeroRated > 0 || standardRated > 0) && (
+          <View className="bg-slate-50 rounded-lg p-3 mt-1 gap-0.5">
+            <CalcRow label="Standard-rated ex-VAT" value={formatCurrency(standardRatedNet)} />
+            <CalcRow label="VAT collected (20%)" value={formatCurrency(vatCollected)} />
+            <CalcRow label="Total net sales (ex-VAT)" value={formatCurrency(totalNetSales)} highlight />
+          </View>
+        )}
+      </View>
+
+      {/* ── CONCESSIONS COMPANY ── */}
+      <SectionHeader title="Concessions Company / Organiser" />
+      <View className="bg-white rounded-xl p-4 border border-slate-100 gap-3">
+        <Controller control={control} name="concessions_commission_pct"
+          render={({ field }) => (
+            <FormField
+              label="Commission % (taken on net sales ex-VAT)"
+              value={field.value ? String(field.value) : ''}
+              onChangeText={(t) => field.onChange(parseFloat(t) || 0)}
+              keyboardType="decimal-pad"
+              placeholder="0"
+            />
+          )}
+        />
+        <Controller control={control} name="pitch_fee"
+          render={({ field }) => (
+            <CurrencyInput label="Pitch fee paid upfront" value={field.value} onChangeValue={field.onChange} />
+          )}
+        />
+        <Controller control={control} name="pitch_fee_refund_pct"
+          render={({ field }) => (
+            <FormField
+              label="Pitch fee refund % (before commission deduction)"
+              value={field.value ? String(field.value) : ''}
+              onChangeText={(t) => field.onChange(parseFloat(t) || 0)}
+              keyboardType="decimal-pad"
+              placeholder="0"
+            />
+          )}
+        />
+        {(pitchFee > 0 || commissionPct > 0) && (
+          <View className="bg-slate-50 rounded-lg p-3 mt-1 gap-0.5">
+            <CalcRow label={`Commission (${commissionPct}% × net sales)`} value={formatCurrency(commissionAmount)} />
+            <CalcRow label={`Pitch fee refund (${refundPct}%)`} value={formatCurrency(pitchFeeRefundGross)} />
+            <CalcRow label="Commission deducted from refund" value={`-${formatCurrency(commissionAmount)}`} />
+            <CalcRow label="Net refund received" value={formatCurrency(Math.max(0, netRefund))} />
+            {netRefund < 0 && (
+              <CalcRow label="Extra commission owed" value={formatCurrency(Math.abs(netRefund))} />
+            )}
+            <CalcRow label="Effective pitch cost" value={formatCurrency(Math.max(0, effectivePitchFee))} highlight />
+          </View>
+        )}
+      </View>
+
+      {/* ── YOUR OTHER COSTS ── */}
+      <SectionHeader title="Your Other Costs" />
+      <View className="bg-white rounded-xl p-4 border border-slate-100 gap-3">
+        <Controller control={control} name="cost_of_goods"
+          render={({ field }) => (<CurrencyInput label="Cost of Goods (COGS — stock, ingredients)" value={field.value} onChangeValue={field.onChange} />)}
+        />
+        <Controller control={control} name="staffing_costs"
+          render={({ field }) => (<CurrencyInput label="Staffing Total (or use Staffing tab)" value={field.value} onChangeValue={field.onChange} />)}
+        />
+        <Controller control={control} name="travel_costs"
+          render={({ field }) => (<CurrencyInput label="Travel & Fuel" value={field.value} onChangeValue={field.onChange} />)}
+        />
+        <Controller control={control} name="equipment_costs"
+          render={({ field }) => (<CurrencyInput label="Equipment & Hire" value={field.value} onChangeValue={field.onChange} />)}
+        />
+        <Controller control={control} name="other_costs"
+          render={({ field }) => (<CurrencyInput label="Other Costs (packaging, ice, gas...)" value={field.value} onChangeValue={field.onChange} />)}
+        />
+      </View>
+    </View>
+  );
 }
 
 interface Props {
@@ -46,7 +182,10 @@ export function EventForm({ defaultValues, companies, onSubmit, submitLabel = 'S
       name: '', date: '', end_date: '', location: '', description: '',
       application_date: '', status: 'pending', notes: '', company_id: '',
       application_url: '',
-      gross_sales: 0, cost_of_goods: 0, pitch_fee: 0, travel_costs: 0,
+      gross_sales: 0,
+      zero_rated_sales: 0, standard_rated_sales: 0,
+      concessions_commission_pct: 0, pitch_fee_refund_pct: 0,
+      cost_of_goods: 0, pitch_fee: 0, travel_costs: 0,
       equipment_costs: 0, other_costs: 0, staffing_costs: 0,
       staffing_entries: [], infrastructure_items: [],
       ...defaultValues,
@@ -214,33 +353,7 @@ export function EventForm({ defaultValues, companies, onSubmit, submitLabel = 'S
 
         {/* FINANCIALS TAB */}
         {activeTab === 'Financials' && (
-          <View className="gap-4">
-            <View className="bg-amber-50 rounded-xl p-3 border border-amber-100">
-              <Text className="text-amber-800 text-sm font-medium mb-0.5">Recording financials</Text>
-              <Text className="text-amber-700 text-xs">Fill in after the event. Net profit and margin are calculated automatically.</Text>
-            </View>
-            <Controller control={control} name="gross_sales"
-              render={({ field }) => (<CurrencyInput label="Gross Sales (Total Takings)" value={field.value} onChangeValue={field.onChange} />)}
-            />
-            <Controller control={control} name="cost_of_goods"
-              render={({ field }) => (<CurrencyInput label="Cost of Goods (COGS)" value={field.value} onChangeValue={field.onChange} />)}
-            />
-            <Controller control={control} name="pitch_fee"
-              render={({ field }) => (<CurrencyInput label="Pitch / Pitch Fee" value={field.value} onChangeValue={field.onChange} />)}
-            />
-            <Controller control={control} name="staffing_costs"
-              render={({ field }) => (<CurrencyInput label="Staffing Total (or use Staffing tab)" value={field.value} onChangeValue={field.onChange} />)}
-            />
-            <Controller control={control} name="travel_costs"
-              render={({ field }) => (<CurrencyInput label="Travel & Fuel" value={field.value} onChangeValue={field.onChange} />)}
-            />
-            <Controller control={control} name="equipment_costs"
-              render={({ field }) => (<CurrencyInput label="Equipment & Hire" value={field.value} onChangeValue={field.onChange} />)}
-            />
-            <Controller control={control} name="other_costs"
-              render={({ field }) => (<CurrencyInput label="Other Costs" value={field.value} onChangeValue={field.onChange} />)}
-            />
-          </View>
+          <FinancialsTabContent control={control} watch={watch} />
         )}
 
         {/* STAFFING TAB */}
