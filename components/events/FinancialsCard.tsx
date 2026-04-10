@@ -8,15 +8,37 @@ interface Props {
   calculations: EventCalculations;
 }
 
-function Row({ label, value, bold, color, indent }: {
-  label: string; value: string; bold?: boolean; color?: string; indent?: boolean;
+function Row({
+  label,
+  value,
+  bold,
+  color,
+  indent,
+}: {
+  label: string;
+  value: string;
+  bold?: boolean;
+  color?: string;
+  indent?: boolean;
 }) {
   return (
     <View className="flex-row justify-between items-center py-1.5">
-      <Text className={`${indent ? 'pl-3 text-stone-500' : bold ? 'font-semibold text-stone-900' : 'text-stone-600'} text-sm`}>
+      <Text
+        className={`text-sm ${
+          indent
+            ? 'pl-3 text-stone-500'
+            : bold
+            ? 'font-semibold text-stone-900'
+            : 'text-stone-600'
+        }`}
+      >
         {label}
       </Text>
-      <Text className={`text-sm ${bold ? 'font-bold' : 'font-medium'} ${color ?? (bold ? 'text-stone-900' : 'text-stone-600')}`}>
+      <Text
+        className={`text-sm ${bold ? 'font-bold' : 'font-medium'} ${
+          color ?? (bold ? 'text-stone-900' : 'text-stone-600')
+        }`}
+      >
         {value}
       </Text>
     </View>
@@ -36,8 +58,12 @@ function SectionLabel({ title }: { title: string }) {
 }
 
 export function FinancialsCard({ financials: f, calculations: c }: Props) {
-  const hasVatBreakdown = (f.zero_rated_sales ?? 0) > 0 || (f.standard_rated_sales ?? 0) > 0;
-  const hasCommission = (f.concessions_commission_pct ?? 0) > 0 || (f.pitch_fee_refund_pct ?? 0) > 0;
+  const hasVatBreakdown =
+    (f.zero_rated_sales ?? 0) > 0 || (f.standard_rated_sales ?? 0) > 0;
+  const hasCommission =
+    (f.concessions_commission_pct ?? 0) > 0 || (f.pitch_fee_refund_pct ?? 0) > 0;
+  const hasMilk =
+    (f.fresh_milk_litres ?? 0) > 0 || (f.alt_milk_litres ?? 0) > 0;
 
   return (
     <View className="bg-white rounded-2xl p-4 border border-stone-100">
@@ -47,17 +73,21 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
       <SectionLabel title="Sales" />
       {hasVatBreakdown ? (
         <>
-          <Row label="Hot drinks & food (20% VAT, incl. VAT)" value={formatCurrency(f.standard_rated_sales ?? 0)} />
+          <Row
+            label="Hot drinks & food (20% VAT, incl. VAT)"
+            value={formatCurrency(f.standard_rated_sales ?? 0)}
+          />
           <Row label="  Ex-VAT net" value={formatCurrency(c.standardRatedNet)} indent />
           <Row label="  VAT collected" value={formatCurrency(c.vatCollected)} indent />
-          <Row label="Cold drinks (0% VAT)" value={formatCurrency(f.zero_rated_sales ?? 0)} />
+          <Row
+            label="Cold drinks (0% VAT)"
+            value={formatCurrency(f.zero_rated_sales ?? 0)}
+          />
           <Divider />
           <Row label="Total Net Sales (ex-VAT)" value={formatCurrency(c.totalNetSales)} bold />
         </>
       ) : (
-        <>
-          <Row label="Gross Sales" value={formatCurrency(f.gross_sales)} bold />
-        </>
+        <Row label="Gross Sales" value={formatCurrency(f.gross_sales)} bold />
       )}
 
       {/* ── PITCH FEE & COMMISSION ── */}
@@ -81,20 +111,56 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
             indent
             color={c.netRefund >= 0 ? 'text-green-600' : 'text-red-500'}
           />
-          <Row label="Effective pitch cost" value={formatCurrency(c.effectivePitchFee)} bold />
+          <Row
+            label="Effective pitch cost"
+            value={formatCurrency(c.effectivePitchFee)}
+            bold
+          />
         </>
       )}
 
-      {/* ── COSTS ── */}
+      {/* ── POWER & SITE FEES ── */}
+      {(f.power_fee ?? 0) > 0 && (
+        <>
+          <SectionLabel title="Power & Site Fees" />
+          <Row label="Power fee" value={formatCurrency(f.power_fee ?? 0)} />
+        </>
+      )}
+
+      {/* ── YOUR COSTS ── */}
       <SectionLabel title="Your Costs" />
       <Row label="Cost of Goods" value={formatCurrency(f.cost_of_goods)} />
       {!hasCommission && <Row label="Pitch Fee" value={formatCurrency(f.pitch_fee)} />}
       <Row label="Staffing" value={formatCurrency(f.staffing_costs)} />
       <Row label="Travel" value={formatCurrency(f.travel_costs)} />
+      {(f.camping_costs ?? 0) > 0 && (
+        <Row label="Camping" value={formatCurrency(f.camping_costs ?? 0)} />
+      )}
       <Row label="Equipment" value={formatCurrency(f.equipment_costs)} />
-      {f.other_costs > 0 && <Row label="Other" value={formatCurrency(f.other_costs)} />}
-      <Divider />
+      {(f.other_costs ?? 0) > 0 && (
+        <Row label="Other" value={formatCurrency(f.other_costs ?? 0)} />
+      )}
 
+      {/* ── MILK USED ── */}
+      {hasMilk && (
+        <>
+          <SectionLabel title="Milk Used" />
+          {(f.fresh_milk_litres ?? 0) > 0 && (
+            <Row
+              label="Fresh Milk"
+              value={`${(f.fresh_milk_litres ?? 0).toFixed(1)} L`}
+            />
+          )}
+          {(f.alt_milk_litres ?? 0) > 0 && (
+            <Row
+              label="Alt Milk"
+              value={`${(f.alt_milk_litres ?? 0).toFixed(1)} L`}
+            />
+          )}
+        </>
+      )}
+
+      <Divider />
       <Row label="Total Costs" value={formatCurrency(c.totalCosts)} bold />
       <Divider />
 
