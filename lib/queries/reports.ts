@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { calcEventFinancials } from '@/lib/calculations';
 import { formatMonthLabel } from '@/lib/formatters';
+import { EMPTY_CALCULATIONS } from '@/types';
 import type { ReportData, MonthlyBreakdown, CompanyPerformance, ApplicationStatus } from '@/types';
 
 export function useReports(year: number) {
@@ -58,6 +59,9 @@ export function useReports(year: number) {
         entry.profitMargin = entry.grossSales > 0 ? (entry.netProfit / entry.grossSales) * 100 : 0;
       });
 
+      const totalFreshMilkLitres = allEvents.reduce((s, e) => s + (e.event_financials?.fresh_milk_litres ?? 0), 0);
+      const totalAltMilkLitres = allEvents.reduce((s, e) => s + (e.event_financials?.alt_milk_litres ?? 0), 0);
+
       const topEvents = [...allEvents]
         .filter((e) => e.event_financials)
         .sort(
@@ -92,6 +96,8 @@ export function useReports(year: number) {
         totalNet,
         totalEvents: allEvents.length,
         avgMargin,
+        totalFreshMilkLitres,
+        totalAltMilkLitres,
         monthly: Array.from(monthlyMap.values()),
         topEvents,
         companyPerformance,

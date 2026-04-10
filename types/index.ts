@@ -1,6 +1,6 @@
-import type { Database, ApplicationStatus } from './database';
+import type { Database, ApplicationStatus, UnitStatus } from './database';
 
-export type { ApplicationStatus } from './database';
+export type { ApplicationStatus, UnitStatus } from './database';
 
 type Tables = Database['public']['Tables'];
 
@@ -10,6 +10,8 @@ export type Event = Tables['events']['Row'];
 export type EventFinancials = Tables['event_financials']['Row'];
 export type StaffingEntry = Tables['staffing_entries']['Row'];
 export type InfrastructureItem = Tables['infrastructure_items']['Row'];
+export type Unit = Tables['units']['Row'];
+export type UkEventDirectory = Tables['uk_events_directory']['Row'];
 
 export type InfrastructureCategory = 'pitch_fee' | 'travel' | 'equipment' | 'supplies' | 'other';
 
@@ -31,9 +33,16 @@ export interface EventCalculations {
   totalStaffingCost: number;
 }
 
+export const EMPTY_CALCULATIONS: EventCalculations = {
+  standardRatedNet: 0, vatCollected: 0, totalNetSales: 0,
+  commissionAmount: 0, pitchFeeRefundGross: 0, netRefund: 0, effectivePitchFee: 0,
+  grossProfit: 0, totalCosts: 0, netProfit: 0, profitMargin: 0, totalStaffingCost: 0,
+};
+
 export interface EventWithFinancials extends Event {
   event_financials: EventFinancials | null;
   concessions_companies: ConcessionsCompany | null;
+  units?: Unit | null;
   calculations: EventCalculations;
 }
 
@@ -51,6 +60,11 @@ export interface DiscoveredEvent {
   location: string | null;
   dateHint: string | null;
   category: string;
+  region: string | null;
+  organiser: string | null;
+  estimatedFootfall: string | null;
+  pitchFeeRange: string | null;
+  featured: boolean;
 }
 
 export interface CompanyWithStats extends ConcessionsCompany {
@@ -59,6 +73,10 @@ export interface CompanyWithStats extends ConcessionsCompany {
   totalRevenue: number;
   totalNetProfit: number;
   lastEventDate: string | null;
+}
+
+export interface UnitWithStatus extends Unit {
+  currentEvent: EventWithFinancials | null;
 }
 
 export interface DashboardStats {
@@ -70,6 +88,9 @@ export interface DashboardStats {
   upcomingEvents: EventWithFinancials[];
   monthlyRevenue: MonthlyRevenue[];
   statusBreakdown: StatusCount[];
+  totalFreshMilkLitres: number;
+  totalAltMilkLitres: number;
+  unitStatuses: UnitWithStatus[];
 }
 
 export interface MonthlyRevenue {
@@ -89,6 +110,8 @@ export interface ReportData {
   totalNet: number;
   totalEvents: number;
   avgMargin: number;
+  totalFreshMilkLitres: number;
+  totalAltMilkLitres: number;
   monthly: MonthlyBreakdown[];
   topEvents: EventWithFinancials[];
   companyPerformance: CompanyPerformance[];
@@ -112,31 +135,6 @@ export interface CompanyPerformance {
   acceptanceRate: number;
 }
 
-export interface EventFormValues {
-  name: string;
-  date: string;
-  end_date?: string;
-  location: string;
-  description?: string;
-  application_date?: string;
-  status: ApplicationStatus;
-  notes?: string;
-  company_id?: string;
-  gross_sales: number;
-  zero_rated_sales: number;
-  standard_rated_sales: number;
-  concessions_commission_pct: number;
-  pitch_fee_refund_pct: number;
-  cost_of_goods: number;
-  pitch_fee: number;
-  travel_costs: number;
-  equipment_costs: number;
-  other_costs: number;
-  staffing_costs: number;
-  staffing_entries: StaffingEntryForm[];
-  infrastructure_items: InfrastructureItemForm[];
-}
-
 export interface StaffingEntryForm {
   id?: string;
   staff_name: string;
@@ -149,6 +147,13 @@ export interface InfrastructureItemForm {
   description: string;
   category: InfrastructureCategory;
   cost: number;
+}
+
+export interface UnitFormValues {
+  name: string;
+  registration?: string;
+  notes?: string;
+  status: UnitStatus;
 }
 
 export interface CompanyFormValues {

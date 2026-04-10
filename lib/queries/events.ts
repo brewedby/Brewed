@@ -1,12 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { calcEventFinancials } from '@/lib/calculations';
+import { EMPTY_CALCULATIONS } from '@/types';
 import type { EventWithFinancials, EventDetail, ApplicationStatus } from '@/types';
 
 export interface EventFilters {
   status?: ApplicationStatus | 'all';
   year?: number;
   companyId?: string;
+  unitId?: string;
 }
 
 export function useEvents(filters?: EventFilters) {
@@ -15,35 +17,22 @@ export function useEvents(filters?: EventFilters) {
     queryFn: async () => {
       let query = supabase
         .from('events')
-        .select(`
-          *,
-          event_financials(*),
-          concessions_companies(*)
-        `)
+        .select('*, event_financials(*), concessions_companies(*), units(*)')
         .order('date', { ascending: false });
 
-      if (filters?.status && filters.status !== 'all') {
-        query = query.eq('status', filters.status);
-      }
-      if (filters?.year) {
-        query = query
-          .gte('date', `${filters.year}-01-01`)
-          .lte('date', `${filters.year}-12-31`);
-      }
-      if (filters?.companyId) {
-        query = query.eq('company_id', filters.companyId);
-      }
+      if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status);
+      if (filters?.year) query = query.gte('date', `${filters.year}-01-01`).lte('date', `${filters.year}-12-31`);
+      if (filters?.companyId) query = query.eq('company_id', filters.companyId);
+      if (filters?.unitId) query = query.eq('unit_id', filters.unitId);
 
       const { data, error } = await query;
       if (error) throw error;
 
       return (data ?? []).map((event) => ({
         ...event,
-        event_financials: event.event_financials,
-        concessions_companies: event.concessions_companies,
         calculations: event.event_financials
           ? calcEventFinancials(event.event_financials)
-          : { grossProfit: 0, totalCosts: 0, netProfit: 0, profitMargin: 0, totalStaffingCost: 0 },
+          : EMPTY_CALCULATIONS,
       })) as EventWithFinancials[];
     },
   });
@@ -55,13 +44,7 @@ export function useEvent(id: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('events')
-        .select(`
-          *,
-          event_financials(*),
-          concessions_companies(*),
-          staffing_entries(*),
-          infrastructure_items(*)
-        `)
+        .select('*, event_financials(*), concessions_companies(*), units(*), staffing_entries(*), infrastructure_items(*)')
         .eq('id', id)
         .single();
 
@@ -72,7 +55,7 @@ export function useEvent(id: string) {
         ...data,
         calculations: data.event_financials
           ? calcEventFinancials(data.event_financials, staffing)
-          : { grossProfit: 0, totalCosts: 0, netProfit: 0, profitMargin: 0, totalStaffingCost: 0 },
+          : EMPTY_CALCULATIONS,
       } as EventDetail;
     },
     enabled: !!id,
@@ -90,6 +73,7 @@ export function useDeleteEvent() {
       qc.invalidateQueries({ queryKey: ['events'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
       qc.invalidateQueries({ queryKey: ['reports'] });
+      qc.invalidateQueries({ queryKey: ['units'] });
     },
   });
 }

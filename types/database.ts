@@ -12,6 +12,8 @@ export type InfrastructureCategory =
   | 'supplies'
   | 'other';
 
+export type UnitStatus = 'active' | 'maintenance' | 'retired';
+
 export interface Database {
   public: {
     Tables: {
@@ -33,6 +35,38 @@ export interface Database {
           business_name?: string | null;
           push_token?: string | null;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      units: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          registration: string | null;
+          notes: string | null;
+          status: UnitStatus;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          registration?: string | null;
+          notes?: string | null;
+          status?: UnitStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          registration?: string | null;
+          notes?: string | null;
+          status?: UnitStatus;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -87,6 +121,9 @@ export interface Database {
           status: ApplicationStatus;
           notes: string | null;
           company_id: string | null;
+          unit_id: string | null;
+          overnight_stay: boolean;
+          documents_uploaded: boolean;
           application_url: string | null;
           page_hash: string | null;
           url_last_checked_at: string | null;
@@ -106,6 +143,9 @@ export interface Database {
           status?: ApplicationStatus;
           notes?: string | null;
           company_id?: string | null;
+          unit_id?: string | null;
+          overnight_stay?: boolean;
+          documents_uploaded?: boolean;
           application_url?: string | null;
           page_hash?: string | null;
           url_last_checked_at?: string | null;
@@ -125,6 +165,9 @@ export interface Database {
           status?: ApplicationStatus;
           notes?: string | null;
           company_id?: string | null;
+          unit_id?: string | null;
+          overnight_stay?: boolean;
+          documents_uploaded?: boolean;
           application_url?: string | null;
           page_hash?: string | null;
           url_last_checked_at?: string | null;
@@ -137,6 +180,13 @@ export interface Database {
             columns: ["company_id"];
             isOneToOne: false;
             referencedRelation: "concessions_companies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "events_unit_id_fkey";
+            columns: ["unit_id"];
+            isOneToOne: false;
+            referencedRelation: "units";
             referencedColumns: ["id"];
           }
         ];
@@ -152,10 +202,14 @@ export interface Database {
           pitch_fee_refund_pct: number;
           cost_of_goods: number;
           pitch_fee: number;
+          power_fee: number;
           travel_costs: number;
+          camping_costs: number;
           equipment_costs: number;
           other_costs: number;
           staffing_costs: number;
+          fresh_milk_litres: number;
+          alt_milk_litres: number;
           created_at: string;
           updated_at: string;
         };
@@ -169,10 +223,14 @@ export interface Database {
           pitch_fee_refund_pct?: number;
           cost_of_goods?: number;
           pitch_fee?: number;
+          power_fee?: number;
           travel_costs?: number;
+          camping_costs?: number;
           equipment_costs?: number;
           other_costs?: number;
           staffing_costs?: number;
+          fresh_milk_litres?: number;
+          alt_milk_litres?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -186,10 +244,14 @@ export interface Database {
           pitch_fee_refund_pct?: number;
           cost_of_goods?: number;
           pitch_fee?: number;
+          power_fee?: number;
           travel_costs?: number;
+          camping_costs?: number;
           equipment_costs?: number;
           other_costs?: number;
           staffing_costs?: number;
+          fresh_milk_litres?: number;
+          alt_milk_litres?: number;
           updated_at?: string;
         };
         Relationships: [
@@ -276,12 +338,69 @@ export interface Database {
           }
         ];
       };
+      uk_events_directory: {
+        Row: {
+          id: string;
+          name: string;
+          organiser: string | null;
+          website: string | null;
+          location: string | null;
+          region: string | null;
+          category: string | null;
+          description: string | null;
+          application_url: string | null;
+          typical_dates: string | null;
+          next_date: string | null;
+          estimated_footfall: string | null;
+          pitch_fee_range: string | null;
+          source: string;
+          featured: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          organiser?: string | null;
+          website?: string | null;
+          location?: string | null;
+          region?: string | null;
+          category?: string | null;
+          description?: string | null;
+          application_url?: string | null;
+          typical_dates?: string | null;
+          next_date?: string | null;
+          estimated_footfall?: string | null;
+          pitch_fee_range?: string | null;
+          source?: string;
+          featured?: boolean;
+        };
+        Update: {
+          name?: string;
+          organiser?: string | null;
+          website?: string | null;
+          location?: string | null;
+          region?: string | null;
+          category?: string | null;
+          description?: string | null;
+          application_url?: string | null;
+          typical_dates?: string | null;
+          next_date?: string | null;
+          estimated_footfall?: string | null;
+          pitch_fee_range?: string | null;
+          source?: string;
+          featured?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
     Enums: {
       application_status: ApplicationStatus;
       infrastructure_category: InfrastructureCategory;
+      unit_status: UnitStatus;
     };
     CompositeTypes: Record<string, never>;
   };

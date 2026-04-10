@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { EventForm } from '@/components/events/EventForm';
 import { useCreateEvent } from '@/lib/mutations/events';
 import { useCompanies } from '@/lib/queries/companies';
+import { useUnits } from '@/lib/queries/units';
 import { useAuth } from '@/lib/auth';
 
 export default function NewEventScreen() {
@@ -13,6 +14,7 @@ export default function NewEventScreen() {
   const { user } = useAuth();
   const createEvent = useCreateEvent();
   const { data: companies = [] } = useCompanies();
+  const { data: units = [] } = useUnits();
 
   return (
     <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
@@ -24,6 +26,7 @@ export default function NewEventScreen() {
       </View>
       <EventForm
         companies={companies}
+        units={units}
         onSubmit={async (data) => { await createEvent.mutateAsync({ data, userId: user!.id }); }}
         submitLabel="Create Event"
       />

@@ -153,6 +153,9 @@ export default function EventDetailScreen() {
           {event.concessions_companies && (
             <Text className="text-slate-400 text-xs mt-0.5">🏢 {event.concessions_companies.name}</Text>
           )}
+          {(event as any).units?.name && (
+            <Text className="text-slate-400 text-xs mt-0.5">🚐 {(event as any).units.name}</Text>
+          )}
         </View>
       </View>
 
@@ -253,33 +256,43 @@ export default function EventDetailScreen() {
         )}
 
         {/* Details */}
-        {(event.description || event.notes || event.application_date) && (
-          <View className="bg-white rounded-2xl p-4 border border-slate-100 mb-4 gap-3">
-            <Text className="font-bold text-slate-700">Details</Text>
-            {event.application_date && (
-              <View className="flex-row">
-                <Text className="text-slate-400 text-sm w-28">Applied on</Text>
-                <Text className="text-slate-700 text-sm font-medium">{formatDate(event.application_date)}</Text>
-              </View>
-            )}
-            {(event as any).url_last_checked_at && (
-              <View className="flex-row">
-                <Text className="text-slate-400 text-sm w-28">Last checked</Text>
-                <Text className="text-slate-700 text-sm">{formatDate((event as any).url_last_checked_at)}</Text>
-              </View>
-            )}
-            {event.description && (
-              <Text className="text-slate-600 text-sm leading-relaxed">{event.description}</Text>
-            )}
-            {event.notes && (
-              <>
-                <View className="border-t border-slate-50" />
-                <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wide">Notes</Text>
-                <Text className="text-slate-600 text-sm leading-relaxed">{event.notes}</Text>
-              </>
-            )}
+        <View className="bg-white rounded-2xl p-4 border border-slate-100 mb-4 gap-3">
+          <Text className="font-bold text-slate-700">Details</Text>
+          {event.application_date && (
+            <View className="flex-row">
+              <Text className="text-slate-400 text-sm w-32">Applied on</Text>
+              <Text className="text-slate-700 text-sm font-medium">{formatDate(event.application_date)}</Text>
+            </View>
+          )}
+          {(event as any).overnight_stay && (
+            <View className="flex-row items-center">
+              <Text className="text-slate-400 text-sm w-32">Overnight stay</Text>
+              <Text className="text-amber-700 text-sm font-medium">🌙 Yes</Text>
+            </View>
+          )}
+          <View className="flex-row items-center">
+            <Text className="text-slate-400 text-sm w-32">Docs uploaded</Text>
+            <Text className={`text-sm font-medium ${(event as any).documents_uploaded ? 'text-green-600' : 'text-slate-400'}`}>
+              {(event as any).documents_uploaded ? '✅ Yes' : '⏳ Not yet'}
+            </Text>
           </View>
-        )}
+          {(event as any).url_last_checked_at && (
+            <View className="flex-row">
+              <Text className="text-slate-400 text-sm w-32">Last checked</Text>
+              <Text className="text-slate-700 text-sm">{formatDate((event as any).url_last_checked_at)}</Text>
+            </View>
+          )}
+          {event.description && (
+            <Text className="text-slate-600 text-sm leading-relaxed">{event.description}</Text>
+          )}
+          {event.notes && (
+            <>
+              <View className="border-t border-slate-50" />
+              <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wide">Notes</Text>
+              <Text className="text-slate-600 text-sm leading-relaxed">{event.notes}</Text>
+            </>
+          )}
+        </View>
 
         {/* Danger zone */}
         <View className="bg-white rounded-2xl p-4 border border-red-100 mb-6">

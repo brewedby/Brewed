@@ -21,7 +21,10 @@ export function useCreateEvent() {
           status: data.status as any,
           notes: data.notes || null,
           company_id: data.company_id || null,
-          application_url: (data as any).application_url || null,
+          unit_id: data.unit_id || null,
+          overnight_stay: data.overnight_stay ?? false,
+          documents_uploaded: data.documents_uploaded ?? false,
+          application_url: data.application_url || null,
         })
         .select()
         .single();
@@ -30,31 +33,29 @@ export function useCreateEvent() {
       // 2. Calculate staffing total from entries if provided
       const staffingTotal =
         data.staffing_entries.length > 0
-          ? calcStaffingTotal(
-              data.staffing_entries.map((e) => ({
-                ...e,
-                id: '',
-                event_id: event.id,
-                created_at: '',
-                updated_at: '',
-              }))
-            )
+          ? calcStaffingTotal(data.staffing_entries.map((e) => ({ ...e, id: '', event_id: event.id, created_at: '', updated_at: '' })))
           : data.staffing_costs;
 
       // 3. Create financials
+      const zeroRated = data.zero_rated_sales ?? 0;
+      const standardRated = data.standard_rated_sales ?? 0;
       const { error: finError } = await supabase.from('event_financials').insert({
         event_id: event.id,
-        gross_sales: (data.zero_rated_sales ?? 0) + (data.standard_rated_sales ?? 0) || data.gross_sales,
-        zero_rated_sales: data.zero_rated_sales ?? 0,
-        standard_rated_sales: data.standard_rated_sales ?? 0,
+        gross_sales: zeroRated + standardRated || data.gross_sales,
+        zero_rated_sales: zeroRated,
+        standard_rated_sales: standardRated,
         concessions_commission_pct: data.concessions_commission_pct ?? 0,
         pitch_fee_refund_pct: data.pitch_fee_refund_pct ?? 0,
         cost_of_goods: data.cost_of_goods,
         pitch_fee: data.pitch_fee,
+        power_fee: data.power_fee ?? 0,
         travel_costs: data.travel_costs,
+        camping_costs: data.camping_costs ?? 0,
         equipment_costs: data.equipment_costs,
         other_costs: data.other_costs,
         staffing_costs: staffingTotal,
+        fresh_milk_litres: data.fresh_milk_litres ?? 0,
+        alt_milk_litres: data.alt_milk_litres ?? 0,
       });
       if (finError) throw finError;
 
@@ -91,6 +92,7 @@ export function useCreateEvent() {
       qc.invalidateQueries({ queryKey: ['dashboard'] });
       qc.invalidateQueries({ queryKey: ['reports'] });
       qc.invalidateQueries({ queryKey: ['companies'] });
+      qc.invalidateQueries({ queryKey: ['units'] });
     },
   });
 }
@@ -112,7 +114,10 @@ export function useUpdateEvent() {
           status: data.status as any,
           notes: data.notes || null,
           company_id: data.company_id || null,
-          application_url: (data as any).application_url || null,
+          unit_id: data.unit_id || null,
+          overnight_stay: data.overnight_stay ?? false,
+          documents_uploaded: data.documents_uploaded ?? false,
+          application_url: data.application_url || null,
           url_changed: false,
         })
         .eq('id', id);
@@ -120,45 +125,41 @@ export function useUpdateEvent() {
 
       const staffingTotal =
         data.staffing_entries.length > 0
-          ? calcStaffingTotal(
-              data.staffing_entries.map((e) => ({
-                ...e,
-                id: e.id ?? '',
-                event_id: id,
-                created_at: '',
-                updated_at: '',
-              }))
-            )
+          ? calcStaffingTotal(data.staffing_entries.map((e) => ({ ...e, id: e.id ?? '', event_id: id, created_at: '', updated_at: '' })))
           : data.staffing_costs;
+
+      const zeroRated = data.zero_rated_sales ?? 0;
+      const standardRated = data.standard_rated_sales ?? 0;
 
       // 2. Upsert financials
       const { error: finError } = await supabase
         .from('event_financials')
         .upsert({
           event_id: id,
-          gross_sales: (data.zero_rated_sales ?? 0) + (data.standard_rated_sales ?? 0) || data.gross_sales,
-          zero_rated_sales: data.zero_rated_sales ?? 0,
-          standard_rated_sales: data.standard_rated_sales ?? 0,
+          gross_sales: zeroRated + standardRated || data.gross_sales,
+          zero_rated_sales: zeroRated,
+          standard_rated_sales: standardRated,
           concessions_commission_pct: data.concessions_commission_pct ?? 0,
           pitch_fee_refund_pct: data.pitch_fee_refund_pct ?? 0,
           cost_of_goods: data.cost_of_goods,
           pitch_fee: data.pitch_fee,
+          power_fee: data.power_fee ?? 0,
           travel_costs: data.travel_costs,
+          camping_costs: data.camping_costs ?? 0,
           equipment_costs: data.equipment_costs,
           other_costs: data.other_costs,
           staffing_costs: staffingTotal,
+          fresh_milk_litres: data.fresh_milk_litres ?? 0,
+          alt_milk_litres: data.alt_milk_litres ?? 0,
         }, { onConflict: 'event_id' });
       if (finError) throw finError;
 
-      // 3. Replace staffing entries (delete then re-insert)
+      // 3. Replace staffing entries
       await supabase.from('staffing_entries').delete().eq('event_id', id);
       if (data.staffing_entries.length > 0) {
         const { error: staffError } = await supabase.from('staffing_entries').insert(
           data.staffing_entries.map((e) => ({
-            event_id: id,
-            staff_name: e.staff_name,
-            hours_worked: e.hours_worked,
-            hourly_rate: e.hourly_rate,
+            event_id: id, staff_name: e.staff_name, hours_worked: e.hours_worked, hourly_rate: e.hourly_rate,
           }))
         );
         if (staffError) throw staffError;
@@ -169,10 +170,7 @@ export function useUpdateEvent() {
       if (data.infrastructure_items.length > 0) {
         const { error: infraError } = await supabase.from('infrastructure_items').insert(
           data.infrastructure_items.map((item) => ({
-            event_id: id,
-            description: item.description,
-            category: item.category as any,
-            cost: item.cost,
+            event_id: id, description: item.description, category: item.category as any, cost: item.cost,
           }))
         );
         if (infraError) throw infraError;
@@ -184,6 +182,7 @@ export function useUpdateEvent() {
       qc.invalidateQueries({ queryKey: ['dashboard'] });
       qc.invalidateQueries({ queryKey: ['reports'] });
       qc.invalidateQueries({ queryKey: ['companies'] });
+      qc.invalidateQueries({ queryKey: ['units'] });
     },
   });
 }
