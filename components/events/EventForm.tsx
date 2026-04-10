@@ -78,14 +78,14 @@ function FinancialsTabContent({
       {/* ── SALES & VAT ── */}
       <SectionHeader title="Sales & VAT" />
       <View className="bg-white rounded-xl p-4 border border-slate-100 gap-3">
-        <Controller control={control} name="zero_rated_sales"
-          render={({ field }) => (
-            <CurrencyInput label="Zero-rated sales — 0% VAT (food, hot drinks)" value={field.value} onChangeValue={field.onChange} />
-          )}
-        />
         <Controller control={control} name="standard_rated_sales"
           render={({ field }) => (
-            <CurrencyInput label="Standard-rated sales — 20% VAT (cold drinks, alcohol)" value={field.value} onChangeValue={field.onChange} />
+            <CurrencyInput label="Hot drinks & food — 20% VAT" value={field.value} onChangeValue={field.onChange} />
+          )}
+        />
+        <Controller control={control} name="zero_rated_sales"
+          render={({ field }) => (
+            <CurrencyInput label="Cold drinks — 0% VAT" value={field.value} onChangeValue={field.onChange} />
           )}
         />
         {(zeroRated > 0 || standardRated > 0) && (

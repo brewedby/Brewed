@@ -47,10 +47,10 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
       <SectionLabel title="Sales" />
       {hasVatBreakdown ? (
         <>
-          <Row label="Zero-rated sales (0% VAT)" value={formatCurrency(f.zero_rated_sales ?? 0)} />
-          <Row label="Standard-rated sales (incl. VAT)" value={formatCurrency(f.standard_rated_sales ?? 0)} />
+          <Row label="Hot drinks & food (20% VAT, incl. VAT)" value={formatCurrency(f.standard_rated_sales ?? 0)} />
           <Row label="  Ex-VAT net" value={formatCurrency(c.standardRatedNet)} indent />
           <Row label="  VAT collected" value={formatCurrency(c.vatCollected)} indent />
+          <Row label="Cold drinks (0% VAT)" value={formatCurrency(f.zero_rated_sales ?? 0)} />
           <Divider />
           <Row label="Total Net Sales (ex-VAT)" value={formatCurrency(c.totalNetSales)} bold />
         </>
