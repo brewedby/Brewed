@@ -41,7 +41,7 @@ export function useCreateEvent() {
       const standardRated = data.standard_rated_sales ?? 0;
       const { error: finError } = await supabase.from('event_financials').insert({
         event_id: event.id,
-        gross_sales: zeroRated + standardRated || data.gross_sales,
+        gross_sales: (zeroRated + standardRated) || data.gross_sales || 0,
         zero_rated_sales: zeroRated,
         standard_rated_sales: standardRated,
         concessions_commission_pct: data.concessions_commission_pct ?? 0,
@@ -136,7 +136,7 @@ export function useUpdateEvent() {
         .from('event_financials')
         .upsert({
           event_id: id,
-          gross_sales: zeroRated + standardRated || data.gross_sales,
+          gross_sales: (zeroRated + standardRated) || data.gross_sales || 0,
           zero_rated_sales: zeroRated,
           standard_rated_sales: standardRated,
           concessions_commission_pct: data.concessions_commission_pct ?? 0,
