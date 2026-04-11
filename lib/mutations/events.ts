@@ -18,7 +18,7 @@ export function useCreateEvent() {
           location: data.location,
           description: data.description || null,
           application_date: data.application_date || null,
-          status: data.status as any,
+          status: data.status,
           notes: data.notes || null,
           company_id: data.company_id || null,
           unit_id: data.unit_id || null,
@@ -78,7 +78,7 @@ export function useCreateEvent() {
           data.infrastructure_items.map((item) => ({
             event_id: event.id,
             description: item.description,
-            category: item.category as any,
+            category: item.category,
             cost: item.cost,
           }))
         );
@@ -111,7 +111,7 @@ export function useUpdateEvent() {
           location: data.location,
           description: data.description || null,
           application_date: data.application_date || null,
-          status: data.status as any,
+          status: data.status,
           notes: data.notes || null,
           company_id: data.company_id || null,
           unit_id: data.unit_id || null,
@@ -170,7 +170,7 @@ export function useUpdateEvent() {
       if (data.infrastructure_items.length > 0) {
         const { error: infraError } = await supabase.from('infrastructure_items').insert(
           data.infrastructure_items.map((item) => ({
-            event_id: id, description: item.description, category: item.category as any, cost: item.cost,
+            event_id: id, description: item.description, category: item.category, cost: item.cost,
           }))
         );
         if (infraError) throw infraError;

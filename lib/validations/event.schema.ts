@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { STATUSES, INFRASTRUCTURE_CATEGORIES } from '@/constants';
 
 const staffingEntrySchema = z.object({
   id: z.string().optional(),
@@ -11,7 +10,7 @@ const staffingEntrySchema = z.object({
 const infrastructureItemSchema = z.object({
   id: z.string().optional(),
   description: z.string().min(1, 'Description required'),
-  category: z.enum(INFRASTRUCTURE_CATEGORIES as [string, ...string[]]),
+  category: z.enum(['pitch_fee', 'travel', 'equipment', 'supplies', 'other'] as const),
   cost: z.coerce.number().min(0),
 });
 
@@ -23,7 +22,7 @@ export const eventSchema = z.object({
   location: z.string().min(2, 'Location is required'),
   description: z.string().optional(),
   application_date: z.string().optional(),
-  status: z.enum(STATUSES as [string, ...string[]]),
+  status: z.enum(['pending', 'accepted', 'rejected', 'waitlisted', 'withdrawn'] as const),
   notes: z.string().optional(),
   company_id: z.string().optional(),
   unit_id: z.string().optional(),

@@ -13,7 +13,7 @@ export function useCreateUnit() {
           name: data.name,
           registration: data.registration || null,
           notes: data.notes || null,
-          status: (data.status as any) ?? 'active',
+          status: data.status ?? 'active',
         })
         .select()
         .single();
@@ -37,7 +37,7 @@ export function useUpdateUnit() {
           name: data.name,
           registration: data.registration || null,
           notes: data.notes || null,
-          status: data.status as any,
+          status: data.status,
         })
         .eq('id', id);
       if (error) throw error;

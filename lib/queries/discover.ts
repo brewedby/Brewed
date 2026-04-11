@@ -8,6 +8,8 @@ export interface DiscoverFilters {
   category?: string;
 }
 
+const COMPANY_CATEGORIES = ['Concessions Company', 'Industry Body'];
+
 export function useDiscoverEvents(filters: DiscoverFilters) {
   return useQuery({
     queryKey: ['discover', filters],
@@ -33,7 +35,6 @@ export function useDiscoverEvents(filters: DiscoverFilters) {
       const { data, error } = await query;
       if (error) throw error;
 
-      const COMPANY_CATEGORIES = ['Concessions Company', 'Industry Body'];
       return (data ?? []).map((row) => ({
         id: row.id,
         title: row.name,
@@ -41,18 +42,18 @@ export function useDiscoverEvents(filters: DiscoverFilters) {
         url: row.application_url ?? row.website ?? '',
         source: row.organiser ?? row.source ?? 'UK Events Directory',
         location: row.location,
-        dateHint: row.typical_dates ?? (row.next_date ? row.next_date : null),
+        dateHint: row.typical_dates ?? (row.next_date ?? null),
         category: row.category ?? 'Event',
         region: row.region,
         organiser: row.organiser,
         estimatedFootfall: row.estimated_footfall,
         pitchFeeRange: row.pitch_fee_range,
         featured: row.featured ?? false,
-        eventsManaged: (row as any).events_managed ?? null,
-        contactPhone: (row as any).contact_phone ?? null,
-        contactEmail: (row as any).contact_email ?? null,
-        lastVerifiedAt: (row as any).last_verified_at ?? null,
-        applicationChanged: (row as any).application_changed ?? false,
+        eventsManaged: row.events_managed ?? null,
+        contactPhone: row.contact_phone ?? null,
+        contactEmail: row.contact_email ?? null,
+        lastVerifiedAt: row.last_verified_at ?? null,
+        applicationChanged: row.application_changed ?? false,
         isCompany: COMPANY_CATEGORIES.includes(row.category ?? ''),
       }));
     },
