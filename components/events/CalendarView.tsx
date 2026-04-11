@@ -138,13 +138,14 @@ function OverlapModal({
   allEvents,
   date,
   onClose,
+  router,
 }: {
   events: EventWithFinancials[];
   allEvents: EventWithFinancials[];
   date: string;
   onClose: () => void;
+  router: ReturnType<typeof useRouter>;
 }) {
-  const router = useRouter();
   const isOverlap = events.length >= 2;
   const scores = useMemo(
     () => events.map((e) => ({ event: e, result: scoreEvent(e, allEvents) })),
@@ -263,6 +264,7 @@ function OverlapModal({
 
 export function CalendarView({ events }: { events: EventWithFinancials[] }) {
   const today = new Date();
+  const router = useRouter();
   const [year, setYear]   = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth()); // 0-based
   const [selected, setSelected] = useState<{ date: string; events: EventWithFinancials[] } | null>(null);
@@ -387,6 +389,7 @@ export function CalendarView({ events }: { events: EventWithFinancials[] }) {
           allEvents={events}
           date={selected.date}
           onClose={() => setSelected(null)}
+          router={router}
         />
       )}
     </View>
