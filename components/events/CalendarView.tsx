@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, TouchableOpacity, Modal, ScrollView, Linking,
+  View, Text, TouchableOpacity, Modal, ScrollView, Linking, RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { STATUS_COLORS, STATUS_LABELS } from '@/constants';
@@ -262,7 +262,13 @@ function OverlapModal({
 
 // ── main CalendarView ─────────────────────────────────────────────────────────
 
-export function CalendarView({ events }: { events: EventWithFinancials[] }) {
+export function CalendarView({
+  events,
+  refreshControl,
+}: {
+  events: EventWithFinancials[];
+  refreshControl?: React.ReactElement<typeof RefreshControl>;
+}) {
   const today = new Date();
   const router = useRouter();
   const [year, setYear]   = useState(today.getFullYear());
@@ -305,7 +311,7 @@ export function CalendarView({ events }: { events: EventWithFinancials[] }) {
       </View>
 
       {/* Grid */}
-      <ScrollView className="flex-1 bg-stone-50">
+      <ScrollView className="flex-1 bg-stone-50" refreshControl={refreshControl}>
         {grid.map((row, ri) => (
           <View key={ri} className="flex-row px-1">
             {row.map((date, ci) => {

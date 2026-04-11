@@ -18,7 +18,7 @@ function RootLayoutNav() {
   const { session, loading, user } = useAuth();
   const segments = useSegments();
   const router = useRouter();
-  const notifListenerRef = useRef<Notifications.Subscription | null>(null);
+  const notifListenerRef = useRef<Notifications.Subscription | null | undefined>(null);
 
   // Auth routing
   useEffect(() => {

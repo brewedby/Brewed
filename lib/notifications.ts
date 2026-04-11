@@ -1,52 +1,59 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 
-// Configure how notifications appear when the app is foregrounded
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// expo-notifications is NOT supported in Expo Go SDK 53+.
+// Guard all calls so the app doesn't crash when running via Expo Go.
+const isExpoGo = Constants.appOwnership === 'expo';
+
+// Configure how notifications appear when the app is foregrounded.
+// Skip in Expo Go to avoid crashing the root layout.
+if (!isExpoGo) {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  } catch {
+    // Silently ignore — not in a dev build
+  }
+}
 
 export async function registerForPushNotifications(userId: string): Promise<string | null> {
-  if (!Device.isDevice) {
-    // Push tokens don't work on simulators
-    return null;
-  }
-
-  // Create notification channel for Android
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'Brewed by Boon',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#f59e0b',
-    });
-  }
-
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  if (finalStatus !== 'granted') return null;
+  if (isExpoGo) return null;
+  if (!Device.isDevice) return null;
 
   try {
+    // Create notification channel for Android
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Brewed by Boon',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#f59e0b',
+      });
+    }
+
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') return null;
+
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: 'brewedbyboon', // matches app.json slug
+      projectId: 'brewedbyboon',
     });
     const token = tokenData.data;
 
-    // Store in Supabase profile
     await supabase
       .from('profiles')
       .update({ push_token: token })
@@ -60,10 +67,20 @@ export async function registerForPushNotifications(userId: string): Promise<stri
 
 export function addNotificationResponseListener(
   handler: (response: Notifications.NotificationResponse) => void
-) {
-  return Notifications.addNotificationResponseReceivedListener(handler);
+): Notifications.Subscription | null {
+  if (isExpoGo) return null;
+  try {
+    return Notifications.addNotificationResponseReceivedListener(handler);
+  } catch {
+    return null;
+  }
 }
 
 export async function clearBadge() {
-  await Notifications.setBadgeCountAsync(0);
+  if (isExpoGo) return;
+  try {
+    await Notifications.setBadgeCountAsync(0);
+  } catch {
+    // Ignore
+  }
 }
