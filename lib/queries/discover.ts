@@ -15,7 +15,8 @@ export function useDiscoverEvents(filters: DiscoverFilters) {
       let query = supabase
         .from('uk_events_directory')
         .select('*')
-        .order('next_date', { ascending: true, nullsFirst: false });
+        .order('featured', { ascending: false })
+        .order('created_at', { ascending: true });
 
       if (filters.region && filters.region !== 'All UK') {
         query = query.eq('region', filters.region);

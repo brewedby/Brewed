@@ -402,8 +402,14 @@ export default function DiscoverScreen() {
       ) : error ? (
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-4xl mb-3">⚠️</Text>
-          <Text className="font-semibold text-slate-700 text-center">Could not load directory</Text>
-          <TouchableOpacity onPress={() => refetch()} className="mt-4 bg-amber-500 px-6 py-3 rounded-xl">
+          <Text className="font-semibold text-slate-700 text-center mb-2">Could not load directory</Text>
+          <Text className="text-slate-400 text-xs text-center mb-1">
+            {(error as any)?.message ?? 'Database error'}
+          </Text>
+          <Text className="text-slate-400 text-xs text-center mb-4">
+            Run the Migration 003 SQL in your Supabase dashboard, then tap Retry.
+          </Text>
+          <TouchableOpacity onPress={() => refetch()} className="mt-2 bg-amber-500 px-6 py-3 rounded-xl">
             <Text className="text-white font-semibold text-sm">Retry</Text>
           </TouchableOpacity>
         </View>
