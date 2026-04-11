@@ -358,6 +358,7 @@ export interface Database {
           contact_email: string | null;
           last_verified_at: string | null;
           application_changed: boolean;
+          page_hash: string | null;
           source: string;
           featured: boolean;
           created_at: string;
