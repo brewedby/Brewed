@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, startTransition } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   RefreshControl, Linking, Alert, ActivityIndicator,
@@ -323,7 +323,7 @@ export default function DiscoverScreen() {
         {/* Tab switcher */}
         <View className="flex-row bg-slate-100 rounded-xl p-1 mb-3">
           <TouchableOpacity
-            onPress={() => { setActiveTab('apply'); setCategory('All'); }}
+            onPress={() => startTransition(() => { setActiveTab('apply'); setCategory('All'); })}
             className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'apply' ? 'bg-white shadow-sm' : ''}`}
           >
             <Text className={`text-sm font-semibold ${activeTab === 'apply' ? 'text-slate-900' : 'text-slate-400'}`}>
@@ -334,7 +334,7 @@ export default function DiscoverScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => { setActiveTab('events'); setCategory('All'); }}
+            onPress={() => startTransition(() => { setActiveTab('events'); setCategory('All'); })}
             className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'events' ? 'bg-white shadow-sm' : ''}`}
           >
             <Text className={`text-sm font-semibold ${activeTab === 'events' ? 'text-slate-900' : 'text-slate-400'}`}>
