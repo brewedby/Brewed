@@ -35,7 +35,7 @@ export default function EditUnitScreen() {
           name: unit.name,
           registration: unit.registration ?? '',
           notes: unit.notes ?? '',
-          status: unit.status as any,
+          status: unit.status,
         }}
         onSubmit={handleSubmit}
         submitLabel="Save Changes"

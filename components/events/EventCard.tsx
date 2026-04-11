@@ -15,7 +15,7 @@ export function EventCard({ event }: Props) {
   const fin = event.event_financials;
   const calc = event.calculations;
   const dotColor = STATUS_COLORS[event.status]?.dot ?? '#a8a29e';
-  const unitName = (event as any).units?.name as string | undefined;
+  const unitName = event.units?.name;
 
   return (
     <TouchableOpacity
@@ -70,7 +70,7 @@ export function EventCard({ event }: Props) {
                 🚐 {unitName}
               </Text>
             )}
-            {(event as any).url_changed && (
+            {event.url_changed && (
               <View className="flex-row items-center bg-orange-100 px-2 py-0.5 rounded-full">
                 <Text className="text-orange-700 text-xs font-semibold">⚡ Page changed</Text>
               </View>
