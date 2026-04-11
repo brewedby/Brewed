@@ -4,7 +4,7 @@ import {
   RefreshControl, Linking, Alert, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 import { useDiscoverEvents } from '@/lib/queries/discover';
 import { useCompanies } from '@/lib/queries/companies';
 import { useCreateEvent } from '@/lib/mutations/events';
@@ -210,7 +210,6 @@ function CompanyCard({ company }: { company: DiscoveredEvent }) {
 
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'events' | 'apply'>('apply');
   const [searchText, setSearchText] = useState('');
