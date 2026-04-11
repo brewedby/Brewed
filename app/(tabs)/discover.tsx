@@ -38,84 +38,83 @@ function VerifiedBadge({ lastVerifiedAt }: { lastVerifiedAt: string | null }) {
 }
 
 function EventCard({ event, onAdd, adding }: { event: DiscoveredEvent; onAdd: (e: DiscoveredEvent) => void; adding: boolean }) {
-  const categoryColors: Record<string, string> = {
-    'Music Festival': 'bg-purple-100 text-purple-700',
-    'Food Festival': 'bg-orange-100 text-orange-700',
-    'Street Food Market': 'bg-green-100 text-green-700',
-    'Christmas Market': 'bg-red-100 text-red-700',
-    'Garden and Lifestyle': 'bg-emerald-100 text-emerald-700',
-    'Motorsport': 'bg-blue-100 text-blue-700',
-    'Equestrian': 'bg-amber-100 text-amber-700',
+  const categoryColors: Record<string, { bg: string; text: string }> = {
+    'Music Festival':        { bg: '#f3e8ff', text: '#7e22ce' },
+    'Food Festival':         { bg: '#ffedd5', text: '#c2410c' },
+    'Street Food Market':    { bg: '#dcfce7', text: '#15803d' },
+    'Christmas Market':      { bg: '#fee2e2', text: '#b91c1c' },
+    'Garden and Lifestyle':  { bg: '#d1fae5', text: '#065f46' },
+    'Motorsport':            { bg: '#dbeafe', text: '#1d4ed8' },
+    'Equestrian':            { bg: '#fef3c7', text: '#92400e' },
   };
-  const colors = categoryColors[event.category] ?? 'bg-slate-100 text-slate-600';
-  const [bg, textColor] = colors.split(' ');
+  const colors = categoryColors[event.category] ?? { bg: '#f1f5f9', text: '#475569' };
 
   return (
-    <View className="bg-white rounded-2xl mb-3 border border-slate-100 overflow-hidden">
-      <View className="h-1 bg-amber-400" />
-      <View className="p-4">
+    <View style={{ backgroundColor: '#fff', borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: '#f1f5f9', overflow: 'hidden' }}>
+      <View style={{ height: 4, backgroundColor: '#fbbf24' }} />
+      <View style={{ padding: 16 }}>
         {event.featured && (
-          <View className="self-start bg-amber-100 px-2.5 py-0.5 rounded-full mb-2">
-            <Text className="text-amber-700 text-xs font-semibold">⭐ Featured</Text>
+          <View style={{ alignSelf: 'flex-start', backgroundColor: '#fef3c7', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 99, marginBottom: 8 }}>
+            <Text style={{ color: '#b45309', fontSize: 11, fontWeight: '600' }}>⭐ Featured</Text>
           </View>
         )}
 
-        <View className="flex-row items-start justify-between mb-2">
-          <Text className="font-bold text-slate-900 text-base leading-snug flex-1 mr-3" numberOfLines={2}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
+          <Text style={{ fontWeight: '700', color: '#0f172a', fontSize: 15, lineHeight: 20, flex: 1, marginRight: 12 }} numberOfLines={2}>
             {event.title}
           </Text>
-          <View className={`px-2 py-0.5 rounded-full ${bg}`}>
-            <Text className={`text-xs font-medium ${textColor}`}>{event.category}</Text>
+          <View style={{ backgroundColor: colors.bg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99 }}>
+            <Text style={{ color: colors.text, fontSize: 11, fontWeight: '500' }}>{event.category}</Text>
           </View>
         </View>
 
         {event.organiser && (
-          <Text className="text-slate-400 text-xs mb-2">Organised by {event.organiser}</Text>
+          <Text style={{ color: '#94a3b8', fontSize: 11, marginBottom: 8 }}>Organised by {event.organiser}</Text>
         )}
 
-        <Text className="text-slate-600 text-sm leading-relaxed mb-3" numberOfLines={3}>
+        <Text style={{ color: '#475569', fontSize: 13, lineHeight: 20, marginBottom: 12 }} numberOfLines={3}>
           {event.description}
         </Text>
 
-        <View className="flex-row flex-wrap gap-1.5 mb-3">
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
           {event.location && (
-            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
-              <Text className="text-slate-500 text-xs">📍 {event.location}</Text>
+            <View style={{ backgroundColor: '#f8fafc', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99 }}>
+              <Text style={{ color: '#64748b', fontSize: 11 }}>📍 {event.location}</Text>
             </View>
           )}
           {event.dateHint && (
-            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
-              <Text className="text-slate-500 text-xs">📅 {event.dateHint}</Text>
+            <View style={{ backgroundColor: '#f8fafc', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99 }}>
+              <Text style={{ color: '#64748b', fontSize: 11 }}>📅 {event.dateHint}</Text>
             </View>
           )}
           {event.estimatedFootfall && (
-            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
-              <Text className="text-slate-500 text-xs">👥 {event.estimatedFootfall}</Text>
+            <View style={{ backgroundColor: '#f8fafc', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99 }}>
+              <Text style={{ color: '#64748b', fontSize: 11 }}>👥 {event.estimatedFootfall}</Text>
             </View>
           )}
           {event.pitchFeeRange && (
-            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
-              <Text className="text-slate-500 text-xs">💷 {event.pitchFeeRange}</Text>
+            <View style={{ backgroundColor: '#f8fafc', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99 }}>
+              <Text style={{ color: '#64748b', fontSize: 11 }}>💷 {event.pitchFeeRange}</Text>
             </View>
           )}
         </View>
 
-        <View className="flex-row gap-2">
+        <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity
             onPress={() => event.url ? Linking.openURL(event.url) : null}
-            className="flex-1 border border-slate-200 py-2.5 rounded-xl items-center"
+            style={{ flex: 1, borderWidth: 1, borderColor: '#e2e8f0', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }}
           >
-            <Text className="text-slate-600 font-medium text-sm">View & Apply ↗</Text>
+            <Text style={{ color: '#475569', fontWeight: '500', fontSize: 13 }}>View & Apply ↗</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => onAdd(event)}
             disabled={adding}
-            className="flex-1 bg-amber-500 py-2.5 rounded-xl items-center"
+            style={{ flex: 1, backgroundColor: '#f59e0b', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }}
           >
             {adding ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text className="text-white font-semibold text-sm">+ Track It</Text>
+              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>+ Track It</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -156,7 +155,6 @@ function CompanyCard({ company }: { company: DiscoveredEvent }) {
 
         <Text className="text-slate-600 text-sm leading-relaxed mb-3">{company.description}</Text>
 
-        {/* Events managed */}
         {company.eventsManaged && (
           <View className="bg-slate-50 rounded-xl p-3 mb-3">
             <Text className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Events They Run</Text>
@@ -164,7 +162,6 @@ function CompanyCard({ company }: { company: DiscoveredEvent }) {
           </View>
         )}
 
-        {/* Contact details */}
         <View className="flex-row flex-wrap gap-2 mb-3">
           {company.location && (
             <View className="bg-slate-50 px-2.5 py-1 rounded-full">
@@ -262,7 +259,6 @@ export default function DiscoverScreen() {
         c.organiser?.toLowerCase().includes(q)
       );
     }
-    // Featured first, then alphabetical
     return [...results].sort((a, b) => {
       if (a.featured && !b.featured) return -1;
       if (!a.featured && b.featured) return 1;
@@ -371,9 +367,14 @@ export default function DiscoverScreen() {
               <TouchableOpacity
                 key={r}
                 onPress={() => setRegion(r)}
-                className={`px-3 py-1.5 rounded-full border ${region === r ? 'bg-slate-800 border-slate-800' : 'bg-white border-slate-200'}`}
+                style={{
+                  paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99,
+                  borderWidth: 1,
+                  backgroundColor: region === r ? '#1e293b' : '#fff',
+                  borderColor: region === r ? '#1e293b' : '#e2e8f0',
+                }}
               >
-                <Text className={`text-xs font-medium ${region === r ? 'text-white' : 'text-slate-600'}`}>{r}</Text>
+                <Text style={{ fontSize: 11, fontWeight: '500', color: region === r ? '#fff' : '#475569' }}>{r}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -385,9 +386,14 @@ export default function DiscoverScreen() {
             <TouchableOpacity
               key={c}
               onPress={() => setCategory(c)}
-              className={`px-3 py-1.5 rounded-full border ${category === c ? (activeTab === 'apply' ? 'bg-emerald-500 border-emerald-500' : 'bg-amber-500 border-amber-500') : 'bg-white border-slate-200'}`}
+              style={{
+                paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99,
+                borderWidth: 1,
+                backgroundColor: category === c ? (activeTab === 'apply' ? '#10b981' : '#f59e0b') : '#fff',
+                borderColor: category === c ? (activeTab === 'apply' ? '#10b981' : '#f59e0b') : '#e2e8f0',
+              }}
             >
-              <Text className={`text-xs font-medium ${category === c ? 'text-white' : 'text-slate-600'}`}>{c}</Text>
+              <Text style={{ fontSize: 11, fontWeight: '500', color: category === c ? '#fff' : '#475569' }}>{c}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -432,7 +438,6 @@ export default function DiscoverScreen() {
             </View>
           ) : activeTab === 'apply' ? (
             <>
-              {/* Updated badge explanation */}
               <View className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 mb-4 flex-row items-start">
                 <Text className="text-lg mr-2">💡</Text>
                 <Text className="text-emerald-800 text-xs leading-relaxed flex-1">
