@@ -59,6 +59,13 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => <TabIcon emoji="🗺️" focused={focused} />,
         }}
       />
+      <Tabs.Screen
+        name="battery-calculator"
+        options={{
+          title: 'Power',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="⚡" focused={focused} />,
+        }}
+      />
     </Tabs>
   );
 }
