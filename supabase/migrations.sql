@@ -287,8 +287,8 @@ ALTER TABLE public.uk_events_directory ADD COLUMN IF NOT EXISTS application_chan
 ALTER TABLE public.uk_events_directory ADD COLUMN IF NOT EXISTS page_hash           TEXT;
 ALTER TABLE public.uk_events_directory ADD COLUMN IF NOT EXISTS next_date           TEXT;
 
--- Unique constraint so we can safely upsert seed data
-ALTER TABLE public.uk_events_directory ADD CONSTRAINT IF NOT EXISTS uk_events_directory_name_key UNIQUE (name);
+-- Unique index so we can safely upsert seed data (ON CONFLICT (name))
+CREATE UNIQUE INDEX IF NOT EXISTS uk_events_directory_name_idx ON public.uk_events_directory (name);
 
 -- Trigger
 CREATE OR REPLACE FUNCTION public.update_updated_at_directory()
