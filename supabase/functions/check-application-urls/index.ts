@@ -137,8 +137,48 @@ serve(async (req) => {
     }
   }
 
+  // ── Also check uk_events_directory application URLs ──────────────────────
+  const { data: directoryEntries } = await supabase
+    .from('uk_events_directory')
+    .select('id, name, application_url, page_hash')
+    .not('application_url', 'is', null);
+
+  const dirResults = { checked: 0, changed: 0, errors: 0 };
+
+  for (const entry of directoryEntries ?? []) {
+    if (!entry.application_url) continue;
+    dirResults.checked++;
+
+    const content = await fetchPageContent(entry.application_url);
+    if (!content) { dirResults.errors++; continue; }
+
+    const newHash = await hashContent(content);
+    const now = new Date().toISOString();
+
+    if (!entry.page_hash) {
+      await supabase
+        .from('uk_events_directory')
+        .update({ page_hash: newHash, last_verified_at: now })
+        .eq('id', entry.id);
+      continue;
+    }
+
+    if (newHash !== entry.page_hash) {
+      dirResults.changed++;
+      await supabase
+        .from('uk_events_directory')
+        .update({ page_hash: newHash, last_verified_at: now, application_changed: true })
+        .eq('id', entry.id);
+    } else {
+      await supabase
+        .from('uk_events_directory')
+        .update({ last_verified_at: now })
+        .eq('id', entry.id);
+    }
+  }
+
   return new Response(
-    JSON.stringify({ success: true, ...results }),
+    JSON.stringify({ success: true, events: results, directory: dirResults }),
     { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
   );
 });
