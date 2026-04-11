@@ -32,6 +32,7 @@ export function useDiscoverEvents(filters: DiscoverFilters) {
       const { data, error } = await query;
       if (error) throw error;
 
+      const COMPANY_CATEGORIES = ['Concessions Company', 'Industry Body'];
       return (data ?? []).map((row) => ({
         id: row.id,
         title: row.name,
@@ -46,6 +47,12 @@ export function useDiscoverEvents(filters: DiscoverFilters) {
         estimatedFootfall: row.estimated_footfall,
         pitchFeeRange: row.pitch_fee_range,
         featured: row.featured ?? false,
+        eventsManaged: (row as any).events_managed ?? null,
+        contactPhone: (row as any).contact_phone ?? null,
+        contactEmail: (row as any).contact_email ?? null,
+        lastVerifiedAt: (row as any).last_verified_at ?? null,
+        applicationChanged: (row as any).application_changed ?? false,
+        isCompany: COMPANY_CATEGORIES.includes(row.category ?? ''),
       }));
     },
     staleTime: 1000 * 60 * 5, // 5 minutes

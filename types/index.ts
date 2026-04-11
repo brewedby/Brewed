@@ -65,6 +65,13 @@ export interface DiscoveredEvent {
   estimatedFootfall: string | null;
   pitchFeeRange: string | null;
   featured: boolean;
+  // Company-specific fields
+  eventsManaged: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  lastVerifiedAt: string | null;
+  applicationChanged: boolean;
+  isCompany: boolean;
 }
 
 export interface CompanyWithStats extends ConcessionsCompany {

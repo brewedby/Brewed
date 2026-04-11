@@ -353,6 +353,11 @@ export interface Database {
           next_date: string | null;
           estimated_footfall: string | null;
           pitch_fee_range: string | null;
+          events_managed: string | null;
+          contact_phone: string | null;
+          contact_email: string | null;
+          last_verified_at: string | null;
+          application_changed: boolean;
           source: string;
           featured: boolean;
           created_at: string;
@@ -372,6 +377,11 @@ export interface Database {
           next_date?: string | null;
           estimated_footfall?: string | null;
           pitch_fee_range?: string | null;
+          events_managed?: string | null;
+          contact_phone?: string | null;
+          contact_email?: string | null;
+          last_verified_at?: string | null;
+          application_changed?: boolean;
           source?: string;
           featured?: boolean;
         };
@@ -388,6 +398,11 @@ export interface Database {
           next_date?: string | null;
           estimated_footfall?: string | null;
           pitch_fee_range?: string | null;
+          events_managed?: string | null;
+          contact_phone?: string | null;
+          contact_email?: string | null;
+          last_verified_at?: string | null;
+          application_changed?: boolean;
           source?: string;
           featured?: boolean;
           updated_at?: string;
