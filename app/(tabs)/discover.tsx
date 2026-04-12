@@ -349,26 +349,26 @@ export default function DiscoverScreen() {
         <Text className="text-2xl font-bold text-slate-900 mb-3">Discover</Text>
 
         {/* Tab switcher */}
-        <View className="flex-row bg-slate-100 rounded-xl p-1 mb-3">
+        <View style={{ flexDirection: 'row', backgroundColor: '#f1f5f9', borderRadius: 12, padding: 4, marginBottom: 12 }}>
           <TouchableOpacity
             onPress={() => startTransition(() => { setActiveTab('apply'); setCategory('All'); })}
-            className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'apply' ? 'bg-white shadow-sm' : ''}`}
+            style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: activeTab === 'apply' ? '#ffffff' : 'transparent' }}
           >
-            <Text className={`text-sm font-semibold ${activeTab === 'apply' ? 'text-slate-900' : 'text-slate-400'}`}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: activeTab === 'apply' ? '#0f172a' : '#94a3b8' }}>
               Who to Apply To
             </Text>
-            <Text className={`text-xs ${activeTab === 'apply' ? 'text-emerald-600' : 'text-slate-400'}`}>
+            <Text style={{ fontSize: 12, color: activeTab === 'apply' ? '#10b981' : '#94a3b8' }}>
               {concessionsCos.length} companies
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => startTransition(() => { setActiveTab('events'); setCategory('All'); })}
-            className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'events' ? 'bg-white shadow-sm' : ''}`}
+            style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: activeTab === 'events' ? '#ffffff' : 'transparent' }}
           >
-            <Text className={`text-sm font-semibold ${activeTab === 'events' ? 'text-slate-900' : 'text-slate-400'}`}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: activeTab === 'events' ? '#0f172a' : '#94a3b8' }}>
               Events & Festivals
             </Text>
-            <Text className={`text-xs ${activeTab === 'events' ? 'text-amber-600' : 'text-slate-400'}`}>
+            <Text style={{ fontSize: 12, color: activeTab === 'events' ? '#f59e0b' : '#94a3b8' }}>
               {events.length} events
             </Text>
           </TouchableOpacity>
