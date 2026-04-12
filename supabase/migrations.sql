@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 );
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
@@ -44,6 +47,7 @@ CREATE TABLE IF NOT EXISTS public.concessions_companies (
 );
 
 ALTER TABLE public.concessions_companies ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can CRUD own companies" ON public.concessions_companies;
 CREATE POLICY "Users can CRUD own companies" ON public.concessions_companies
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
@@ -70,6 +74,7 @@ CREATE TABLE IF NOT EXISTS public.events (
 );
 
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can CRUD own events" ON public.events;
 CREATE POLICY "Users can CRUD own events" ON public.events
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
@@ -89,6 +94,7 @@ CREATE TABLE IF NOT EXISTS public.event_financials (
 );
 
 ALTER TABLE public.event_financials ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can CRUD own event_financials" ON public.event_financials;
 CREATE POLICY "Users can CRUD own event_financials" ON public.event_financials
   FOR ALL USING (
     EXISTS (
@@ -115,6 +121,7 @@ CREATE TABLE IF NOT EXISTS public.staffing_entries (
 );
 
 ALTER TABLE public.staffing_entries ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can CRUD own staffing_entries" ON public.staffing_entries;
 CREATE POLICY "Users can CRUD own staffing_entries" ON public.staffing_entries
   FOR ALL USING (
     EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_id AND e.user_id = auth.uid())
@@ -140,6 +147,7 @@ CREATE TABLE IF NOT EXISTS public.infrastructure_items (
 );
 
 ALTER TABLE public.infrastructure_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can CRUD own infrastructure_items" ON public.infrastructure_items;
 CREATE POLICY "Users can CRUD own infrastructure_items" ON public.infrastructure_items
   FOR ALL USING (
     EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_id AND e.user_id = auth.uid())
@@ -157,14 +165,19 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS set_updated_at ON public.concessions_companies;
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.concessions_companies
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+DROP TRIGGER IF EXISTS set_updated_at ON public.events;
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.events
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+DROP TRIGGER IF EXISTS set_updated_at ON public.event_financials;
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.event_financials
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+DROP TRIGGER IF EXISTS set_updated_at ON public.staffing_entries;
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.staffing_entries
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+DROP TRIGGER IF EXISTS set_updated_at ON public.infrastructure_items;
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.infrastructure_items
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
@@ -235,6 +248,7 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
+DROP TRIGGER IF EXISTS set_updated_at ON public.units;
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.units
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 
