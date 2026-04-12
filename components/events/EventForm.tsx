@@ -71,6 +71,7 @@ function FinancialsTabContent({
   const commissionPct = watch('concessions_commission_pct') ?? 0;
   const pitchFee = watch('pitch_fee') ?? 0;
   const refundPct = watch('pitch_fee_refund_pct') ?? 0;
+  const powerFee = watch('power_fee') ?? 0;
 
   const standardRatedNet = standardRated / 1.2;
   const vatCollected = standardRated - standardRatedNet;
@@ -79,7 +80,7 @@ function FinancialsTabContent({
   const commissionAmount = totalNetSales * (commissionPct / 100);
   const pitchFeeRefundGross = pitchFee * (refundPct / 100);
   const netRefund = pitchFeeRefundGross - commissionAmount;
-  const effectivePitchFee = pitchFee - pitchFeeRefundGross + commissionAmount;
+  const effectivePitchFee = pitchFee - pitchFeeRefundGross + commissionAmount + powerFee;
 
   return (
     <View className="gap-4">
@@ -168,7 +169,18 @@ function FinancialsTabContent({
             />
           )}
         />
-        {(pitchFee > 0 || commissionPct > 0) && (
+        <Controller
+          control={control}
+          name="power_fee"
+          render={({ field }) => (
+            <CurrencyInput
+              label="Power / site fee"
+              value={field.value}
+              onChangeValue={field.onChange}
+            />
+          )}
+        />
+        {(pitchFee > 0 || commissionPct > 0 || powerFee > 0) && (
           <View className="bg-slate-50 rounded-lg p-3 mt-1 gap-0.5">
             <CalcRow
               label={`Commission (${commissionPct}% × net sales)`}
@@ -192,29 +204,19 @@ function FinancialsTabContent({
                 value={formatCurrency(Math.abs(netRefund))}
               />
             )}
+            {powerFee > 0 && (
+              <CalcRow
+                label="Power / site fee"
+                value={formatCurrency(powerFee)}
+              />
+            )}
             <CalcRow
-              label="Effective pitch cost"
+              label="Total site cost"
               value={formatCurrency(Math.max(0, effectivePitchFee))}
               highlight
             />
           </View>
         )}
-      </View>
-
-      {/* ── POWER & SITE FEES ── */}
-      <SectionHeader title="Power & Site Fees" />
-      <View className="bg-white rounded-xl p-4 border border-slate-100 gap-3">
-        <Controller
-          control={control}
-          name="power_fee"
-          render={({ field }) => (
-            <CurrencyInput
-              label="Power fee"
-              value={field.value}
-              onChangeValue={field.onChange}
-            />
-          )}
-        />
       </View>
 
       {/* ── YOUR OTHER COSTS ── */}
