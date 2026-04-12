@@ -48,9 +48,10 @@ CREATE POLICY "Users can CRUD own companies" ON public.concessions_companies
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- Events
-CREATE TYPE IF NOT EXISTS application_status AS ENUM (
-  'pending', 'accepted', 'rejected', 'waitlisted', 'withdrawn'
-);
+DO $$ BEGIN
+  CREATE TYPE application_status AS ENUM ('pending', 'accepted', 'rejected', 'waitlisted', 'withdrawn');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.events (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -123,9 +124,10 @@ CREATE POLICY "Users can CRUD own staffing_entries" ON public.staffing_entries
   );
 
 -- Infrastructure items
-CREATE TYPE IF NOT EXISTS infrastructure_category AS ENUM (
-  'pitch_fee', 'travel', 'equipment', 'supplies', 'other'
-);
+DO $$ BEGIN
+  CREATE TYPE infrastructure_category AS ENUM ('pitch_fee', 'travel', 'equipment', 'supplies', 'other');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.infrastructure_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
