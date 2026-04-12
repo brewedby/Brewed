@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { EventForm } from '@/components/events/EventForm';
@@ -27,7 +27,10 @@ export default function NewEventScreen() {
       <EventForm
         companies={companies}
         units={units}
-        onSubmit={async (data) => { await createEvent.mutateAsync({ data, userId: user!.id }); }}
+        onSubmit={async (data) => {
+          if (!user) { Alert.alert('Not signed in', 'Please sign in to create events.'); return; }
+          await createEvent.mutateAsync({ data, userId: user.id });
+        }}
         submitLabel="Create Event"
       />
     </View>

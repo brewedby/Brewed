@@ -287,7 +287,7 @@ export default function DiscoverScreen() {
     try {
       const firstWord = discovered.organiser?.toLowerCase().split(' ')[0] ?? '';
       const matchedCompany = companies.find((c) =>
-        c.website?.toLowerCase().includes(discovered.source.toLowerCase()) ||
+        (discovered.source && c.website?.toLowerCase().includes(discovered.source.toLowerCase())) ||
         (firstWord && c.name.toLowerCase().includes(firstWord))
       );
       const eventName = discovered.title.length > 80 ? discovered.title.slice(0, 80) : discovered.title;

@@ -406,7 +406,7 @@ export function EventForm({
   const selectedCompanyId = watch('company_id');
   const selectedUnitId = watch('unit_id');
 
-  async function handleFormSubmit(data: any) {
+  async function handleFormSubmit(data: EventFormValues) {
     setLoading(true);
     try {
       const converted = {
@@ -419,8 +419,8 @@ export function EventForm({
       };
       await onSubmit(converted);
       router.back();
-    } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Failed to save');
+    } catch (e: unknown) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save');
     } finally {
       setLoading(false);
     }
@@ -638,24 +638,18 @@ export function EventForm({
                     <TouchableOpacity
                       key={s}
                       onPress={() => setValue('status', s)}
-                      className={`flex-row items-center px-3 py-2 rounded-xl border ${
-                        active ? `${colors.bg} border-transparent` : 'bg-white border-slate-200'
-                      }`}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center',
+                        paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12,
+                        borderWidth: 1,
+                        backgroundColor: active ? colors.bgHex : '#ffffff',
+                        borderColor: active ? 'transparent' : '#e2e8f0',
+                      }}
                     >
                       <View
-                        style={{
-                          backgroundColor: colors.dot,
-                          width: 7,
-                          height: 7,
-                          borderRadius: 4,
-                        }}
-                        className="mr-1.5"
+                        style={{ backgroundColor: colors.dot, width: 7, height: 7, borderRadius: 4, marginRight: 6 }}
                       />
-                      <Text
-                        className={`text-sm font-medium ${
-                          active ? colors.text : 'text-slate-600'
-                        }`}
-                      >
+                      <Text style={{ fontSize: 14, fontWeight: '500', color: active ? colors.textHex : '#4b5563' }}>
                         {STATUS_LABELS[s]}
                       </Text>
                     </TouchableOpacity>

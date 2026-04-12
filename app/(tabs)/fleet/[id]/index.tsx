@@ -78,9 +78,9 @@ export default function UnitDetailScreen() {
           <Text className="text-xl font-bold text-stone-900 mb-1">{unit.name}</Text>
 
           <View className="flex-row items-center gap-2 flex-wrap">
-            <View className={`flex-row items-center px-2.5 py-1 rounded-full ${colors.bg}`}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: colors.bgHex }}>
               <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.dot, marginRight: 5 }} />
-              <Text className={`text-xs font-semibold ${colors.text}`}>{UNIT_STATUS_LABELS[status]}</Text>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textHex }}>{UNIT_STATUS_LABELS[status]}</Text>
             </View>
             {unit.registration && (
               <Text className="text-stone-500 text-sm font-medium tracking-wide">{unit.registration}</Text>

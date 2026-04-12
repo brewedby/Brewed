@@ -8,12 +8,12 @@ export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   withdrawn: 'Withdrawn',
 };
 
-export const STATUS_COLORS: Record<ApplicationStatus, { bg: string; text: string; dot: string }> = {
-  pending:    { bg: 'bg-amber-100',  text: 'text-amber-800',  dot: '#f59e0b' },
-  accepted:   { bg: 'bg-green-100',  text: 'text-green-800',  dot: '#22c55e' },
-  rejected:   { bg: 'bg-red-100',    text: 'text-red-800',    dot: '#ef4444' },
-  waitlisted: { bg: 'bg-blue-100',   text: 'text-blue-800',   dot: '#3b82f6' },
-  withdrawn:  { bg: 'bg-stone-100',  text: 'text-stone-600',  dot: '#a8a29e' },
+export const STATUS_COLORS: Record<ApplicationStatus, { bg: string; text: string; dot: string; bgHex: string; textHex: string }> = {
+  pending:    { bg: 'bg-amber-100',  text: 'text-amber-800',  dot: '#f59e0b', bgHex: '#fef3c7', textHex: '#92400e' },
+  accepted:   { bg: 'bg-green-100',  text: 'text-green-800',  dot: '#22c55e', bgHex: '#dcfce7', textHex: '#166534' },
+  rejected:   { bg: 'bg-red-100',    text: 'text-red-800',    dot: '#ef4444', bgHex: '#fee2e2', textHex: '#991b1b' },
+  waitlisted: { bg: 'bg-blue-100',   text: 'text-blue-800',   dot: '#3b82f6', bgHex: '#dbeafe', textHex: '#1e40af' },
+  withdrawn:  { bg: 'bg-stone-100',  text: 'text-stone-600',  dot: '#a8a29e', bgHex: '#f5f5f4', textHex: '#57534e' },
 };
 
 export const STATUS_PIE_COLORS: Record<ApplicationStatus, string> = {
@@ -48,10 +48,10 @@ export const UNIT_STATUS_LABELS: Record<UnitStatus, string> = {
   retired:     'Retired',
 };
 
-export const UNIT_STATUS_COLORS: Record<UnitStatus, { bg: string; text: string; dot: string }> = {
-  active:      { bg: 'bg-green-100',  text: 'text-green-800',  dot: '#22c55e' },
-  maintenance: { bg: 'bg-amber-100',  text: 'text-amber-800',  dot: '#f59e0b' },
-  retired:     { bg: 'bg-stone-100',  text: 'text-stone-600',  dot: '#a8a29e' },
+export const UNIT_STATUS_COLORS: Record<UnitStatus, { bg: string; text: string; dot: string; bgHex: string; textHex: string }> = {
+  active:      { bg: 'bg-green-100',  text: 'text-green-800',  dot: '#22c55e', bgHex: '#dcfce7', textHex: '#166534' },
+  maintenance: { bg: 'bg-amber-100',  text: 'text-amber-800',  dot: '#f59e0b', bgHex: '#fef3c7', textHex: '#92400e' },
+  retired:     { bg: 'bg-stone-100',  text: 'text-stone-600',  dot: '#a8a29e', bgHex: '#f5f5f4', textHex: '#57534e' },
 };
 
 export const BRAND = {

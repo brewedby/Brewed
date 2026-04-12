@@ -90,16 +90,19 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
                       <TouchableOpacity
                         key={s}
                         onPress={() => field.onChange(s)}
-                        className={`flex-1 flex-row items-center justify-center px-3 py-2.5 rounded-xl border ${
-                          isSelected ? `${colors.bg} border-transparent` : 'bg-white border-stone-200'
-                        }`}
+                        style={{
+                          flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                          paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1,
+                          backgroundColor: isSelected ? colors.bgHex : '#ffffff',
+                          borderColor: isSelected ? 'transparent' : '#e7e5e4',
+                        }}
                         activeOpacity={0.7}
                       >
                         <View
                           style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.dot, marginRight: 6 }}
                         />
                         <Text
-                          className={`text-xs font-semibold ${isSelected ? colors.text : 'text-stone-500'}`}
+                          style={{ fontSize: 12, fontWeight: '600', color: isSelected ? colors.textHex : '#78716c' }}
                           numberOfLines={1}
                         >
                           {UNIT_STATUS_LABELS[s as UnitStatus]}

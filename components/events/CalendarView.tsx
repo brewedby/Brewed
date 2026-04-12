@@ -197,8 +197,8 @@ function OverlapModal({
                     </View>
 
                     <View className="flex-row items-center gap-2 mb-2">
-                      <View className={`px-2 py-0.5 rounded-full ${colors.bg}`}>
-                        <Text className={`text-xs font-medium ${colors.text}`}>{STATUS_LABELS[event.status]}</Text>
+                      <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: colors.bgHex }}>
+                        <Text style={{ fontSize: 11, fontWeight: '500', color: colors.textHex }}>{STATUS_LABELS[event.status]}</Text>
                       </View>
                       {isOverlap && (
                         <View className="px-2 py-0.5 rounded-full bg-slate-100">

@@ -33,13 +33,11 @@ export function UnitCard({ unit, currentEvent, onPress }: Props) {
                 </Text>
               )}
             </View>
-            <View className={`px-2.5 py-1 rounded-full ${colors.bg}`}>
-              <View className="flex-row items-center gap-1">
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.dot }} />
-                <Text className={`text-xs font-semibold ${colors.text}`}>
-                  {UNIT_STATUS_LABELS[status]}
-                </Text>
-              </View>
+            <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: colors.bgHex, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.dot }} />
+              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textHex }}>
+                {UNIT_STATUS_LABELS[status]}
+              </Text>
             </View>
           </View>
 

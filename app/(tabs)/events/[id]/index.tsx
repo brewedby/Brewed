@@ -27,9 +27,9 @@ function ApplicationTimeline({ currentStatus }: { currentStatus: ApplicationStat
     return (
       <View className="bg-white rounded-2xl p-4 border border-slate-100 mb-4">
         <Text className="font-bold text-slate-700 mb-3">Application Journey</Text>
-        <View className={`flex-row items-center px-4 py-3 rounded-xl ${STATUS_COLORS[currentStatus].bg}`}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, backgroundColor: STATUS_COLORS[currentStatus].bgHex }}>
           <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: STATUS_COLORS[currentStatus].dot, marginRight: 8 }} />
-          <Text className={`font-semibold text-sm ${STATUS_COLORS[currentStatus].text}`}>
+          <Text style={{ fontWeight: '600', fontSize: 14, color: STATUS_COLORS[currentStatus].textHex }}>
             Application {STATUS_LABELS[currentStatus]}
           </Text>
         </View>
@@ -103,7 +103,9 @@ export default function EventDetailScreen() {
   async function handleStatusChange(newStatus: ApplicationStatus) {
     setUpdatingStatus(true);
     const { error } = await supabase.from('events').update({ status: newStatus }).eq('id', id);
-    if (!error) {
+    if (error) {
+      Alert.alert('Error', 'Could not update status. Please try again.');
+    } else {
       qc.invalidateQueries({ queryKey: ['events'] });
       qc.invalidateQueries({ queryKey: ['events', id] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
@@ -206,10 +208,15 @@ export default function EventDetailScreen() {
                   key={s}
                   onPress={() => !active && handleStatusChange(s)}
                   disabled={updatingStatus || active}
-                  className={`flex-row items-center px-3 py-2 rounded-xl border ${active ? colors.bg + ' border-transparent' : 'bg-white border-slate-200'}`}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center',
+                    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1,
+                    backgroundColor: active ? colors.bgHex : '#ffffff',
+                    borderColor: active ? 'transparent' : '#e2e8f0',
+                  }}
                 >
-                  <View style={{ backgroundColor: colors.dot, width: 7, height: 7, borderRadius: 4 }} className="mr-1.5" />
-                  <Text className={`text-xs font-medium ${active ? colors.text : 'text-slate-600'}`}>{STATUS_LABELS[s]}</Text>
+                  <View style={{ backgroundColor: colors.dot, width: 7, height: 7, borderRadius: 4, marginRight: 6 }} />
+                  <Text style={{ fontSize: 12, fontWeight: '500', color: active ? colors.textHex : '#4b5563' }}>{STATUS_LABELS[s]}</Text>
                 </TouchableOpacity>
               );
             })}

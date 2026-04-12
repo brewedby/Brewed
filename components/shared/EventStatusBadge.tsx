@@ -14,12 +14,13 @@ export function EventStatusBadge({ status, size = 'md' }: Props) {
   const isSmall = size === 'sm';
 
   return (
-    <View className={`flex-row items-center rounded-full px-2.5 ${isSmall ? 'py-0.5' : 'py-1'} ${colors.bg}`}>
+    <View
+      style={{ backgroundColor: colors.bgHex, paddingVertical: isSmall ? 2 : 4, paddingHorizontal: 10, borderRadius: 999, flexDirection: 'row', alignItems: 'center' }}
+    >
       <View
-        style={{ backgroundColor: colors.dot, width: isSmall ? 5 : 6, height: isSmall ? 5 : 6, borderRadius: 3 }}
-        className="mr-1.5"
+        style={{ backgroundColor: colors.dot, width: isSmall ? 5 : 6, height: isSmall ? 5 : 6, borderRadius: 3, marginRight: 6 }}
       />
-      <Text className={`font-medium ${colors.text} ${isSmall ? 'text-xs' : 'text-xs'}`}>
+      <Text style={{ color: colors.textHex, fontWeight: '500', fontSize: 12 }}>
         {label}
       </Text>
     </View>
