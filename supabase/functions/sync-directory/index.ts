@@ -4,7 +4,7 @@
 //
 // Deploy:   supabase functions deploy sync-directory
 // Secrets:  supabase secrets set BRAVE_SEARCH_API_KEY=your_key
-// Schedule: run daily at 03:00 UTC via pg_cron (see supabase/migration_004.sql)
+// Schedule: run daily at 03:00 UTC via pg_cron (see migrations.sql)
 //
 // The function is idempotent — it uses ON CONFLICT (name) DO UPDATE,
 // so running it multiple times will not create duplicates.
@@ -92,7 +92,7 @@ function extractDateHint(title: string, description: string): string | null {
   const text = title + ' ' + description;
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   for (const month of months) {
-    const match = text.match(new RegExp(`\\d{1,2}[\\s\\-\u2013]+${month}\\s+\\d{4}|${month}\\s+\\d{4}|${month}\\s+\\d{1,2}`, 'i'));
+    const match = text.match(new RegExp(`\\d{1,2}[\\s\\-–]+${month}\\s+\\d{4}|${month}\\s+\\d{4}|${month}\\s+\\d{1,2}`, 'i'));
     if (match) return match[0];
   }
   const yearMatch = text.match(/202[5-9]/);
@@ -100,17 +100,19 @@ function extractDateHint(title: string, description: string): string | null {
   return null;
 }
 
-// Detect if a result looks like a genuine trader application page
+// Detect if a result looks like a genuine trader application page (not news/social media)
 function isRelevantResult(result: BraveResult): boolean {
   const url = result.url.toLowerCase();
   const title = result.title.toLowerCase();
   const desc = result.description.toLowerCase();
 
+  // Skip social media, news, review sites
   const skipDomains = ['twitter.com', 'facebook.com', 'instagram.com', 'reddit.com',
     'tripadvisor.co.uk', 'yelp.co.uk', 'bbc.co.uk', 'theguardian.com',
     'dailymail.co.uk', 'timeout.com', 'visitscotland.com'];
   if (skipDomains.some((d) => url.includes(d))) return false;
 
+  // Must mention trader / vendor / apply / stall / pitch
   const keywords = ['trader', 'vendor', 'apply', 'stall', 'pitch', 'application', 'catering', 'concessions'];
   return keywords.some((kw) => title.includes(kw) || desc.includes(kw));
 }
@@ -122,7 +124,7 @@ async function searchBrave(query: string, apiKey: string): Promise<BraveResult[]
     country: 'GB',
     search_lang: 'en',
     safesearch: 'moderate',
-    freshness: 'py',
+    freshness: 'py', // past year
   });
 
   try {
@@ -160,8 +162,10 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceKey);
 
   let added = 0;
+  let updated = 0;
   let skipped = 0;
 
+  // Combine event queries + company queries
   const allQueries = [...SEARCH_QUERIES, ...COMPANY_QUERIES];
 
   for (const queryStr of allQueries) {
@@ -170,7 +174,7 @@ serve(async (req) => {
     for (const result of results) {
       if (!isRelevantResult(result)) { skipped++; continue; }
 
-      const title = result.title.replace(/\s*[-|\u2013]\s*.+$/, '').trim();
+      const title = result.title.replace(/\s*[-|–]\s*.+$/, '').trim(); // strip " - Site Name" suffixes
       if (!title || title.length < 5) { skipped++; continue; }
 
       const category = detectCategory(result.title, result.description);
@@ -193,13 +197,16 @@ serve(async (req) => {
         last_verified_at: new Date().toISOString(),
       };
 
+      // Upsert — ON CONFLICT on name (unique index exists)
       const { error } = await supabase
         .from('uk_events_directory')
         .upsert(entry, { onConflict: 'name', ignoreDuplicates: false });
 
       if (error) {
+        // Likely a duplicate with slight name variation — skip
         skipped++;
       } else {
+        // Check if it was an insert or update by querying created_at
         added++;
       }
     }
@@ -208,7 +215,7 @@ serve(async (req) => {
     await new Promise((r) => setTimeout(r, 1100));
   }
 
-  // Also run URL freshness check on directory entries
+  // Also run the URL freshness check inline (same as check-application-urls)
   const { data: directoryEntries } = await supabase
     .from('uk_events_directory')
     .select('id, name, application_url, page_hash')
@@ -258,7 +265,7 @@ serve(async (req) => {
   return new Response(
     JSON.stringify({
       success: true,
-      sync: { added, skipped, queriesRun: allQueries.length },
+      sync: { added, updated, skipped, queriesRun: allQueries.length },
       urlCheck: { checked: urlsChecked, changed: urlsChanged },
       timestamp: new Date().toISOString(),
     }),

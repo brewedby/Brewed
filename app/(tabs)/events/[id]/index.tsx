@@ -95,8 +95,8 @@ export default function EventDetailScreen() {
     try {
       await deleteEvent.mutateAsync(id);
       router.back();
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
+    } catch (e: unknown) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Could not delete event');
     }
   }
 
@@ -153,8 +153,8 @@ export default function EventDetailScreen() {
           {event.concessions_companies && (
             <Text className="text-slate-400 text-xs mt-0.5">🏢 {event.concessions_companies.name}</Text>
           )}
-          {(event as any).units?.name && (
-            <Text className="text-slate-400 text-xs mt-0.5">🚐 {(event as any).units.name}</Text>
+          {event.units?.name && (
+            <Text className="text-slate-400 text-xs mt-0.5">🚐 {event.units?.name}</Text>
           )}
         </View>
       </View>
@@ -164,7 +164,7 @@ export default function EventDetailScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" />}
       >
         {/* URL change alert */}
-        {(event as any).url_changed && (
+        {event.url_changed && (
           <View className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-4">
             <View className="flex-row items-start justify-between">
               <View className="flex-1 mr-3">
@@ -180,9 +180,9 @@ export default function EventDetailScreen() {
                 <Text className="text-orange-700 text-xs font-semibold">Dismiss</Text>
               </TouchableOpacity>
             </View>
-            {(event as any).application_url && (
+            {event.application_url && (
               <TouchableOpacity
-                onPress={() => Linking.openURL((event as any).application_url)}
+                onPress={() => event.application_url && Linking.openURL(event.application_url)}
                 className="mt-3 bg-orange-500 py-2.5 rounded-xl items-center"
               >
                 <Text className="text-white font-semibold text-sm">Open Application Page ↗</Text>
@@ -217,9 +217,9 @@ export default function EventDetailScreen() {
         </View>
 
         {/* Application URL quick access */}
-        {(event as any).application_url && (
+        {event.application_url && (
           <TouchableOpacity
-            onPress={() => Linking.openURL((event as any).application_url)}
+            onPress={() => event.application_url && Linking.openURL(event.application_url)}
             className="bg-white rounded-2xl p-4 border border-slate-100 mb-4 flex-row items-center"
             activeOpacity={0.7}
           >
@@ -227,7 +227,7 @@ export default function EventDetailScreen() {
             <View className="flex-1">
               <Text className="font-semibold text-slate-800 text-sm">Application Portal</Text>
               <Text className="text-slate-400 text-xs mt-0.5" numberOfLines={1}>
-                {(event as any).application_url}
+                {event.application_url}
               </Text>
             </View>
             <Text className="text-amber-500 font-semibold text-sm">Open ↗</Text>
@@ -264,7 +264,7 @@ export default function EventDetailScreen() {
               <Text className="text-slate-700 text-sm font-medium">{formatDate(event.application_date)}</Text>
             </View>
           )}
-          {(event as any).overnight_stay && (
+          {event.overnight_stay && (
             <View className="flex-row items-center">
               <Text className="text-slate-400 text-sm w-32">Overnight stay</Text>
               <Text className="text-amber-700 text-sm font-medium">🌙 Yes</Text>
@@ -272,14 +272,14 @@ export default function EventDetailScreen() {
           )}
           <View className="flex-row items-center">
             <Text className="text-slate-400 text-sm w-32">Docs uploaded</Text>
-            <Text className={`text-sm font-medium ${(event as any).documents_uploaded ? 'text-green-600' : 'text-slate-400'}`}>
-              {(event as any).documents_uploaded ? '✅ Yes' : '⏳ Not yet'}
+            <Text className={`text-sm font-medium ${event.documents_uploaded ? 'text-green-600' : 'text-slate-400'}`}>
+              {event.documents_uploaded ? '✅ Yes' : '⏳ Not yet'}
             </Text>
           </View>
-          {(event as any).url_last_checked_at && (
+          {event.url_last_checked_at && (
             <View className="flex-row">
               <Text className="text-slate-400 text-sm w-32">Last checked</Text>
-              <Text className="text-slate-700 text-sm">{formatDate((event as any).url_last_checked_at)}</Text>
+              <Text className="text-slate-700 text-sm">{formatDate(event.url_last_checked_at)}</Text>
             </View>
           )}
           {event.description && (

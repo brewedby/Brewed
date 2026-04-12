@@ -731,3 +731,67 @@ ON CONFLICT (name) DO UPDATE SET
   pitch_fee_range   = EXCLUDED.pitch_fee_range,
   featured          = EXCLUDED.featured,
   updated_at        = NOW();
+
+-- ============================================================
+-- Migration 004: pg_cron scheduled jobs for daily auto-sync
+-- ============================================================
+-- Run this AFTER enabling pg_cron in your Supabase dashboard:
+--   Dashboard → Project Settings → Extensions → pg_cron → Enable
+-- Also enable pg_net in the same way (required for HTTP calls from pg_cron).
+--
+-- Replace YOUR_PROJECT_REF and YOUR_SERVICE_ROLE_KEY with real values.
+-- Service role key is safe to use here as this runs inside Supabase's
+-- trusted server environment (not exposed to clients).
+
+-- Enable required extensions (safe to run multiple times)
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net;
+
+-- ── Job 1: Daily event sync (03:00 UTC) ─────────────────────────────────────
+-- Searches Brave for new UK events/festivals and upserts into uk_events_directory.
+-- Requires BRAVE_SEARCH_API_KEY secret to be set.
+--
+SELECT cron.unschedule('sync-directory-daily') WHERE EXISTS (
+  SELECT 1 FROM cron.job WHERE jobname = 'sync-directory-daily'
+);
+
+SELECT cron.schedule(
+  'sync-directory-daily',
+  '0 3 * * *',
+  $$
+  SELECT net.http_post(
+    url     := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/sync-directory',
+    headers := jsonb_build_object(
+      'Content-Type',   'application/json',
+      'Authorization',  'Bearer YOUR_SERVICE_ROLE_KEY'
+    ),
+    body    := '{}'::jsonb
+  ) AS request_id;
+  $$
+);
+
+-- ── Job 2: Daily URL check (08:00 UTC) ───────────────────────────────────────
+-- Checks application URLs for your tracked events and flags page changes.
+-- No API key needed — uses service role key only.
+--
+SELECT cron.unschedule('check-application-urls-daily') WHERE EXISTS (
+  SELECT 1 FROM cron.job WHERE jobname = 'check-application-urls-daily'
+);
+
+SELECT cron.schedule(
+  'check-application-urls-daily',
+  '0 8 * * *',
+  $$
+  SELECT net.http_post(
+    url     := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/check-application-urls',
+    headers := jsonb_build_object(
+      'Content-Type',   'application/json',
+      'Authorization',  'Bearer YOUR_SERVICE_ROLE_KEY'
+    ),
+    body    := '{}'::jsonb
+  ) AS request_id;
+  $$
+);
+
+-- Verify scheduled jobs:
+-- SELECT * FROM cron.job;

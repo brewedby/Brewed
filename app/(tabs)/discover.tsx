@@ -23,14 +23,28 @@ function daysSince(dateStr: string | null): number | null {
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
+// Category badge colours — using explicit style objects to avoid NativeWind dynamic class issues
+const CATEGORY_STYLES: Record<string, { bg: string; text: string }> = {
+  'Music Festival':       { bg: '#f3e8ff', text: '#7e22ce' },
+  'Food Festival':        { bg: '#ffedd5', text: '#c2410c' },
+  'Street Food Market':   { bg: '#dcfce7', text: '#15803d' },
+  'Christmas Market':     { bg: '#fee2e2', text: '#b91c1c' },
+  'Garden and Lifestyle': { bg: '#d1fae5', text: '#065f46' },
+  'Motorsport':           { bg: '#dbeafe', text: '#1d4ed8' },
+  'Equestrian':           { bg: '#fef3c7', text: '#92400e' },
+};
+const DEFAULT_CATEGORY_STYLE = { bg: '#f1f5f9', text: '#475569' };
+
 function VerifiedBadge({ lastVerifiedAt }: { lastVerifiedAt: string | null }) {
   const days = daysSince(lastVerifiedAt);
   if (days === null) return null;
   const fresh = days <= 7;
   const stale = days > 30;
+  const bgColor = fresh ? '#dcfce7' : stale ? '#ffedd5' : '#f1f5f9';
+  const textColor = fresh ? '#15803d' : stale ? '#c2410c' : '#64748b';
   return (
-    <View className={`px-2 py-0.5 rounded-full ${fresh ? 'bg-green-100' : stale ? 'bg-orange-100' : 'bg-slate-100'}`}>
-      <Text className={`text-xs font-medium ${fresh ? 'text-green-700' : stale ? 'text-orange-600' : 'text-slate-500'}`}>
+    <View style={{ backgroundColor: bgColor, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
+      <Text style={{ color: textColor, fontSize: 11, fontWeight: '500' }}>
         {fresh ? `Verified ${days}d ago` : stale ? `Check needed (${days}d)` : `Verified ${days}d ago`}
       </Text>
     </View>
@@ -38,83 +52,74 @@ function VerifiedBadge({ lastVerifiedAt }: { lastVerifiedAt: string | null }) {
 }
 
 function EventCard({ event, onAdd, adding }: { event: DiscoveredEvent; onAdd: (e: DiscoveredEvent) => void; adding: boolean }) {
-  const categoryColors: Record<string, { bg: string; text: string }> = {
-    'Music Festival':        { bg: '#f3e8ff', text: '#7e22ce' },
-    'Food Festival':         { bg: '#ffedd5', text: '#c2410c' },
-    'Street Food Market':    { bg: '#dcfce7', text: '#15803d' },
-    'Christmas Market':      { bg: '#fee2e2', text: '#b91c1c' },
-    'Garden and Lifestyle':  { bg: '#d1fae5', text: '#065f46' },
-    'Motorsport':            { bg: '#dbeafe', text: '#1d4ed8' },
-    'Equestrian':            { bg: '#fef3c7', text: '#92400e' },
-  };
-  const colors = categoryColors[event.category] ?? { bg: '#f1f5f9', text: '#475569' };
+  const catStyle = CATEGORY_STYLES[event.category] ?? DEFAULT_CATEGORY_STYLE;
 
   return (
-    <View style={{ backgroundColor: '#fff', borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: '#f1f5f9', overflow: 'hidden' }}>
-      <View style={{ height: 4, backgroundColor: '#fbbf24' }} />
-      <View style={{ padding: 16 }}>
+    <View className="bg-white rounded-2xl mb-3 border border-slate-100 overflow-hidden">
+      <View className="h-1 bg-amber-400" />
+      <View className="p-4">
         {event.featured && (
-          <View style={{ alignSelf: 'flex-start', backgroundColor: '#fef3c7', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 99, marginBottom: 8 }}>
-            <Text style={{ color: '#b45309', fontSize: 11, fontWeight: '600' }}>⭐ Featured</Text>
+          <View style={{ alignSelf: 'flex-start', backgroundColor: '#fef3c7', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 12, marginBottom: 8 }}>
+            <Text style={{ color: '#b45309', fontSize: 12, fontWeight: '600' }}>⭐ Featured</Text>
           </View>
         )}
 
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
-          <Text style={{ fontWeight: '700', color: '#0f172a', fontSize: 15, lineHeight: 20, flex: 1, marginRight: 12 }} numberOfLines={2}>
+        <View className="flex-row items-start justify-between mb-2">
+          <Text className="font-bold text-slate-900 text-base leading-snug flex-1 mr-3" numberOfLines={2}>
             {event.title}
           </Text>
-          <View style={{ backgroundColor: colors.bg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99 }}>
-            <Text style={{ color: colors.text, fontSize: 11, fontWeight: '500' }}>{event.category}</Text>
+          <View style={{ backgroundColor: catStyle.bg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
+            <Text style={{ color: catStyle.text, fontSize: 11, fontWeight: '500' }}>{event.category}</Text>
           </View>
         </View>
 
         {event.organiser && (
-          <Text style={{ color: '#94a3b8', fontSize: 11, marginBottom: 8 }}>Organised by {event.organiser}</Text>
+          <Text className="text-slate-400 text-xs mb-2">Organised by {event.organiser}</Text>
         )}
 
-        <Text style={{ color: '#475569', fontSize: 13, lineHeight: 20, marginBottom: 12 }} numberOfLines={3}>
+        <Text className="text-slate-600 text-sm leading-relaxed mb-3" numberOfLines={3}>
           {event.description}
         </Text>
 
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+        <View className="flex-row flex-wrap gap-1.5 mb-3">
           {event.location && (
-            <View style={{ backgroundColor: '#f8fafc', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99 }}>
-              <Text style={{ color: '#64748b', fontSize: 11 }}>📍 {event.location}</Text>
+            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
+              <Text className="text-slate-500 text-xs">📍 {event.location}</Text>
             </View>
           )}
           {event.dateHint && (
-            <View style={{ backgroundColor: '#f8fafc', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99 }}>
-              <Text style={{ color: '#64748b', fontSize: 11 }}>📅 {event.dateHint}</Text>
+            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
+              <Text className="text-slate-500 text-xs">📅 {event.dateHint}</Text>
             </View>
           )}
           {event.estimatedFootfall && (
-            <View style={{ backgroundColor: '#f8fafc', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99 }}>
-              <Text style={{ color: '#64748b', fontSize: 11 }}>👥 {event.estimatedFootfall}</Text>
+            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
+              <Text className="text-slate-500 text-xs">👥 {event.estimatedFootfall}</Text>
             </View>
           )}
           {event.pitchFeeRange && (
-            <View style={{ backgroundColor: '#f8fafc', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99 }}>
-              <Text style={{ color: '#64748b', fontSize: 11 }}>💷 {event.pitchFeeRange}</Text>
+            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
+              <Text className="text-slate-500 text-xs">💷 {event.pitchFeeRange}</Text>
             </View>
           )}
         </View>
 
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View className="flex-row gap-2">
           <TouchableOpacity
-            onPress={() => event.url ? Linking.openURL(event.url) : null}
-            style={{ flex: 1, borderWidth: 1, borderColor: '#e2e8f0', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }}
+            onPress={() => { if (event.url) Linking.openURL(event.url); }}
+            className="flex-1 border border-slate-200 py-2.5 rounded-xl items-center"
           >
-            <Text style={{ color: '#475569', fontWeight: '500', fontSize: 13 }}>View & Apply ↗</Text>
+            <Text className="text-slate-600 font-medium text-sm">View & Apply ↗</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => onAdd(event)}
             disabled={adding}
-            style={{ flex: 1, backgroundColor: '#f59e0b', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }}
+            className="flex-1 bg-amber-500 py-2.5 rounded-xl items-center"
           >
             {adding ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>+ Track It</Text>
+              <Text className="text-white font-semibold text-sm">+ Track It</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -128,26 +133,26 @@ function CompanyCard({ company }: { company: DiscoveredEvent }) {
 
   return (
     <View className="bg-white rounded-2xl mb-3 border border-slate-100 overflow-hidden">
-      <View className={`h-1.5 ${isIndustryBody ? 'bg-slate-400' : 'bg-emerald-500'}`} />
+      <View style={{ height: 6, backgroundColor: isIndustryBody ? '#94a3b8' : '#10b981' }} />
       <View className="p-4">
         <View className="flex-row items-start justify-between mb-1">
           <View className="flex-1 mr-3">
             <View className="flex-row items-center gap-2 flex-wrap mb-0.5">
               {company.featured && (
-                <View className="bg-amber-100 px-2 py-0.5 rounded-full">
-                  <Text className="text-amber-700 text-xs font-semibold">⭐ Major</Text>
+                <View style={{ backgroundColor: '#fef3c7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
+                  <Text style={{ color: '#b45309', fontSize: 11, fontWeight: '600' }}>⭐ Major</Text>
                 </View>
               )}
               {company.applicationChanged && (
-                <View className="bg-green-100 px-2 py-0.5 rounded-full">
-                  <Text className="text-green-700 text-xs font-semibold">🆕 Page Updated</Text>
+                <View style={{ backgroundColor: '#dcfce7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
+                  <Text style={{ color: '#15803d', fontSize: 11, fontWeight: '600' }}>🆕 Page Updated</Text>
                 </View>
               )}
             </View>
             <Text className="font-bold text-slate-900 text-base leading-snug">{company.title}</Text>
           </View>
-          <View className={`px-2 py-0.5 rounded-full ${isIndustryBody ? 'bg-slate-100' : 'bg-emerald-100'}`}>
-            <Text className={`text-xs font-medium ${isIndustryBody ? 'text-slate-600' : 'text-emerald-700'}`}>
+          <View style={{ backgroundColor: isIndustryBody ? '#f1f5f9' : '#d1fae5', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
+            <Text style={{ color: isIndustryBody ? '#475569' : '#065f46', fontSize: 11, fontWeight: '500' }}>
               {isIndustryBody ? 'Industry Body' : 'Concessions Co.'}
             </Text>
           </View>
@@ -194,7 +199,7 @@ function CompanyCard({ company }: { company: DiscoveredEvent }) {
         <View className="flex-row items-center justify-between">
           <VerifiedBadge lastVerifiedAt={company.lastVerifiedAt} />
           <TouchableOpacity
-            onPress={() => company.url ? Linking.openURL(company.url) : null}
+            onPress={() => { if (company.url) Linking.openURL(company.url); }}
             className="bg-emerald-500 px-4 py-2.5 rounded-xl"
           >
             <Text className="text-white font-semibold text-sm">Apply Now ↗</Text>
@@ -259,6 +264,7 @@ export default function DiscoverScreen() {
         c.organiser?.toLowerCase().includes(q)
       );
     }
+    // Featured first, then alphabetical
     return [...results].sort((a, b) => {
       if (a.featured && !b.featured) return -1;
       if (!a.featured && b.featured) return 1;
@@ -273,35 +279,61 @@ export default function DiscoverScreen() {
   }
 
   async function handleAddEvent(discovered: DiscoveredEvent) {
+    if (!user) {
+      Alert.alert('Not signed in', 'Please sign in to track events.');
+      return;
+    }
     setAddingId(discovered.id);
     try {
+      const firstWord = discovered.organiser?.toLowerCase().split(' ')[0] ?? '';
       const matchedCompany = companies.find((c) =>
         c.website?.toLowerCase().includes(discovered.source.toLowerCase()) ||
-        c.name.toLowerCase().includes(discovered.organiser?.toLowerCase().split(' ')[0] ?? '')
+        (firstWord && c.name.toLowerCase().includes(firstWord))
       );
+      const eventName = discovered.title.length > 80 ? discovered.title.slice(0, 80) : discovered.title;
       await createEvent.mutateAsync({
-        userId: user!.id,
+        userId: user.id,
         data: {
-          name: discovered.title.length > 80 ? discovered.title.slice(0, 80) : discovered.title,
+          name: eventName,
           date: new Date().toISOString().split('T')[0],
           location: discovered.location ?? '',
           status: 'pending',
-          description: discovered.description,
-          application_url: discovered.url,
+          description: discovered.description ?? '',
+          application_url: discovered.url ?? '',
           company_id: matchedCompany?.id ?? '',
           notes: `Discovered via Brewed Discover — ${discovered.organiser ?? discovered.source}`,
-          gross_sales: 0, cost_of_goods: 0, pitch_fee: 0,
-          travel_costs: 0, equipment_costs: 0, other_costs: 0, staffing_costs: 0,
-          staffing_entries: [], infrastructure_items: [],
-        } as any,
+          // Financial defaults
+          gross_sales: 0,
+          zero_rated_sales: 0,
+          standard_rated_sales: 0,
+          concessions_commission_pct: 0,
+          pitch_fee_refund_pct: 0,
+          cost_of_goods: 0,
+          pitch_fee: 0,
+          power_fee: 0,
+          travel_costs: 0,
+          camping_costs: 0,
+          equipment_costs: 0,
+          other_costs: 0,
+          staffing_costs: 0,
+          fresh_milk_litres: 0,
+          alt_milk_litres: 0,
+          // Flags
+          overnight_stay: false,
+          documents_uploaded: false,
+          // Arrays
+          staffing_entries: [],
+          infrastructure_items: [],
+        },
       });
       Alert.alert(
         'Added!',
-        `"${discovered.title.slice(0, 50)}" added to your events as Pending. Update the date and details when ready.`,
+        `"${eventName.slice(0, 50)}" added to your events as Pending. Update the date and details when ready.`,
         [{ text: 'Done' }, { text: 'View Events', onPress: () => router.push('/(tabs)/events') }]
       );
-    } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Could not add event');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Could not add event';
+      Alert.alert('Error', msg);
     } finally {
       setAddingId(null);
     }
@@ -368,13 +400,15 @@ export default function DiscoverScreen() {
                 key={r}
                 onPress={() => setRegion(r)}
                 style={{
-                  paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 20,
                   borderWidth: 1,
                   backgroundColor: region === r ? '#1e293b' : '#fff',
                   borderColor: region === r ? '#1e293b' : '#e2e8f0',
                 }}
               >
-                <Text style={{ fontSize: 11, fontWeight: '500', color: region === r ? '#fff' : '#475569' }}>{r}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '500', color: region === r ? '#fff' : '#475569' }}>{r}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -382,20 +416,26 @@ export default function DiscoverScreen() {
 
         {/* Category filter */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-          {currentCategories.map((c) => (
-            <TouchableOpacity
-              key={c}
-              onPress={() => setCategory(c)}
-              style={{
-                paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99,
-                borderWidth: 1,
-                backgroundColor: category === c ? (activeTab === 'apply' ? '#10b981' : '#f59e0b') : '#fff',
-                borderColor: category === c ? (activeTab === 'apply' ? '#10b981' : '#f59e0b') : '#e2e8f0',
-              }}
-            >
-              <Text style={{ fontSize: 11, fontWeight: '500', color: category === c ? '#fff' : '#475569' }}>{c}</Text>
-            </TouchableOpacity>
-          ))}
+          {currentCategories.map((c) => {
+            const active = category === c;
+            const activeColor = activeTab === 'apply' ? '#10b981' : '#f59e0b';
+            return (
+              <TouchableOpacity
+                key={c}
+                onPress={() => setCategory(c)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  backgroundColor: active ? activeColor : '#fff',
+                  borderColor: active ? activeColor : '#e2e8f0',
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '500', color: active ? '#fff' : '#475569' }}>{c}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 
@@ -409,7 +449,7 @@ export default function DiscoverScreen() {
           <Text className="text-4xl mb-3">⚠️</Text>
           <Text className="font-semibold text-slate-700 text-center mb-2">Could not load directory</Text>
           <Text className="text-slate-400 text-xs text-center mb-1">
-            {(error as any)?.message ?? 'Database error'}
+            {error instanceof Error ? error.message : 'Database error'}
           </Text>
           <Text className="text-slate-400 text-xs text-center mb-4">
             Run the Migration 003 SQL in your Supabase dashboard, then tap Retry.
