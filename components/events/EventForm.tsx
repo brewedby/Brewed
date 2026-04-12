@@ -420,7 +420,13 @@ export function EventForm({
       await onSubmit(converted);
       router.back();
     } catch (e: unknown) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save');
+      const msg =
+        e instanceof Error
+          ? e.message
+          : typeof e === 'object' && e !== null && 'message' in e
+          ? String((e as { message: unknown }).message)
+          : 'Failed to save. Check your connection and try again.';
+      Alert.alert('Error', msg);
     } finally {
       setLoading(false);
     }
