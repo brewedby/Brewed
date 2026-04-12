@@ -17,7 +17,10 @@ export function calcEventFinancials(
   f: EventFinancials,
   staffing?: StaffingEntry[],
 ): EventCalculations {
-  const totalStaffingCost = staffing ? calcStaffingTotal(staffing) : (f.staffing_costs ?? 0);
+  const totalStaffingCost =
+    staffing && staffing.length > 0
+      ? calcStaffingTotal(staffing)
+      : (f.staffing_costs ?? 0);
 
   // --- VAT breakdown ---
   const zeroRated = f.zero_rated_sales ?? 0;
