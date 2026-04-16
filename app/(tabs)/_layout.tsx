@@ -15,6 +15,7 @@ export default function TabLayout() {
       <Tabs.Screen name="fleet" options={{ title: 'Fleet', tabBarIcon: ({ focused }) => <TabIcon emoji="🚐" focused={focused} /> }} />
       <Tabs.Screen name="companies" options={{ title: 'Companies', tabBarIcon: ({ focused }) => <TabIcon emoji="🏢" focused={focused} /> }} />
       <Tabs.Screen name="discover" options={{ title: 'Discover', tabBarIcon: ({ focused }) => <TabIcon emoji="🗺️" focused={focused} /> }} />
+      <Tabs.Screen name="settings" options={{ title: 'Settings', tabBarIcon: ({ focused }) => <TabIcon emoji="⚙️" focused={focused} /> }} />
       <Tabs.Screen name="reports" options={{ href: null }} />
     </Tabs>
   );

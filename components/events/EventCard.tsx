@@ -15,7 +15,7 @@ export function EventCard({ event }: Props) {
   const fin = event.event_financials;
   const calc = event.calculations;
   const dotColor = STATUS_COLORS[event.status]?.dot ?? '#a8a29e';
-  const unitName = event.units?.name;
+  const unitName = event.units?.length ? event.units.map((u) => u.name).join(' · ') : null;
 
   return (
     <TouchableOpacity

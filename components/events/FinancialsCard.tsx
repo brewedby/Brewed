@@ -62,6 +62,8 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
     (f.zero_rated_sales ?? 0) > 0 || (f.standard_rated_sales ?? 0) > 0;
   const hasCommission =
     (f.concessions_commission_pct ?? 0) > 0 || (f.pitch_fee_refund_pct ?? 0) > 0;
+  const hasPowerFee = (f.power_fee ?? 0) > 0;
+  const hasSiteCostSection = hasCommission || hasPowerFee;
   const hasMilk =
     (f.fresh_milk_litres ?? 0) > 0 || (f.alt_milk_litres ?? 0) > 0;
 
@@ -91,46 +93,49 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
       )}
 
       {/* ── PITCH FEE & COMMISSION ── */}
-      {hasCommission && (
+      {hasSiteCostSection && (
         <>
           <SectionLabel title="Pitch Fee & Commission" />
-          <Row label="Pitch fee paid" value={formatCurrency(f.pitch_fee)} />
+          {(f.pitch_fee ?? 0) > 0 && (
+            <Row label="Pitch fee paid" value={formatCurrency(f.pitch_fee)} />
+          )}
+          {hasCommission && (
+            <>
+              <Row
+                label={`Pitch fee refund (${f.pitch_fee_refund_pct ?? 0}%)`}
+                value={formatCurrency(c.pitchFeeRefundGross)}
+                indent
+              />
+              <Row
+                label={`Commission (${f.concessions_commission_pct ?? 0}% of net sales)`}
+                value={`-${formatCurrency(c.commissionAmount)}`}
+                indent
+              />
+              <Row
+                label="Net refund received"
+                value={formatCurrency(Math.max(0, c.netRefund))}
+                indent
+                color={c.netRefund >= 0 ? 'text-green-600' : 'text-red-500'}
+              />
+            </>
+          )}
+          {hasPowerFee && (
+            <Row label="Power / site fee" value={formatCurrency(f.power_fee ?? 0)} />
+          )}
           <Row
-            label={`Pitch fee refund (${f.pitch_fee_refund_pct ?? 0}%)`}
-            value={formatCurrency(c.pitchFeeRefundGross)}
-            indent
-          />
-          <Row
-            label={`Commission (${f.concessions_commission_pct ?? 0}% of net sales)`}
-            value={`-${formatCurrency(c.commissionAmount)}`}
-            indent
-          />
-          <Row
-            label="Net refund received"
-            value={formatCurrency(Math.max(0, c.netRefund))}
-            indent
-            color={c.netRefund >= 0 ? 'text-green-600' : 'text-red-500'}
-          />
-          <Row
-            label="Effective pitch cost"
-            value={formatCurrency(c.effectivePitchFee)}
+            label="Total site cost"
+            value={formatCurrency(c.effectivePitchFee + (f.power_fee ?? 0))}
             bold
           />
-        </>
-      )}
-
-      {/* ── POWER & SITE FEES ── */}
-      {(f.power_fee ?? 0) > 0 && (
-        <>
-          <SectionLabel title="Power & Site Fees" />
-          <Row label="Power fee" value={formatCurrency(f.power_fee ?? 0)} />
         </>
       )}
 
       {/* ── YOUR COSTS ── */}
       <SectionLabel title="Your Costs" />
       <Row label="Cost of Goods" value={formatCurrency(f.cost_of_goods)} />
-      {!hasCommission && <Row label="Pitch Fee" value={formatCurrency(f.pitch_fee)} />}
+      {!hasSiteCostSection && (f.pitch_fee ?? 0) > 0 && (
+        <Row label="Pitch Fee" value={formatCurrency(f.pitch_fee)} />
+      )}
       <Row label="Staffing" value={formatCurrency(f.staffing_costs)} />
       <Row label="Travel" value={formatCurrency(f.travel_costs)} />
       {(f.camping_costs ?? 0) > 0 && (

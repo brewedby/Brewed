@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Switch,
+  View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Switch, Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { format, isValid } from 'date-fns';
 import { useForm, Controller, useFieldArray, Control, UseFormWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
@@ -32,6 +34,72 @@ function SectionHeader({ title }: { title: string }) {
     <Text className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 mb-1">
       {title}
     </Text>
+  );
+}
+
+function DatePickerButton({
+  label,
+  value,
+  onChange,
+  required,
+}: {
+  label: string;
+  value: string;
+  onChange: (isoDate: string) => void;
+  required?: boolean;
+}) {
+  const [show, setShow] = useState(false);
+  const parsed = value ? (() => { try { const d = new Date(value); return isValid(d) ? d : new Date(); } catch { return new Date(); } })() : new Date();
+  const displayText = value ? (() => { try { const d = new Date(value); return isValid(d) ? format(d, 'd MMM yyyy') : value; } catch { return value; } })() : '';
+
+  return (
+    <View>
+      <Text className="text-slate-600 text-sm font-semibold mb-1.5">
+        {label}{required && <Text className="text-red-500"> *</Text>}
+      </Text>
+      <TouchableOpacity
+        onPress={() => setShow(true)}
+        style={{
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+          borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12,
+          paddingHorizontal: 14, paddingVertical: 12, backgroundColor: '#ffffff',
+        }}
+      >
+        <Text style={{ color: displayText ? '#0f172a' : '#94a3b8', fontSize: 15 }}>
+          {displayText || 'Select date'}
+        </Text>
+        <Text style={{ fontSize: 16 }}>📅</Text>
+      </TouchableOpacity>
+
+      {show && Platform.OS === 'ios' && (
+        <View style={{ backgroundColor: '#ffffff', borderRadius: 12, marginTop: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#e2e8f0' }}>
+          <DateTimePicker
+            value={parsed}
+            mode="date"
+            display="spinner"
+            onChange={(_, date) => { if (date) onChange(format(date, 'yyyy-MM-dd')); }}
+            style={{ height: 160 }}
+          />
+          <TouchableOpacity
+            onPress={() => setShow(false)}
+            style={{ alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#e2e8f0' }}
+          >
+            <Text style={{ color: '#1e293b', fontWeight: '600' }}>Done</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {show && Platform.OS === 'android' && (
+        <DateTimePicker
+          value={parsed}
+          mode="date"
+          display="default"
+          onChange={(_, date) => {
+            setShow(false);
+            if (date) onChange(format(date, 'yyyy-MM-dd'));
+          }}
+        />
+      )}
+    </View>
   );
 }
 
@@ -370,7 +438,7 @@ export function EventForm({
       status: 'pending',
       notes: '',
       company_id: '',
-      unit_id: '',
+      unit_ids: [],
       application_url: '',
       overnight_stay: false,
       documents_uploaded: false,
@@ -406,7 +474,7 @@ export function EventForm({
 
   const selectedStatus = watch('status') as ApplicationStatus;
   const selectedCompanyId = watch('company_id');
-  const selectedUnitId = watch('unit_id');
+  const selectedUnitIds = (watch('unit_ids') ?? []) as string[];
 
   async function handleFormSubmit(data: EventFormValues) {
     setLoading(true);
@@ -493,14 +561,11 @@ export function EventForm({
                   control={control}
                   name="date"
                   render={({ field }) => (
-                    <FormField
+                    <DatePickerButton
                       label="Start Date"
                       required
-                      value={field.value}
-                      onChangeText={field.onChange}
-                      error={errors.date?.message}
-                      placeholder="DD/MM/YYYY"
-                      keyboardType="numbers-and-punctuation"
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
                     />
                   )}
                 />
@@ -510,12 +575,10 @@ export function EventForm({
                   control={control}
                   name="end_date"
                   render={({ field }) => (
-                    <FormField
+                    <DatePickerButton
                       label="End Date"
                       value={field.value ?? ''}
-                      onChangeText={field.onChange}
-                      placeholder="DD/MM/YYYY"
-                      keyboardType="numbers-and-punctuation"
+                      onChange={field.onChange}
                     />
                   )}
                 />
@@ -543,12 +606,10 @@ export function EventForm({
               control={control}
               name="application_date"
               render={({ field }) => (
-                <FormField
+                <DatePickerButton
                   label="Applied On"
                   value={field.value ?? ''}
-                  onChangeText={field.onChange}
-                  placeholder="DD/MM/YYYY"
-                  keyboardType="numbers-and-punctuation"
+                  onChange={field.onChange}
                 />
               )}
             />
@@ -575,63 +636,51 @@ export function EventForm({
               </Text>
             </View>
 
-            {/* Unit selector */}
-            <View>
-              <Text className="text-slate-600 text-sm font-semibold mb-2">Unit / Vehicle</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 8 }}
-              >
-                {/* None pill */}
-                <TouchableOpacity
-                  onPress={() => setValue('unit_id', '')}
-                  className={`px-3 py-2 rounded-xl border ${
-                    !selectedUnitId
-                      ? 'bg-slate-900 border-slate-900'
-                      : 'bg-white border-slate-200'
-                  }`}
-                >
-                  <Text
-                    className={`text-sm font-medium ${
-                      !selectedUnitId ? 'text-white' : 'text-slate-500'
-                    }`}
-                  >
-                    None
-                  </Text>
-                </TouchableOpacity>
-
-                {units.map((u) => {
-                  const active = selectedUnitId === u.id;
-                  return (
-                    <TouchableOpacity
-                      key={u.id}
-                      onPress={() => setValue('unit_id', u.id)}
-                      className={`px-3 py-2 rounded-xl border ${
-                        active ? 'bg-slate-900 border-slate-900' : 'bg-white border-slate-200'
-                      }`}
-                    >
-                      <Text
-                        className={`text-sm font-medium ${
-                          active ? 'text-white' : 'text-slate-700'
-                        }`}
+            {/* Unit selector — multi-select */}
+            {units.length > 0 && (
+              <View>
+                <Text className="text-slate-600 text-sm font-semibold mb-2">Units / Vehicles</Text>
+                <Text className="text-slate-400 text-xs mb-2">Select all units attending this event</Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {units.map((u) => {
+                    const active = selectedUnitIds.includes(u.id);
+                    return (
+                      <TouchableOpacity
+                        key={u.id}
+                        onPress={() => {
+                          const current = selectedUnitIds;
+                          setValue(
+                            'unit_ids',
+                            active ? current.filter((id) => id !== u.id) : [...current, u.id],
+                          );
+                        }}
+                        style={{
+                          flexDirection: 'row', alignItems: 'center',
+                          paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12,
+                          borderWidth: 1,
+                          backgroundColor: active ? '#1e293b' : '#ffffff',
+                          borderColor: active ? '#1e293b' : '#e2e8f0',
+                        }}
                       >
-                        {u.name}
-                      </Text>
-                      {u.registration ? (
-                        <Text
-                          className={`text-xs mt-0.5 ${
-                            active ? 'text-slate-300' : 'text-slate-400'
-                          }`}
-                        >
-                          {u.registration}
+                        <Text style={{ fontSize: 14, fontWeight: '500', color: active ? '#ffffff' : '#374151' }}>
+                          {u.name}
                         </Text>
-                      ) : null}
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
+                        {u.registration ? (
+                          <Text style={{ fontSize: 11, marginLeft: 6, color: active ? '#94a3b8' : '#9ca3af' }}>
+                            {u.registration}
+                          </Text>
+                        ) : null}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {selectedUnitIds.length > 0 && (
+                  <TouchableOpacity onPress={() => setValue('unit_ids', [])} className="mt-2">
+                    <Text className="text-slate-400 text-xs">Clear selection</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
 
             {/* Application Status selector */}
             <View>

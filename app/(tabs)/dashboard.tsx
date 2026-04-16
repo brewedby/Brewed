@@ -10,6 +10,7 @@ import { StatusPieChart } from '@/components/dashboard/StatusPieChart';
 import { EventCard } from '@/components/events/EventCard';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { useAuth } from '@/lib/auth';
+import { useProfile } from '@/lib/queries/profile';
 import { UNIT_STATUS_COLORS } from '@/constants';
 import type { UnitWithStatus } from '@/types';
 
@@ -20,6 +21,7 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const { data: profile } = useProfile(user?.id);
   const [year, setYear] = useState(CURRENT_YEAR);
   const [refreshing, setRefreshing] = useState(false);
   const { data: stats, isLoading, refetch } = useDashboard(year);
@@ -40,7 +42,7 @@ export default function DashboardScreen() {
               <Text className="text-base">☕</Text>
             </View>
             <View>
-              <Text className="font-bold text-stone-900 text-base">Brewed by Boon</Text>
+              <Text className="font-bold text-stone-900 text-base">{profile?.business_name ?? 'My Business'}</Text>
               <Text className="text-stone-400 text-xs">{user?.email}</Text>
             </View>
           </View>
@@ -84,6 +86,7 @@ export default function DashboardScreen() {
                 value={formatCurrencyCompact(stats?.netProfitYtd ?? 0)}
                 icon="📈"
                 colorScheme={(stats?.netProfitYtd ?? 0) >= 0 ? 'green' : 'red'}
+                subtitle={(stats?.committedFees ?? 0) > 0 ? `Excl. £${(stats!.committedFees).toFixed(0)} committed` : undefined}
               />
             </View>
 
@@ -105,6 +108,28 @@ export default function DashboardScreen() {
                 icon="⚖️"
               />
             </View>
+
+            {/* Committed Fees */}
+            {stats && stats.committedFees > 0 && (
+              <View>
+                <View className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                  <View className="flex-row items-center justify-between mb-1">
+                    <Text className="font-bold text-amber-900 text-sm">💳 Committed Fees</Text>
+                    <Text className="font-bold text-amber-800 text-base">{formatCurrency(stats.committedFees)}</Text>
+                  </View>
+                  <Text className="text-amber-700 text-xs mb-3">Pitch & power fees already paid for upcoming accepted events</Text>
+                  {stats.upcomingCommitments.map((c) => (
+                    <View key={c.id} className="flex-row items-center justify-between py-1.5 border-t border-amber-100">
+                      <View className="flex-1 mr-2">
+                        <Text className="text-amber-900 text-sm font-medium" numberOfLines={1}>{c.name}</Text>
+                        <Text className="text-amber-700 text-xs">{c.date}</Text>
+                      </View>
+                      <Text className="text-amber-800 font-semibold text-sm">{formatCurrency(c.committedFee)}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
 
             {/* Fleet Overview */}
             {stats && stats.unitStatuses.length > 0 && (

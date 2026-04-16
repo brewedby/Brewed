@@ -25,7 +25,7 @@ export const eventSchema = z.object({
   status: z.enum(['pending', 'accepted', 'rejected', 'waitlisted', 'withdrawn'] as const),
   notes: z.string().optional(),
   company_id: z.string().optional(),
-  unit_id: z.string().optional(),
+  unit_ids: z.array(z.string()).default([]),
   application_url: z.string().optional(),
   overnight_stay: z.boolean().default(false),
   documents_uploaded: z.boolean().default(false),

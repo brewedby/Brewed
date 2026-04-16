@@ -87,6 +87,27 @@ export function useDashboard(year?: number) {
         };
       });
 
+      // Committed fees: accepted upcoming events with pitch/power fees already paid
+      const todayStr = new Date().toISOString().split('T')[0];
+      const committedFeeEvents = allEvents.filter((e) => {
+        const eventEnd = e.end_date ?? e.date;
+        return e.status === 'accepted' && eventEnd > todayStr && (e.event_financials?.pitch_fee ?? 0) + (e.event_financials?.power_fee ?? 0) > 0;
+      });
+      const committedFees = committedFeeEvents.reduce((sum, e) => {
+        return sum + (e.event_financials?.pitch_fee ?? 0) + (e.event_financials?.power_fee ?? 0);
+      }, 0);
+      const upcomingCommitments = committedFeeEvents
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(0, 5)
+        .map((e) => ({
+          id: e.id,
+          name: e.name,
+          date: e.date,
+          end_date: e.end_date,
+          location: e.location,
+          committedFee: (e.event_financials?.pitch_fee ?? 0) + (e.event_financials?.power_fee ?? 0),
+        }));
+
       return {
         totalEventsYtd: ytdEvents.length,
         grossSalesYtd,
@@ -99,6 +120,8 @@ export function useDashboard(year?: number) {
         totalFreshMilkLitres,
         totalAltMilkLitres,
         unitStatuses,
+        committedFees,
+        upcomingCommitments,
       };
     },
   });

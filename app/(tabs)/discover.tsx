@@ -1,4 +1,4 @@
-import React, { useState, useMemo, startTransition } from 'react';
+import React, { useState, useEffect, useMemo, startTransition } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   RefreshControl, Linking, Alert, ActivityIndicator,
@@ -9,6 +9,7 @@ import { useDiscoverEvents } from '@/lib/queries/discover';
 import { useCompanies } from '@/lib/queries/companies';
 import { useCreateEvent } from '@/lib/mutations/events';
 import { useAuth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import type { DiscoveredEvent } from '@/types';
 
 const REGIONS = ['All UK', 'London', 'South East', 'South West', 'East of England', 'Midlands', 'West Midlands', 'North West', 'Yorkshire', 'North East', 'Scotland', 'Wales', 'National'];
@@ -21,6 +22,15 @@ function daysSince(dateStr: string | null): number | null {
   if (!dateStr) return null;
   const diff = Date.now() - new Date(dateStr).getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
+
+function formatRelativeTime(date: Date): string {
+  const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 }
 
 // Category badge colours — using explicit style objects to avoid NativeWind dynamic class issues
@@ -219,6 +229,20 @@ export default function DiscoverScreen() {
   const [category, setCategory] = useState('All');
   const [addingId, setAddingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from('uk_events_directory')
+      .select('updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .single()
+      .then(({ data }) => {
+        if (data?.updated_at) setLastSynced(new Date(data.updated_at));
+      });
+  }, []);
 
   const { data: allResults = [], isLoading, refetch, error } = useDiscoverEvents({});
   const { data: companies = [] } = useCompanies();
@@ -276,6 +300,21 @@ export default function DiscoverScreen() {
     setRefreshing(true);
     await refetch();
     setRefreshing(false);
+  }
+
+  async function handleSync() {
+    setSyncing(true);
+    try {
+      await supabase.functions.invoke('sync-directory', { body: {} });
+      // Re-fetch data after sync
+      await refetch();
+      // Update last synced
+      setLastSynced(new Date());
+    } catch {
+      // silently ignore - edge function may not exist in dev
+    } finally {
+      setSyncing(false);
+    }
   }
 
   async function handleAddEvent(discovered: DiscoveredEvent) {
@@ -346,7 +385,27 @@ export default function DiscoverScreen() {
     <View className="flex-1 bg-slate-50" style={{ paddingTop: insets.top }}>
       {/* Header */}
       <View className="bg-white px-4 pt-3 pb-3 border-b border-slate-100">
-        <Text className="text-2xl font-bold text-slate-900 mb-3">Discover</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <View>
+            <Text className="text-2xl font-bold text-slate-900">Discover</Text>
+            {lastSynced && (
+              <Text className="text-stone-400 text-xs">
+                Last synced: {formatRelativeTime(lastSynced)}
+              </Text>
+            )}
+          </View>
+          <TouchableOpacity
+            onPress={handleSync}
+            disabled={syncing}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f5f5f4', borderWidth: 1, borderColor: '#e7e5e4' }}
+          >
+            {syncing ? (
+              <ActivityIndicator size="small" color="#78716c" />
+            ) : (
+              <Text style={{ color: '#57534e', fontSize: 13, fontWeight: '500' }}>↻ Refresh</Text>
+            )}
+          </TouchableOpacity>
+        </View>
 
         {/* Tab switcher */}
         <View style={{ flexDirection: 'row', backgroundColor: '#f1f5f9', borderRadius: 12, padding: 4, marginBottom: 12 }}>

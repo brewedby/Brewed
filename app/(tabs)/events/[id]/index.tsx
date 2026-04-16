@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEvent, useDeleteEvent } from '@/lib/queries/events';
 import { FinancialsCard } from '@/components/events/FinancialsCard';
+import { WeatherCard } from '@/components/events/WeatherCard';
 import { StaffingList } from '@/components/events/StaffingList';
 import { InfrastructureList } from '@/components/events/InfrastructureList';
 import { EventStatusBadge } from '@/components/shared/EventStatusBadge';
@@ -155,8 +156,8 @@ export default function EventDetailScreen() {
           {event.concessions_companies && (
             <Text className="text-slate-400 text-xs mt-0.5">🏢 {event.concessions_companies.name}</Text>
           )}
-          {event.units?.name && (
-            <Text className="text-slate-400 text-xs mt-0.5">🚐 {event.units?.name}</Text>
+          {event.units?.length > 0 && (
+            <Text className="text-slate-400 text-xs mt-0.5">🚐 {event.units.map((u) => u.name).join(' · ')}</Text>
           )}
         </View>
       </View>
@@ -239,6 +240,17 @@ export default function EventDetailScreen() {
             </View>
             <Text className="text-amber-500 font-semibold text-sm">Open ↗</Text>
           </TouchableOpacity>
+        )}
+
+        {/* Weather forecast */}
+        {event.location && event.date && (
+          <View className="mb-4">
+            <WeatherCard
+              location={event.location}
+              startDate={event.date}
+              endDate={event.end_date}
+            />
+          </View>
         )}
 
         {/* Financials */}

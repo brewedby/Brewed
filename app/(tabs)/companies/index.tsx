@@ -72,6 +72,26 @@ export default function CompaniesScreen() {
                     {company.acceptedEvents > 0 && (
                       <Text className="text-green-600 text-xs mt-1 font-medium">{company.acceptedEvents} accepted</Text>
                     )}
+                    {/* Margin badge */}
+                    {company.completedEventCount > 0 ? (
+                      <View style={{
+                        paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12,
+                        backgroundColor: (company.avgProfitMargin ?? 0) >= 25 ? '#dcfce7' : (company.avgProfitMargin ?? 0) >= 10 ? '#fef9c3' : '#fee2e2',
+                        marginTop: 4,
+                      }}>
+                        <Text style={{
+                          fontSize: 11, fontWeight: '600',
+                          color: (company.avgProfitMargin ?? 0) >= 25 ? '#166534' : (company.avgProfitMargin ?? 0) >= 10 ? '#854d0e' : '#991b1b',
+                        }}>
+                          {(company.avgProfitMargin ?? 0).toFixed(0)}% avg margin
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, backgroundColor: '#f5f5f4', marginTop: 4 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: '#78716c' }}>No data</Text>
+                      </View>
+                    )}
+                    {company.completedEventCount > 0 && <Text className="text-stone-400 text-xs mt-1">Avg across {company.completedEventCount} event{company.completedEventCount !== 1 ? 's' : ''}</Text>}
                   </View>
                 </View>
 

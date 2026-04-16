@@ -42,7 +42,7 @@ export const EMPTY_CALCULATIONS: EventCalculations = {
 export interface EventWithFinancials extends Event {
   event_financials: EventFinancials | null;
   concessions_companies: ConcessionsCompany | null;
-  units?: Unit | null;
+  units: Unit[];
   calculations: EventCalculations;
 }
 
@@ -80,6 +80,8 @@ export interface CompanyWithStats extends ConcessionsCompany {
   totalRevenue: number;
   totalNetProfit: number;
   lastEventDate: string | null;
+  avgProfitMargin: number | null;
+  completedEventCount: number;
 }
 
 export interface UnitWithStatus extends Unit {
@@ -98,6 +100,15 @@ export interface DashboardStats {
   totalFreshMilkLitres: number;
   totalAltMilkLitres: number;
   unitStatuses: UnitWithStatus[];
+  committedFees: number;
+  upcomingCommitments: {
+    id: string;
+    name: string;
+    date: string;
+    end_date: string | null;
+    location: string;
+    committedFee: number;
+  }[];
 }
 
 export interface MonthlyRevenue {

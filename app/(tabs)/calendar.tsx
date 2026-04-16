@@ -10,8 +10,11 @@ export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
 
-  // Only show accepted events on the calendar
-  const { data: events, isLoading, refetch } = useEvents({ status: 'accepted' });
+  // Show all active events (exclude rejected and withdrawn)
+  const { data: allEvents = [], isLoading, refetch } = useEvents();
+  const events = allEvents.filter(
+    (e) => e.status !== 'rejected' && e.status !== 'withdrawn',
+  );
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -24,7 +27,7 @@ export default function CalendarScreen() {
       {/* Header */}
       <View className="px-4 pt-2 pb-3 bg-white border-b border-stone-100">
         <Text className="text-2xl font-bold text-stone-900">Calendar</Text>
-        <Text className="text-stone-500 text-xs mt-0.5">Accepted events only</Text>
+        <Text className="text-stone-500 text-xs mt-0.5">Accepted, waitlisted &amp; pending events</Text>
       </View>
 
       {isLoading ? (
@@ -38,8 +41,8 @@ export default function CalendarScreen() {
         >
           <EmptyState
             icon="📅"
-            title="No accepted events"
-            description="Once you mark an event as Accepted it will appear here automatically."
+            title="No upcoming events"
+            description="Accepted, waitlisted and pending events will appear here automatically."
           />
         </ScrollView>
       ) : (

@@ -5,12 +5,13 @@ interface Props {
   title: string;
   value: string;
   subtext?: string;
+  subtitle?: string;
   icon?: string;
   trendValue?: number;
   colorScheme?: 'default' | 'green' | 'amber' | 'red';
 }
 
-export function StatCard({ title, value, subtext, icon, trendValue, colorScheme = 'default' }: Props) {
+export function StatCard({ title, value, subtext, subtitle, icon, trendValue, colorScheme = 'default' }: Props) {
   const bgColors = {
     default: 'bg-white',
     green: 'bg-green-50',
@@ -39,6 +40,7 @@ export function StatCard({ title, value, subtext, icon, trendValue, colorScheme 
       <Text className={`text-xl font-bold ${valueColors[colorScheme]}`} numberOfLines={1}>{value}</Text>
       <Text className="text-stone-500 text-xs mt-0.5">{title}</Text>
       {subtext && <Text className="text-stone-400 text-xs mt-1">{subtext}</Text>}
+      {subtitle && <Text className="text-stone-400 text-xs mt-1">{subtitle}</Text>}
     </View>
   );
 }

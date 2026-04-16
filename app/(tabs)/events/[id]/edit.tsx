@@ -33,7 +33,7 @@ export default function EditEventScreen() {
     status: event.status,
     notes: event.notes ?? '',
     company_id: event.company_id ?? '',
-    unit_id: event.unit_id ?? '',
+    unit_ids: (event.units ?? []).map((u) => u.id),
     overnight_stay: event.overnight_stay ?? false,
     documents_uploaded: event.documents_uploaded ?? false,
     application_url: event.application_url ?? '',

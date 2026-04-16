@@ -18,7 +18,7 @@ export function useCompanies() {
         .select('*, event_financials(*)');
       if (evError) throw evError;
 
-      return (companies ?? []).map((company) => {
+      const mapped = (companies ?? []).map((company) => {
         const companyEvents = (events ?? []).filter((e) => e.company_id === company.id);
         const acceptedEvents = companyEvents.filter((e) => e.status === 'accepted');
         const totalRevenue = companyEvents.reduce(
@@ -30,6 +30,19 @@ export function useCompanies() {
           return sum + calcEventFinancials(e.event_financials).netProfit;
         }, 0);
         const sortedDates = companyEvents.map((e) => e.date).sort().reverse();
+
+        const today = new Date().toISOString().split('T')[0];
+        const completedAccepted = companyEvents.filter((e) => {
+          const eventEnd = e.end_date ?? e.date;
+          return e.status === 'accepted' && eventEnd <= today && e.event_financials;
+        });
+        const margins = completedAccepted.map((e) => {
+          const calc = calcEventFinancials(e.event_financials!);
+          return calc.totalNetSales > 0 ? (calc.netProfit / calc.totalNetSales) * 100 : 0;
+        });
+        const avgProfitMargin = margins.length > 0 ? margins.reduce((a, b) => a + b, 0) / margins.length : null;
+        const completedEventCount = completedAccepted.length;
+
         return {
           ...company,
           totalEvents: companyEvents.length,
@@ -37,7 +50,18 @@ export function useCompanies() {
           totalRevenue,
           totalNetProfit,
           lastEventDate: sortedDates[0] ?? null,
+          avgProfitMargin,
+          completedEventCount,
         } as CompanyWithStats;
+      });
+
+      return mapped.sort((a, b) => {
+        if (a.avgProfitMargin !== null && b.avgProfitMargin !== null) {
+          return b.avgProfitMargin - a.avgProfitMargin;
+        }
+        if (a.avgProfitMargin !== null) return -1;
+        if (b.avgProfitMargin !== null) return 1;
+        return 0;
       });
     },
   });

@@ -811,3 +811,43 @@ SELECT cron.schedule(
 
 -- Verify scheduled jobs:
 -- SELECT * FROM cron.job;
+
+-- ============================================================
+-- Migration 005: Multi-unit support per event
+-- ============================================================
+-- Adds event_units join table so multiple units can be assigned
+-- to a single event. The existing unit_id column on events is
+-- kept for backwards compatibility but the app now reads/writes
+-- through event_units instead.
+
+CREATE TABLE IF NOT EXISTS public.event_units (
+  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  event_id   UUID NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
+  unit_id    UUID NOT NULL REFERENCES public.units(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (event_id, unit_id)
+);
+
+ALTER TABLE public.event_units ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can CRUD own event_units" ON public.event_units;
+CREATE POLICY "Users can CRUD own event_units" ON public.event_units
+  FOR ALL
+  USING (
+    EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_id AND e.user_id = auth.uid())
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_id AND e.user_id = auth.uid())
+  );
+
+-- Migrate any existing unit_id data into event_units
+INSERT INTO public.event_units (event_id, unit_id)
+SELECT id, unit_id FROM public.events WHERE unit_id IS NOT NULL
+ON CONFLICT (event_id, unit_id) DO NOTHING;
+
+-- ============================================================
+-- Migration 006: Profile enhancements
+-- ============================================================
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS business_type TEXT NOT NULL DEFAULT 'Coffee';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'GBP';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS custom_metrics JSONB NOT NULL DEFAULT '[]'::jsonb;

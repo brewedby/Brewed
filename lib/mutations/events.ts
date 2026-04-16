@@ -21,7 +21,6 @@ export function useCreateEvent() {
           status: data.status,
           notes: data.notes || null,
           company_id: data.company_id || null,
-          unit_id: data.unit_id || null,
           overnight_stay: data.overnight_stay ?? false,
           documents_uploaded: data.documents_uploaded ?? false,
           application_url: data.application_url || null,
@@ -59,7 +58,15 @@ export function useCreateEvent() {
       });
       if (finError) throw finError;
 
-      // 4. Create staffing entries
+      // 4. Create unit assignments
+      if (data.unit_ids.length > 0) {
+        const { error: unitError } = await supabase.from('event_units').insert(
+          data.unit_ids.map((uid) => ({ event_id: event.id, unit_id: uid }))
+        );
+        if (unitError) throw unitError;
+      }
+
+      // 5. Create staffing entries
       if (data.staffing_entries.length > 0) {
         const { error: staffError } = await supabase.from('staffing_entries').insert(
           data.staffing_entries.map((e) => ({
@@ -72,7 +79,7 @@ export function useCreateEvent() {
         if (staffError) throw staffError;
       }
 
-      // 5. Create infrastructure items
+      // 6. Create infrastructure items
       if (data.infrastructure_items.length > 0) {
         const { error: infraError } = await supabase.from('infrastructure_items').insert(
           data.infrastructure_items.map((item) => ({
@@ -114,7 +121,6 @@ export function useUpdateEvent() {
           status: data.status,
           notes: data.notes || null,
           company_id: data.company_id || null,
-          unit_id: data.unit_id || null,
           overnight_stay: data.overnight_stay ?? false,
           documents_uploaded: data.documents_uploaded ?? false,
           application_url: data.application_url || null,
@@ -154,7 +160,16 @@ export function useUpdateEvent() {
         }, { onConflict: 'event_id' });
       if (finError) throw finError;
 
-      // 3. Replace staffing entries
+      // 3. Replace unit assignments
+      await supabase.from('event_units').delete().eq('event_id', id);
+      if (data.unit_ids.length > 0) {
+        const { error: unitError } = await supabase.from('event_units').insert(
+          data.unit_ids.map((uid) => ({ event_id: id, unit_id: uid }))
+        );
+        if (unitError) throw unitError;
+      }
+
+      // 4. Replace staffing entries
       await supabase.from('staffing_entries').delete().eq('event_id', id);
       if (data.staffing_entries.length > 0) {
         const { error: staffError } = await supabase.from('staffing_entries').insert(
@@ -165,7 +180,7 @@ export function useUpdateEvent() {
         if (staffError) throw staffError;
       }
 
-      // 4. Replace infrastructure items
+      // 5. Replace infrastructure items
       await supabase.from('infrastructure_items').delete().eq('event_id', id);
       if (data.infrastructure_items.length > 0) {
         const { error: infraError } = await supabase.from('infrastructure_items').insert(

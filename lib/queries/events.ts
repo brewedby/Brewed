@@ -17,7 +17,7 @@ export function useEvents(filters?: EventFilters) {
     queryFn: async () => {
       let query = supabase
         .from('events')
-        .select('*, event_financials(*), concessions_companies(*), units(*)')
+        .select('*, event_financials(*), concessions_companies(*), event_units(units(*))')
         .order('date', { ascending: false });
 
       if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status);
@@ -30,6 +30,7 @@ export function useEvents(filters?: EventFilters) {
 
       return (data ?? []).map((event) => ({
         ...event,
+        units: (event.event_units ?? []).map((eu: any) => eu.units).filter(Boolean),
         calculations: event.event_financials
           ? calcEventFinancials(event.event_financials)
           : EMPTY_CALCULATIONS,
@@ -44,7 +45,7 @@ export function useEvent(id: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('events')
-        .select('*, event_financials(*), concessions_companies(*), units(*), staffing_entries(*), infrastructure_items(*)')
+        .select('*, event_financials(*), concessions_companies(*), event_units(units(*)), staffing_entries(*), infrastructure_items(*)')
         .eq('id', id)
         .single();
 
@@ -53,6 +54,7 @@ export function useEvent(id: string) {
       const staffing = data.staffing_entries ?? [];
       return {
         ...data,
+        units: (data.event_units ?? []).map((eu: any) => eu.units).filter(Boolean),
         calculations: data.event_financials
           ? calcEventFinancials(data.event_financials, staffing)
           : EMPTY_CALCULATIONS,
