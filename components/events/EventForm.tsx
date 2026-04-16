@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Switch, Platform,
+  View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Switch, Modal,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, isValid } from 'date-fns';
 import { useForm, Controller, useFieldArray, Control, UseFormWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -37,6 +36,163 @@ function SectionHeader({ title }: { title: string }) {
   );
 }
 
+const ITEM_HEIGHT = 48;
+const VISIBLE_ITEMS = 5;
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function daysInMonth(month1based: number, year: number): number {
+  return new Date(year, month1based, 0).getDate();
+}
+
+function WheelColumn({
+  items,
+  initialIndex,
+  onChange,
+}: {
+  items: (string | number)[];
+  initialIndex: number;
+  onChange: (index: number) => void;
+}) {
+  const scrollRef = useRef<ScrollView>(null);
+  const [selectedIdx, setSelectedIdx] = useState(Math.max(0, Math.min(initialIndex, items.length - 1)));
+
+  useEffect(() => {
+    const safeIdx = Math.max(0, Math.min(initialIndex, items.length - 1));
+    setSelectedIdx(safeIdx);
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: safeIdx * ITEM_HEIGHT, animated: false });
+    }, 60);
+  }, [initialIndex, items.length]);
+
+  function handleScrollEnd(y: number) {
+    const idx = Math.max(0, Math.min(Math.round(y / ITEM_HEIGHT), items.length - 1));
+    setSelectedIdx(idx);
+    onChange(idx);
+  }
+
+  return (
+    <View style={{ flex: 1, overflow: 'hidden' }}>
+      {/* Selection highlight band */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute', top: ITEM_HEIGHT * 2, left: 4, right: 4,
+          height: ITEM_HEIGHT, backgroundColor: '#f1f5f9', borderRadius: 10, zIndex: 1,
+        }}
+      />
+      <ScrollView
+        ref={scrollRef}
+        snapToInterval={ITEM_HEIGHT}
+        decelerationRate="fast"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * 2 }}
+        style={{ height: ITEM_HEIGHT * VISIBLE_ITEMS }}
+        onMomentumScrollEnd={(e) => handleScrollEnd(e.nativeEvent.contentOffset.y)}
+        onScrollEndDrag={(e) => handleScrollEnd(e.nativeEvent.contentOffset.y)}
+      >
+        {items.map((item, index) => (
+          <TouchableOpacity
+            key={index}
+            style={{ height: ITEM_HEIGHT, justifyContent: 'center', alignItems: 'center' }}
+            onPress={() => {
+              setSelectedIdx(index);
+              onChange(index);
+              scrollRef.current?.scrollTo({ y: index * ITEM_HEIGHT, animated: true });
+            }}
+            activeOpacity={0.6}
+          >
+            <Text style={{
+              fontSize: selectedIdx === index ? 17 : 15,
+              fontWeight: selectedIdx === index ? '600' : '400',
+              color: selectedIdx === index ? '#0f172a' : '#94a3b8',
+            }}>
+              {String(item)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function DatePickerModal({
+  visible, value, onConfirm, onClose,
+}: {
+  visible: boolean; value: string; onConfirm: (iso: string) => void; onClose: () => void;
+}) {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const years = Array.from({ length: 21 }, (_, i) => currentYear - 5 + i);
+
+  const [dayIdx, setDayIdx] = useState(now.getDate() - 1);
+  const [monthIdx, setMonthIdx] = useState(now.getMonth());
+  const [yearIdx, setYearIdx] = useState(5);
+
+  useEffect(() => {
+    if (!visible) return;
+    const p = (() => {
+      if (!value) return now;
+      try { const d = new Date(value + 'T12:00:00'); return isValid(d) ? d : now; }
+      catch { return now; }
+    })();
+    const yi = years.indexOf(p.getFullYear());
+    setDayIdx(p.getDate() - 1);
+    setMonthIdx(p.getMonth());
+    setYearIdx(yi >= 0 ? yi : 5);
+  }, [visible]);
+
+  const numDays = daysInMonth(monthIdx + 1, years[yearIdx]);
+  const days = Array.from({ length: numDays }, (_, i) => i + 1);
+  const clampedDayIdx = Math.min(dayIdx, numDays - 1);
+
+  function handleConfirm() {
+    const year = years[yearIdx];
+    const month = monthIdx + 1;
+    const day = Math.min(dayIdx + 1, daysInMonth(month, year));
+    const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    onConfirm(iso);
+    onClose();
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' }}>
+        <TouchableOpacity style={{ flex: 1 }} onPress={onClose} activeOpacity={1} />
+        <View style={{ backgroundColor: '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 8 }}>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontSize: 16, color: '#64748b' }}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleConfirm} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#1e293b' }}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 36 }}>
+            <WheelColumn
+              key={`day-${monthIdx}-${yearIdx}`}
+              items={days}
+              initialIndex={clampedDayIdx}
+              onChange={(idx) => setDayIdx(idx)}
+            />
+            <WheelColumn
+              key="month"
+              items={MONTHS_SHORT}
+              initialIndex={monthIdx}
+              onChange={(idx) => setMonthIdx(idx)}
+            />
+            <WheelColumn
+              key="year"
+              items={years}
+              initialIndex={yearIdx}
+              onChange={(idx) => setYearIdx(idx)}
+            />
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function DatePickerButton({
   label,
   value,
@@ -49,8 +205,9 @@ function DatePickerButton({
   required?: boolean;
 }) {
   const [show, setShow] = useState(false);
-  const parsed = value ? (() => { try { const d = new Date(value); return isValid(d) ? d : new Date(); } catch { return new Date(); } })() : new Date();
-  const displayText = value ? (() => { try { const d = new Date(value); return isValid(d) ? format(d, 'd MMM yyyy') : value; } catch { return value; } })() : '';
+  const displayText = value
+    ? (() => { try { const d = new Date(value + 'T12:00:00'); return isValid(d) ? format(d, 'd MMM yyyy') : value; } catch { return value; } })()
+    : '';
 
   return (
     <View>
@@ -70,35 +227,12 @@ function DatePickerButton({
         </Text>
         <Text style={{ fontSize: 16 }}>📅</Text>
       </TouchableOpacity>
-
-      {show && Platform.OS === 'ios' && (
-        <View style={{ backgroundColor: '#ffffff', borderRadius: 12, marginTop: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#e2e8f0' }}>
-          <DateTimePicker
-            value={parsed}
-            mode="date"
-            display="spinner"
-            onChange={(_, date) => { if (date) onChange(format(date, 'yyyy-MM-dd')); }}
-            style={{ height: 160 }}
-          />
-          <TouchableOpacity
-            onPress={() => setShow(false)}
-            style={{ alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#e2e8f0' }}
-          >
-            <Text style={{ color: '#1e293b', fontWeight: '600' }}>Done</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      {show && Platform.OS === 'android' && (
-        <DateTimePicker
-          value={parsed}
-          mode="date"
-          display="default"
-          onChange={(_, date) => {
-            setShow(false);
-            if (date) onChange(format(date, 'yyyy-MM-dd'));
-          }}
-        />
-      )}
+      <DatePickerModal
+        visible={show}
+        value={value}
+        onConfirm={onChange}
+        onClose={() => setShow(false)}
+      />
     </View>
   );
 }
