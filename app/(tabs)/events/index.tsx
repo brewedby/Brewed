@@ -29,32 +29,40 @@ function OverlapBanner({
   const compA = a.company_id ? companyMap.get(a.company_id) : null;
   const compB = b.company_id ? companyMap.get(b.company_id) : null;
 
+  const hasA = compA != null && compA.avgProfitMargin != null && compA.completedEventCount > 0;
+  const hasB = compB != null && compB.avgProfitMargin != null && compB.completedEventCount > 0;
+
   let recommendation = '';
-  if (
-    compA?.avgProfitMargin != null && compA.completedEventCount > 0 &&
-    compB?.avgProfitMargin != null && compB.completedEventCount > 0
-  ) {
-    const winner = compA.avgProfitMargin >= compB.avgProfitMargin
-      ? { event: a, comp: compA }
-      : { event: b, comp: compB };
-    recommendation = `Based on past events, "${winner.event.name}" via ${winner.comp.name} averaged ${winner.comp.avgProfitMargin.toFixed(0)}% margin across ${winner.comp.completedEventCount} completed event${winner.comp.completedEventCount > 1 ? 's' : ''}.`;
+  if (hasA && hasB) {
+    const winner = compA!.avgProfitMargin! >= compB!.avgProfitMargin!
+      ? { event: a, comp: compA! }
+      : { event: b, comp: compB! };
+    const loser = winner.event === a ? { event: b, comp: compB! } : { event: a, comp: compA! };
+    recommendation = `Prioritise "${winner.event.name}" — ${winner.comp.name} avg ${winner.comp.avgProfitMargin!.toFixed(0)}% margin across ${winner.comp.completedEventCount} event${winner.comp.completedEventCount > 1 ? 's' : ''} vs ${loser.comp.avgProfitMargin!.toFixed(0)}% for ${loser.comp.name}.`;
+  } else if (hasA) {
+    recommendation = `"${a.name}" via ${compA!.name} has ${compA!.completedEventCount} past event${compA!.completedEventCount > 1 ? 's' : ''} (avg ${compA!.avgProfitMargin!.toFixed(0)}% margin). No history for "${b.name}" yet.`;
+  } else if (hasB) {
+    recommendation = `"${b.name}" via ${compB!.name} has ${compB!.completedEventCount} past event${compB!.completedEventCount > 1 ? 's' : ''} (avg ${compB!.avgProfitMargin!.toFixed(0)}% margin). No history for "${a.name}" yet.`;
   }
 
   return (
     <View style={{ backgroundColor: '#fff7ed', borderWidth: 1, borderColor: '#fed7aa', borderRadius: 16, padding: 14, marginBottom: 12 }}>
       <Text style={{ color: '#c2410c', fontWeight: '700', fontSize: 13, marginBottom: 4 }}>⚡ Schedule Conflict</Text>
-      <Text style={{ color: '#ea580c', fontSize: 12, marginBottom: 4 }}>
+      <Text style={{ color: '#ea580c', fontSize: 12, marginBottom: 6 }}>
         "{a.name}" ({formatDateRange(a.date, a.end_date)}) overlaps with "{b.name}" ({formatDateRange(b.date, b.end_date)}).
       </Text>
-      {compA?.avgProfitMargin != null && compA.completedEventCount > 0 && (
+      {hasA && (
         <Text style={{ color: '#9a3412', fontSize: 11, marginTop: 2 }}>
-          • {compA.name}: {compA.avgProfitMargin.toFixed(0)}% avg margin ({compA.completedEventCount} event{compA.completedEventCount > 1 ? 's' : ''})
+          • {compA!.name}: Avg {compA!.avgProfitMargin!.toFixed(0)}% margin ({compA!.completedEventCount} event{compA!.completedEventCount > 1 ? 's' : ''})
         </Text>
       )}
-      {compB?.avgProfitMargin != null && compB.completedEventCount > 0 && (
+      {hasB && (
         <Text style={{ color: '#9a3412', fontSize: 11, marginTop: 2 }}>
-          • {compB.name}: {compB.avgProfitMargin.toFixed(0)}% avg margin ({compB.completedEventCount} event{compB.completedEventCount > 1 ? 's' : ''})
+          • {compB!.name}: Avg {compB!.avgProfitMargin!.toFixed(0)}% margin ({compB!.completedEventCount} event{compB!.completedEventCount > 1 ? 's' : ''})
         </Text>
+      )}
+      {!hasA && !hasB && (
+        <Text style={{ color: '#9a3412', fontSize: 11, marginTop: 2 }}>No historical data yet to rank these events.</Text>
       )}
       {recommendation ? (
         <Text style={{ color: '#c2410c', fontSize: 12, fontWeight: '600', marginTop: 6 }}>→ {recommendation}</Text>

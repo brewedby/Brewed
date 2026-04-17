@@ -23,18 +23,24 @@ export function useEvents(filters?: EventFilters) {
       if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status);
       if (filters?.year) query = query.gte('date', `${filters.year}-01-01`).lte('date', `${filters.year}-12-31`);
       if (filters?.companyId) query = query.eq('company_id', filters.companyId);
-      if (filters?.unitId) query = query.eq('unit_id', filters.unitId);
 
       const { data, error } = await query;
       if (error) throw error;
 
-      return (data ?? []).map((event) => ({
+      let mapped = (data ?? []).map((event) => ({
         ...event,
         units: (event.event_units ?? []).map((eu: any) => eu.units).filter(Boolean),
         calculations: event.event_financials
           ? calcEventFinancials(event.event_financials)
           : EMPTY_CALCULATIONS,
       })) as EventWithFinancials[];
+
+      // events↔units is many-to-many via event_units; filter client-side after mapping
+      if (filters?.unitId) {
+        mapped = mapped.filter((e) => e.units.some((u: any) => u.id === filters.unitId));
+      }
+
+      return mapped;
     },
   });
 }

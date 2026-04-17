@@ -7,6 +7,7 @@ interface OMDay {
   maxTemp: number;
   minTemp: number;
   weatherCode: number;
+  precipitation: number;
 }
 
 interface STDay {
@@ -121,7 +122,7 @@ export function WeatherCard({
         // Parallel fetch
         const [omRes, stDaysRaw] = await Promise.allSettled([
           global.fetch(
-            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,weathercode&start_date=${startDate}&end_date=${end}&timezone=Europe%2FLondon`,
+            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum&start_date=${startDate}&end_date=${end}&timezone=auto`,
           ).then((r) => r.json()),
           fetchSevenTimer(latitude, longitude),
         ]);
@@ -132,6 +133,7 @@ export function WeatherCard({
               maxTemp: omRes.value.daily.temperature_2m_max[i],
               minTemp: omRes.value.daily.temperature_2m_min[i],
               weatherCode: omRes.value.daily.weathercode[i],
+              precipitation: omRes.value.daily.precipitation_sum?.[i] ?? 0,
             }))
           : [];
 
@@ -211,6 +213,11 @@ export function WeatherCard({
                   <Text style={{ fontSize: 16 }}>{omEmoji(d.om.weatherCode)}</Text>
                   <Text style={{ fontSize: 11, fontWeight: '700', color: '#1c1917' }}>{d.om.maxTemp.toFixed(0)}°</Text>
                   <Text style={{ fontSize: 10, color: '#a8a29e' }}>{d.om.minTemp.toFixed(0)}°</Text>
+                  {d.om.precipitation > 0 && (
+                    <Text style={{ fontSize: 9, color: '#3b82f6', marginTop: 1 }}>
+                      💧{d.om.precipitation.toFixed(1)}
+                    </Text>
+                  )}
                 </View>
               ) : (
                 <View style={{ paddingVertical: 5, alignItems: 'center', backgroundColor: '#fafaf9', width: '100%' }}>

@@ -655,7 +655,7 @@ export function EventForm({
             >
               <Text
                 className={`text-sm font-semibold ${
-                  activeTab === tab ? 'text-white' : 'text-slate-600'
+                  activeTab === tab ? 'text-white' : 'text-slate-800'
                 }`}
               >
                 {tab}
@@ -833,14 +833,14 @@ export function EventForm({
                         flexDirection: 'row', alignItems: 'center',
                         paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12,
                         borderWidth: 1,
-                        backgroundColor: active ? colors.bgHex : '#ffffff',
-                        borderColor: active ? 'transparent' : '#e2e8f0',
+                        backgroundColor: active ? colors.textHex : '#ffffff',
+                        borderColor: active ? colors.textHex : '#e2e8f0',
                       }}
                     >
                       <View
-                        style={{ backgroundColor: colors.dot, width: 7, height: 7, borderRadius: 4, marginRight: 6 }}
+                        style={{ backgroundColor: active ? '#ffffff' : colors.dot, width: 7, height: 7, borderRadius: 4, marginRight: 6 }}
                       />
-                      <Text style={{ fontSize: 14, fontWeight: '500', color: active ? colors.textHex : '#4b5563' }}>
+                      <Text style={{ fontSize: 14, fontWeight: '500', color: active ? '#ffffff' : '#4b5563' }}>
                         {STATUS_LABELS[s]}
                       </Text>
                     </TouchableOpacity>

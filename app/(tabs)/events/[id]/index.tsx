@@ -210,12 +210,12 @@ export default function EventDetailScreen() {
                   style={{
                     flexDirection: 'row', alignItems: 'center',
                     paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1,
-                    backgroundColor: active ? colors.bgHex : '#ffffff',
-                    borderColor: active ? 'transparent' : '#e2e8f0',
+                    backgroundColor: active ? colors.textHex : '#ffffff',
+                    borderColor: active ? colors.textHex : '#e2e8f0',
                   }}
                 >
-                  <View style={{ backgroundColor: colors.dot, width: 7, height: 7, borderRadius: 4, marginRight: 6 }} />
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: active ? colors.textHex : '#4b5563' }}>{STATUS_LABELS[s]}</Text>
+                  <View style={{ backgroundColor: active ? '#ffffff' : colors.dot, width: 7, height: 7, borderRadius: 4, marginRight: 6 }} />
+                  <Text style={{ fontSize: 12, fontWeight: '500', color: active ? '#ffffff' : '#4b5563' }}>{STATUS_LABELS[s]}</Text>
                 </TouchableOpacity>
               );
             })}

@@ -24,6 +24,7 @@ export default function DashboardScreen() {
   const { data: profile } = useProfile(user?.id);
   const [year, setYear] = useState(CURRENT_YEAR);
   const [refreshing, setRefreshing] = useState(false);
+  const [showFees, setShowFees] = useState(false);
   const { data: stats, isLoading, refetch } = useDashboard(year);
 
   async function handleRefresh() {
@@ -109,25 +110,57 @@ export default function DashboardScreen() {
               />
             </View>
 
-            {/* Committed Fees */}
+            {/* Committed Fees — collapsible */}
             {stats && stats.committedFees > 0 && (
-              <View>
-                <View className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                  <View className="flex-row items-center justify-between mb-1">
-                    <Text className="font-bold text-amber-900 text-sm">💳 Committed Fees</Text>
-                    <Text className="font-bold text-amber-800 text-base">{formatCurrency(stats.committedFees)}</Text>
-                  </View>
-                  <Text className="text-amber-700 text-xs mb-3">Pitch & power fees already paid for upcoming accepted events</Text>
-                  {stats.upcomingCommitments.map((c) => (
-                    <View key={c.id} className="flex-row items-center justify-between py-1.5 border-t border-amber-100">
-                      <View className="flex-1 mr-2">
-                        <Text className="text-amber-900 text-sm font-medium" numberOfLines={1}>{c.name}</Text>
-                        <Text className="text-amber-700 text-xs">{c.date}</Text>
+              <View className="bg-amber-50 border border-amber-200 rounded-2xl overflow-hidden">
+                <TouchableOpacity
+                  onPress={() => setShowFees((v) => !v)}
+                  activeOpacity={0.7}
+                  style={{ padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                >
+                  <View style={{ flex: 1, marginRight: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ fontWeight: '700', color: '#78350f', fontSize: 14 }}>💳 Committed Fees</Text>
+                      <View style={{ backgroundColor: '#fde68a', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+                        <Text style={{ color: '#78350f', fontSize: 11, fontWeight: '700' }}>
+                          {stats.upcomingCommitments.length} event{stats.upcomingCommitments.length !== 1 ? 's' : ''}
+                        </Text>
                       </View>
-                      <Text className="text-amber-800 font-semibold text-sm">{formatCurrency(c.committedFee)}</Text>
                     </View>
-                  ))}
-                </View>
+                    <Text style={{ color: '#b45309', fontSize: 11, marginTop: 2 }}>
+                      {showFees ? 'Tap to collapse' : 'Tap to see breakdown'}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={{ fontWeight: '700', color: '#92400e', fontSize: 16 }}>{formatCurrency(stats.committedFees)}</Text>
+                    <Text style={{ color: '#b45309', fontSize: 13 }}>{showFees ? '▲' : '▼'}</Text>
+                  </View>
+                </TouchableOpacity>
+
+                {showFees && (
+                  <View style={{ paddingHorizontal: 16, paddingBottom: 16, borderTopWidth: 1, borderTopColor: '#fde68a' }}>
+                    <Text style={{ color: '#b45309', fontSize: 11, paddingTop: 12, marginBottom: 8 }}>
+                      Pitch + power fees paid for upcoming accepted events
+                    </Text>
+                    {stats.upcomingCommitments.map((c, idx) => (
+                      <View
+                        key={c.id}
+                        style={{
+                          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                          paddingVertical: 10,
+                          borderTopWidth: idx === 0 ? 0 : 1,
+                          borderTopColor: '#fef3c7',
+                        }}
+                      >
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                          <Text style={{ color: '#78350f', fontSize: 13, fontWeight: '600' }} numberOfLines={1}>{c.name}</Text>
+                          <Text style={{ color: '#b45309', fontSize: 11, marginTop: 1 }}>{formatDateRange(c.date, c.end_date)}</Text>
+                        </View>
+                        <Text style={{ color: '#92400e', fontWeight: '700', fontSize: 14 }}>{formatCurrency(c.committedFee)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
             )}
 

@@ -13,7 +13,7 @@ export const STATUS_COLORS: Record<ApplicationStatus, { bg: string; text: string
   accepted:   { bg: 'bg-green-100',  text: 'text-green-800',  dot: '#22c55e', bgHex: '#dcfce7', textHex: '#166534' },
   rejected:   { bg: 'bg-red-100',    text: 'text-red-800',    dot: '#ef4444', bgHex: '#fee2e2', textHex: '#991b1b' },
   waitlisted: { bg: 'bg-blue-100',   text: 'text-blue-800',   dot: '#3b82f6', bgHex: '#dbeafe', textHex: '#1e40af' },
-  withdrawn:  { bg: 'bg-stone-100',  text: 'text-stone-600',  dot: '#a8a29e', bgHex: '#f5f5f4', textHex: '#57534e' },
+  withdrawn:  { bg: 'bg-stone-100',  text: 'text-stone-700',  dot: '#a8a29e', bgHex: '#f5f5f4', textHex: '#1c1917' },
 };
 
 export const STATUS_PIE_COLORS: Record<ApplicationStatus, string> = {
