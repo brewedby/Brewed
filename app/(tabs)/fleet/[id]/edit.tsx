@@ -36,6 +36,11 @@ export default function EditUnitScreen() {
           registration: unit.registration ?? '',
           notes: unit.notes ?? '',
           status: unit.status,
+          vehicle_type: unit.vehicle_type ?? '',
+          mot_date: unit.mot_date ?? '',
+          tax_date: unit.tax_date ?? '',
+          service_date: unit.service_date ?? '',
+          service_interval: (unit.service_interval as '6months' | '1year') ?? '1year',
         }}
         onSubmit={handleSubmit}
         submitLabel="Save Changes"

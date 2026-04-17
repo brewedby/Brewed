@@ -16,7 +16,10 @@ const YEARS = [new Date().getFullYear(), new Date().getFullYear() - 1, new Date(
 function eventsOverlap(a: EventWithFinancials, b: EventWithFinancials): boolean {
   const aEnd = a.end_date ?? a.date;
   const bEnd = b.end_date ?? b.date;
-  return a.date <= bEnd && b.date <= aEnd;
+  if (!(a.date <= bEnd && b.date <= aEnd)) return false;
+  // Only flag as conflict when both events share at least one unit
+  const aUnitIds = new Set(a.units.map((u) => u.id));
+  return b.units.some((u) => aUnitIds.has(u.id));
 }
 
 function OverlapBanner({
@@ -85,6 +88,7 @@ export default function EventsScreen() {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all');
   const [yearFilter, setYearFilter] = useState<number | undefined>(undefined);
+  const [viewFilter, setViewFilter] = useState<'upcoming' | 'completed' | 'all'>('upcoming');
   const [refreshing, setRefreshing] = useState(false);
 
   const { data: eventsRaw, isLoading, refetch } = useEvents({ status: statusFilter, year: yearFilter });
@@ -140,6 +144,28 @@ export default function EventsScreen() {
           >
             <Text className="text-white font-semibold text-sm">+ New</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Upcoming / Completed / All tabs */}
+        <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+          {(['upcoming', 'completed', 'all'] as const).map((v) => {
+            const labels = { upcoming: 'Upcoming', completed: 'Completed', all: 'All' };
+            const isActive = viewFilter === v;
+            return (
+              <TouchableOpacity
+                key={v}
+                onPress={() => setViewFilter(v)}
+                style={{
+                  flex: 1, paddingVertical: 7, borderRadius: 10, alignItems: 'center',
+                  backgroundColor: isActive ? '#1c1917' : '#f5f5f4',
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#ffffff' : '#57534e' }}>
+                  {labels[v]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Status filters */}
@@ -228,25 +254,33 @@ export default function EventsScreen() {
             />
           ) : (
             <>
-              {/* Overlap warnings */}
-              {overlappingPairs.map(({ a, b }, i) => (
+              {/* Overlap warnings — only shown in upcoming/all view */}
+              {viewFilter !== 'completed' && overlappingPairs.map(({ a, b }, i) => (
                 <OverlapBanner key={i} a={a} b={b} companyMap={companyMap} />
               ))}
 
               {/* Upcoming section */}
-              {upcoming.length > 0 && (
+              {viewFilter !== 'completed' && upcoming.length > 0 && (
                 <>
-                  <SectionHeader title="Upcoming" count={upcoming.length} />
+                  {viewFilter === 'all' && <SectionHeader title="Upcoming" count={upcoming.length} />}
                   {upcoming.map((event) => <EventCard key={event.id} event={event} />)}
                 </>
               )}
 
               {/* Completed section */}
-              {completed.length > 0 && (
+              {viewFilter !== 'upcoming' && completed.length > 0 && (
                 <>
-                  <SectionHeader title={upcoming.length > 0 ? 'Completed' : 'All Events'} count={completed.length} />
+                  {viewFilter === 'all' && <SectionHeader title="Completed" count={completed.length} />}
                   {completed.map((event) => <EventCard key={event.id} event={event} />)}
                 </>
+              )}
+
+              {/* Empty state for active filter */}
+              {viewFilter === 'upcoming' && upcoming.length === 0 && (
+                <EmptyState icon="📅" title="No upcoming events" description="All events are in the past." />
+              )}
+              {viewFilter === 'completed' && completed.length === 0 && (
+                <EmptyState icon="✅" title="No completed events" description="Events that have passed will appear here." />
               )}
             </>
           )}

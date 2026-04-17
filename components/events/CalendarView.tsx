@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, Modal, ScrollView, Linking, RefreshControl,
+  View, Text, TouchableOpacity, Modal, ScrollView, Linking, RefreshControl, PanResponder,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { STATUS_COLORS, STATUS_LABELS } from '@/constants';
@@ -275,8 +275,23 @@ export function CalendarView({
     else setMonth(m => m + 1);
   }
 
+  const monthHandlersRef = useRef({ prevMonth, nextMonth });
+  useEffect(() => {
+    monthHandlersRef.current = { prevMonth, nextMonth };
+  });
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderRelease: (_, g) => {
+        if (g.dx < -40) monthHandlersRef.current.nextMonth();
+        else if (g.dx > 40) monthHandlersRef.current.prevMonth();
+      },
+    }),
+  ).current;
+
   return (
-    <View className="flex-1">
+    <View className="flex-1" {...panResponder.panHandlers}>
       <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-stone-100">
         <TouchableOpacity onPress={prevMonth} className="w-9 h-9 items-center justify-center rounded-full bg-stone-100">
           <Text className="text-stone-600 font-bold text-lg">‹</Text>

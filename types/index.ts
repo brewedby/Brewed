@@ -167,12 +167,7 @@ export interface InfrastructureItemForm {
   cost: number;
 }
 
-export interface UnitFormValues {
-  name: string;
-  registration?: string;
-  notes?: string;
-  status: UnitStatus;
-}
+export type { UnitFormValues } from '@/lib/validations/unit.schema';
 
 export interface CompanyFormValues {
   name: string;

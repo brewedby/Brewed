@@ -14,6 +14,11 @@ export function useCreateUnit() {
           registration: data.registration || null,
           notes: data.notes || null,
           status: data.status ?? 'active',
+          vehicle_type: data.vehicle_type || null,
+          mot_date: data.mot_date || null,
+          tax_date: data.tax_date || null,
+          service_date: data.service_date || null,
+          service_interval: data.service_interval || '1year',
         })
         .select()
         .single();
@@ -38,6 +43,11 @@ export function useUpdateUnit() {
           registration: data.registration || null,
           notes: data.notes || null,
           status: data.status,
+          vehicle_type: data.vehicle_type || null,
+          mot_date: data.mot_date || null,
+          tax_date: data.tax_date || null,
+          service_date: data.service_date || null,
+          service_interval: data.service_interval || '1year',
         })
         .eq('id', id);
       if (error) throw error;

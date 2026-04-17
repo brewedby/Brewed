@@ -77,7 +77,7 @@ function WheelColumn({
         pointerEvents="none"
         style={{
           position: 'absolute', top: ITEM_HEIGHT * 2, left: 4, right: 4,
-          height: ITEM_HEIGHT, backgroundColor: '#f1f5f9', borderRadius: 10, zIndex: 1,
+          height: ITEM_HEIGHT, backgroundColor: '#f1f5f9', borderRadius: 10,
         }}
       />
       <ScrollView

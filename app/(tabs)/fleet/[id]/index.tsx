@@ -7,7 +7,7 @@ import { useEvents } from '@/lib/queries/events';
 import { EventCard } from '@/components/events/EventCard';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { formatDateRange } from '@/lib/formatters';
+import { formatDateRange, formatDate } from '@/lib/formatters';
 import { UNIT_STATUS_LABELS, UNIT_STATUS_COLORS } from '@/constants';
 import type { UnitStatus } from '@/types';
 
@@ -49,6 +49,24 @@ export default function UnitDetailScreen() {
   const status = unit.status as UnitStatus;
   const colors = UNIT_STATUS_COLORS[status];
   const unitEvents = events ?? [];
+
+  function expiryInfo(dateStr: string | null): { text: string; color: string } | null {
+    if (!dateStr) return null;
+    const days = Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
+    if (days < 0) return { text: `Expired ${Math.abs(days)}d ago`, color: '#dc2626' };
+    if (days <= 30) return { text: `Due in ${days} day${days !== 1 ? 's' : ''}`, color: '#d97706' };
+    return { text: formatDate(dateStr), color: '#059669' };
+  }
+
+  function serviceDueDate(serviceDate: string | null, interval: string | null): string | null {
+    if (!serviceDate) return null;
+    const d = new Date(serviceDate);
+    if (interval === '6months') d.setMonth(d.getMonth() + 6);
+    else d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString().split('T')[0];
+  }
+
+  const serviceDue = serviceDueDate(unit.service_date, unit.service_interval);
 
   const today = new Date().toISOString().split('T')[0];
   const upcomingEvent = [...unitEvents]
@@ -106,6 +124,25 @@ export default function UnitDetailScreen() {
             <Text className="text-stone-500 text-sm mt-0.5" numberOfLines={1}>
               📍 {upcomingEvent.location}
             </Text>
+          </View>
+        )}
+
+        {/* Vehicle dates */}
+        {(unit.mot_date || unit.tax_date || unit.service_date) && (
+          <View className="bg-white rounded-2xl p-4 border border-stone-100 mb-4">
+            <Text className="font-bold text-stone-900 mb-3">Compliance Dates</Text>
+            {[
+              { label: 'MOT Expiry', dateStr: unit.mot_date, info: expiryInfo(unit.mot_date) },
+              { label: 'Tax (VED) Expiry', dateStr: unit.tax_date, info: expiryInfo(unit.tax_date) },
+              { label: 'Next Service Due', dateStr: serviceDue, info: expiryInfo(serviceDue) },
+            ].filter(row => row.dateStr).map(({ label, info }) => (
+              <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#fafaf9' }}>
+                <Text style={{ fontSize: 13, color: '#78716c' }}>{label}</Text>
+                {info && (
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: info.color }}>{info.text}</Text>
+                )}
+              </View>
+            ))}
           </View>
         )}
 

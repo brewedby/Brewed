@@ -46,6 +46,11 @@ export interface Database {
           registration: string | null;
           notes: string | null;
           status: UnitStatus;
+          vehicle_type: string | null;
+          mot_date: string | null;
+          tax_date: string | null;
+          service_date: string | null;
+          service_interval: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -56,6 +61,11 @@ export interface Database {
           registration?: string | null;
           notes?: string | null;
           status?: UnitStatus;
+          vehicle_type?: string | null;
+          mot_date?: string | null;
+          tax_date?: string | null;
+          service_date?: string | null;
+          service_interval?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -66,6 +76,11 @@ export interface Database {
           registration?: string | null;
           notes?: string | null;
           status?: UnitStatus;
+          vehicle_type?: string | null;
+          mot_date?: string | null;
+          tax_date?: string | null;
+          service_date?: string | null;
+          service_interval?: string | null;
           updated_at?: string;
         };
         Relationships: [];

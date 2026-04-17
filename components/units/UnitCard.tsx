@@ -4,6 +4,33 @@ import { UNIT_STATUS_LABELS, UNIT_STATUS_COLORS } from '@/constants';
 import type { Unit, EventWithFinancials } from '@/types';
 import type { UnitStatus } from '@/types';
 
+function daysUntil(dateStr: string | null): number | null {
+  if (!dateStr) return null;
+  const diff = new Date(dateStr).getTime() - Date.now();
+  return Math.ceil(diff / 86400000);
+}
+
+function ExpiryPill({ label, dateStr }: { label: string; dateStr: string | null }) {
+  if (!dateStr) return null;
+  const days = daysUntil(dateStr);
+  if (days === null) return null;
+  const expired = days < 0;
+  const soon = days >= 0 && days <= 30;
+  if (!expired && !soon) return null;
+  return (
+    <View style={{
+      flexDirection: 'row', alignItems: 'center', gap: 3,
+      paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999,
+      backgroundColor: expired ? '#fee2e2' : '#fef3c7',
+    }}>
+      <Text style={{ fontSize: 10 }}>{expired ? '🔴' : '🟡'}</Text>
+      <Text style={{ fontSize: 10, fontWeight: '600', color: expired ? '#991b1b' : '#92400e' }}>
+        {label}{expired ? ' expired' : ` due ${days === 0 ? 'today' : `in ${days}d`}`}
+      </Text>
+    </View>
+  );
+}
+
 interface Props {
   unit: Unit;
   currentEvent?: EventWithFinancials | null;
@@ -27,11 +54,16 @@ export function UnitCard({ unit, currentEvent, onPress }: Props) {
           <View className="flex-row items-start justify-between">
             <View className="flex-1 mr-3">
               <Text className="font-bold text-stone-900 text-base">{unit.name}</Text>
-              {unit.registration && (
-                <Text className="text-slate-500 text-xs mt-0.5 font-medium tracking-wide">
-                  {unit.registration}
-                </Text>
-              )}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                {unit.registration ? (
+                  <Text className="text-slate-500 text-xs font-medium tracking-wide">{unit.registration}</Text>
+                ) : null}
+                {unit.vehicle_type ? (
+                  <View style={{ backgroundColor: '#f5f5f4', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: '#57534e' }}>{unit.vehicle_type}</Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
             <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: colors.bgHex, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.dot }} />
@@ -39,6 +71,13 @@ export function UnitCard({ unit, currentEvent, onPress }: Props) {
                 {UNIT_STATUS_LABELS[status]}
               </Text>
             </View>
+          </View>
+
+          {/* Expiry warnings */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
+            <ExpiryPill label="MOT" dateStr={unit.mot_date} />
+            <ExpiryPill label="Tax" dateStr={unit.tax_date} />
+            <ExpiryPill label="Service" dateStr={unit.service_date} />
           </View>
 
           <View className="mt-2">

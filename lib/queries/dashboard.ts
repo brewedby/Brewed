@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { calcEventFinancials } from '@/lib/calculations';
 import { formatMonthLabel } from '@/lib/formatters';
 import { EMPTY_CALCULATIONS } from '@/types';
-import type { DashboardStats, MonthlyRevenue, StatusCount, ApplicationStatus, UnitWithStatus } from '@/types';
+import type { DashboardStats, MonthlyRevenue, StatusCount, ApplicationStatus, UnitWithStatus, EventWithFinancials } from '@/types';
 
 export function useDashboard(year?: number) {
   const targetYear = year ?? new Date().getFullYear();
@@ -44,13 +44,15 @@ export function useDashboard(year?: number) {
 
       // Upcoming events
       const today = new Date().toISOString().split('T')[0];
-      const upcomingEvents = allEvents
+      const upcomingEvents = (allEvents
         .filter((e) => e.date >= today && e.status === 'accepted')
+        .sort((a, b) => a.date.localeCompare(b.date))
         .slice(0, 5)
         .map((e) => ({
           ...e,
+          units: e.units ? [e.units] : [],
           calculations: e.event_financials ? calcEventFinancials(e.event_financials) : EMPTY_CALCULATIONS,
-        }));
+        })) as any) as EventWithFinancials[];
 
       // Monthly revenue
       const monthlyMap = new Map<number, MonthlyRevenue>();
@@ -82,7 +84,7 @@ export function useDashboard(year?: number) {
         return {
           ...unit,
           currentEvent: unitEvent
-            ? { ...unitEvent, calculations: unitEvent.event_financials ? calcEventFinancials(unitEvent.event_financials) : EMPTY_CALCULATIONS }
+            ? ({ ...unitEvent, units: unitEvent.units ? [unitEvent.units] : [], calculations: unitEvent.event_financials ? calcEventFinancials(unitEvent.event_financials) : EMPTY_CALCULATIONS } as any as EventWithFinancials)
             : null,
         };
       });
@@ -98,7 +100,6 @@ export function useDashboard(year?: number) {
       }, 0);
       const upcomingCommitments = committedFeeEvents
         .sort((a, b) => a.date.localeCompare(b.date))
-        .slice(0, 5)
         .map((e) => ({
           id: e.id,
           name: e.name,
