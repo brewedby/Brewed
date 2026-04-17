@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useUnit, useDeleteUnit } from '@/lib/queries/units';
 import { useEvents } from '@/lib/queries/events';
 import { EventCard } from '@/components/events/EventCard';
-import { ConfirmSheet } from '@/components/shared/ConfirmSheet';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { formatDateRange } from '@/lib/formatters';
@@ -22,7 +21,6 @@ export default function UnitDetailScreen() {
   const deleteUnit = useDeleteUnit();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [showDelete, setShowDelete] = useState(false);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -53,9 +51,9 @@ export default function UnitDetailScreen() {
   const unitEvents = events ?? [];
 
   const today = new Date().toISOString().split('T')[0];
-  const upcomingEvent = unitEvents.find(
-    (e) => e.status === 'accepted' && e.date >= today,
-  ) ?? null;
+  const upcomingEvent = [...unitEvents]
+    .filter((e) => e.status === 'accepted' && e.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null;
 
   return (
     <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
@@ -131,29 +129,26 @@ export default function UnitDetailScreen() {
           unitEvents.map((event) => <EventCard key={event.id} event={event} />)
         )}
 
-        {/* Danger zone */}
-        <View className="bg-white rounded-2xl p-4 border border-red-100 mt-4">
-          <Text className="font-semibold text-stone-700 mb-3">Danger Zone</Text>
+        <View className="bg-white rounded-2xl p-4 border border-stone-100 mt-4">
           <TouchableOpacity
-            onPress={() => setShowDelete(true)}
-            className="border border-red-300 py-3 rounded-xl items-center"
+            onPress={() =>
+              Alert.alert(
+                'Delete Vehicle',
+                `Delete "${unit.name}"? This cannot be undone.`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Delete', style: 'destructive', onPress: handleDelete },
+                ],
+              )
+            }
+            className="border border-red-200 py-3 rounded-xl items-center"
           >
-            <Text className="text-red-600 font-medium">Delete Unit</Text>
+            <Text className="text-red-500 font-medium text-sm">Delete Vehicle</Text>
           </TouchableOpacity>
         </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
-
-      <ConfirmSheet
-        visible={showDelete}
-        title="Delete Unit"
-        message={`Delete "${unit.name}"? This cannot be undone.`}
-        confirmLabel="Delete"
-        destructive
-        onConfirm={handleDelete}
-        onCancel={() => setShowDelete(false)}
-      />
     </View>
   );
 }

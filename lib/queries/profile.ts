@@ -1,12 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 
+export interface Metric {
+  id: string;
+  name: string;
+  unit: string;
+  enabled: boolean;
+  builtin?: boolean;
+}
+
 export interface UserProfile {
   id: string;
   business_name: string | null;
   business_type: string;
   currency: string;
-  custom_metrics: { name: string; unit: string }[];
+  custom_metrics: Metric[];
 }
 
 export function useProfile(userId: string | undefined) {

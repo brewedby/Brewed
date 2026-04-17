@@ -3,9 +3,20 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityInd
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
 import { useProfile, useUpdateProfile } from '@/lib/queries/profile';
+import type { Metric } from '@/lib/queries/profile';
 
 const BUSINESS_TYPES = ['Coffee', 'Street Food', 'Pizza', 'Burgers', 'Desserts', 'Bakery', 'Other'];
-const CURRENCIES = [{ code: 'GBP', symbol: '£', label: 'GBP (£)' }, { code: 'EUR', symbol: '€', label: 'EUR (€)' }, { code: 'USD', symbol: '$', label: 'USD ($)' }];
+const CURRENCIES = [
+  { code: 'GBP', symbol: '£', label: 'GBP (£)' },
+  { code: 'EUR', symbol: '€', label: 'EUR (€)' },
+  { code: 'USD', symbol: '$', label: 'USD ($)' },
+];
+const DEFAULT_METRICS: Metric[] = [
+  { id: 'revenue',  name: 'Revenue',      unit: '£',      enabled: true,  builtin: true },
+  { id: 'profit',   name: 'Net Profit',   unit: '£',      enabled: true,  builtin: true },
+  { id: 'covers',   name: 'Covers',       unit: 'covers', enabled: true,  builtin: true },
+  { id: 'drinks',   name: 'Drinks Sold',  unit: 'drinks', enabled: false, builtin: true },
+];
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -16,6 +27,9 @@ export default function SettingsScreen() {
   const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState('Coffee');
   const [currency, setCurrency] = useState('GBP');
+  const [metrics, setMetrics] = useState<Metric[]>(DEFAULT_METRICS);
+  const [newName, setNewName] = useState('');
+  const [newUnit, setNewUnit] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -23,8 +37,34 @@ export default function SettingsScreen() {
       setBusinessName(profile.business_name ?? '');
       setBusinessType(profile.business_type ?? 'Coffee');
       setCurrency(profile.currency ?? 'GBP');
+      if (profile.custom_metrics?.length > 0) {
+        setMetrics(profile.custom_metrics);
+      } else {
+        setMetrics(DEFAULT_METRICS);
+      }
     }
   }, [profile]);
+
+  function toggleMetric(id: string, enabled: boolean) {
+    setMetrics((prev) => prev.map((m) => m.id === id ? { ...m, enabled } : m));
+  }
+
+  function deleteMetric(id: string) {
+    setMetrics((prev) => prev.filter((m) => m.id !== id));
+  }
+
+  function addMetric() {
+    if (!newName.trim()) return;
+    const metric: Metric = {
+      id: `custom-${Date.now()}`,
+      name: newName.trim(),
+      unit: newUnit.trim() || 'units',
+      enabled: true,
+    };
+    setMetrics((prev) => [...prev, metric]);
+    setNewName('');
+    setNewUnit('');
+  }
 
   async function handleSave() {
     if (!user) return;
@@ -32,7 +72,12 @@ export default function SettingsScreen() {
     try {
       await updateProfile.mutateAsync({
         userId: user.id,
-        updates: { business_name: businessName.trim() || null, business_type: businessType, currency },
+        updates: {
+          business_name: businessName.trim() || null,
+          business_type: businessType,
+          currency,
+          custom_metrics: metrics,
+        },
       });
       Alert.alert('Saved', 'Your settings have been updated.');
     } catch {
@@ -50,6 +95,8 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView className="flex-1 px-4 pt-4" keyboardShouldPersistTaps="handled">
+
+        {/* ── Business Profile ── */}
         <Text className="text-xs font-bold text-stone-400 uppercase tracking-wide mb-2">Business Profile</Text>
         <View className="bg-white rounded-2xl p-4 border border-stone-100 gap-4 mb-4">
           <View>
@@ -95,13 +142,93 @@ export default function SettingsScreen() {
                   }}
                 >
                   <Text style={{ fontWeight: '700', fontSize: 16, color: currency === c.code ? '#ffffff' : '#57534e' }}>{c.symbol}</Text>
-                  <Text style={{ fontSize: 11, color: currency === c.code ? '#fde68a' : '#9ca3af' }}>{c.label}</Text>
+                  <Text style={{ fontSize: 11, color: currency === c.code ? '#ffffff' : '#9ca3af' }}>{c.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
         </View>
 
+        {/* ── Metrics ── */}
+        <Text className="text-xs font-bold text-stone-400 uppercase tracking-wide mb-2">Metrics</Text>
+        <View className="bg-white rounded-2xl p-4 border border-stone-100 mb-4">
+          <Text className="text-stone-500 text-xs mb-3">Choose which metrics to track across the app.</Text>
+
+          {metrics.map((metric, idx) => (
+            <View
+              key={metric.id}
+              style={{
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                paddingVertical: 10,
+                borderBottomWidth: idx < metrics.length - 1 ? 1 : 0,
+                borderBottomColor: '#f5f5f4',
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '500', color: '#1c1917' }}>{metric.name}</Text>
+                <Text style={{ fontSize: 11, color: '#a8a29e', marginTop: 1 }}>{metric.unit}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                {!metric.builtin && (
+                  <TouchableOpacity
+                    onPress={() =>
+                      Alert.alert('Delete Metric', `Remove "${metric.name}"?`, [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Delete', style: 'destructive', onPress: () => deleteMetric(metric.id) },
+                      ])
+                    }
+                  >
+                    <Text style={{ fontSize: 12, color: '#ef4444' }}>Delete</Text>
+                  </TouchableOpacity>
+                )}
+                <Switch
+                  value={metric.enabled}
+                  onValueChange={(v) => toggleMetric(metric.id, v)}
+                  trackColor={{ false: '#e7e5e4', true: '#78350f' }}
+                  thumbColor="#ffffff"
+                />
+              </View>
+            </View>
+          ))}
+
+          {/* Add custom metric */}
+          <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f5f5f4' }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: '#57534e', marginBottom: 8 }}>Add Custom Metric</Text>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              <TextInput
+                value={newName}
+                onChangeText={setNewName}
+                placeholder="Name (e.g. Coffees Sold)"
+                placeholderTextColor="#a8a29e"
+                style={{
+                  flex: 1, borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10,
+                  paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, color: '#1c1917',
+                }}
+              />
+              <TextInput
+                value={newUnit}
+                onChangeText={setNewUnit}
+                placeholder="Unit"
+                placeholderTextColor="#a8a29e"
+                style={{
+                  width: 64, borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10,
+                  paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, color: '#1c1917',
+                }}
+              />
+              <TouchableOpacity
+                onPress={addMetric}
+                style={{
+                  backgroundColor: '#1c1917', borderRadius: 10,
+                  paddingHorizontal: 14, justifyContent: 'center',
+                }}
+              >
+                <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13 }}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Save */}
         <TouchableOpacity
           onPress={handleSave}
           disabled={saving}

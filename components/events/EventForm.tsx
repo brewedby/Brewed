@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Switch, Modal,
 } from 'react-native';
-import { format, isValid } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { useForm, Controller, useFieldArray, Control, UseFormWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
@@ -61,7 +61,7 @@ function WheelColumn({
     setSelectedIdx(safeIdx);
     setTimeout(() => {
       scrollRef.current?.scrollTo({ y: safeIdx * ITEM_HEIGHT, animated: false });
-    }, 60);
+    }, 200);
   }, [initialIndex, items.length]);
 
   function handleScrollEnd(y: number) {
@@ -132,7 +132,7 @@ function DatePickerModal({
     if (!visible) return;
     const p = (() => {
       if (!value) return now;
-      try { const d = new Date(value + 'T12:00:00'); return isValid(d) ? d : now; }
+      try { const d = parseISO(value); return isValid(d) ? d : now; }
       catch { return now; }
     })();
     const yi = years.indexOf(p.getFullYear());
@@ -206,7 +206,7 @@ function DatePickerButton({
 }) {
   const [show, setShow] = useState(false);
   const displayText = value
-    ? (() => { try { const d = new Date(value + 'T12:00:00'); return isValid(d) ? format(d, 'd MMM yyyy') : value; } catch { return value; } })()
+    ? (() => { try { const d = parseISO(value); return isValid(d) ? format(d, 'd MMM yyyy') : value; } catch { return value; } })()
     : '';
 
   return (

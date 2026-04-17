@@ -8,7 +8,6 @@ import { WeatherCard } from '@/components/events/WeatherCard';
 import { StaffingList } from '@/components/events/StaffingList';
 import { InfrastructureList } from '@/components/events/InfrastructureList';
 import { EventStatusBadge } from '@/components/shared/EventStatusBadge';
-import { ConfirmSheet } from '@/components/shared/ConfirmSheet';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { formatDateRange, formatDate, formatCurrency } from '@/lib/formatters';
 import { STATUS_COLORS, STATUSES, STATUS_LABELS } from '@/constants';
@@ -83,7 +82,6 @@ export default function EventDetailScreen() {
   const { data: event, isLoading, refetch } = useEvent(id);
   const deleteEvent = useDeleteEvent();
   const [refreshing, setRefreshing] = useState(false);
-  const [showDelete, setShowDelete] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
   async function handleRefresh() {
@@ -313,28 +311,26 @@ export default function EventDetailScreen() {
           )}
         </View>
 
-        {/* Danger zone */}
-        <View className="bg-white rounded-2xl p-4 border border-red-100 mb-6">
+        <View className="bg-white rounded-2xl p-4 border border-stone-100 mb-6">
           <TouchableOpacity
-            onPress={() => setShowDelete(true)}
+            onPress={() =>
+              Alert.alert(
+                'Delete Event',
+                `Are you sure you want to delete "${event.name}"? This cannot be undone.`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Delete', style: 'destructive', onPress: handleDelete },
+                ],
+              )
+            }
             className="border border-red-200 py-3 rounded-xl items-center"
           >
-            <Text className="text-red-500 font-medium text-sm">Delete Application</Text>
+            <Text className="text-red-500 font-medium text-sm">Delete Event</Text>
           </TouchableOpacity>
         </View>
 
         <View style={{ height: 20 }} />
       </ScrollView>
-
-      <ConfirmSheet
-        visible={showDelete}
-        title="Delete Application"
-        message={`Remove "${event.name}" from your tracker? This cannot be undone.`}
-        confirmLabel="Delete"
-        destructive
-        onConfirm={handleDelete}
-        onCancel={() => setShowDelete(false)}
-      />
     </View>
   );
 }

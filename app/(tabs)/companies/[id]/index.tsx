@@ -6,7 +6,6 @@ import { useCompany } from '@/lib/queries/companies';
 import { useEvents, useDeleteEvent } from '@/lib/queries/events';
 import { useDeleteCompany } from '@/lib/queries/companies';
 import { EventCard } from '@/components/events/EventCard';
-import { ConfirmSheet } from '@/components/shared/ConfirmSheet';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { formatCurrency } from '@/lib/formatters';
@@ -20,7 +19,6 @@ export default function CompanyDetailScreen() {
   const { data: allEvents } = useEvents({ companyId: id });
   const deleteCompany = useDeleteCompany();
   const [refreshing, setRefreshing] = useState(false);
-  const [showDelete, setShowDelete] = useState(false);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -124,29 +122,26 @@ export default function CompanyDetailScreen() {
           events.map((event) => <EventCard key={event.id} event={event} />)
         )}
 
-        {/* Danger zone */}
-        <View className="bg-white rounded-2xl p-4 border border-red-100 mt-4">
-          <Text className="font-semibold text-stone-700 mb-3">Danger Zone</Text>
+        <View className="bg-white rounded-2xl p-4 border border-stone-100 mt-4">
           <TouchableOpacity
-            onPress={() => setShowDelete(true)}
-            className="border border-red-300 py-3 rounded-xl items-center"
+            onPress={() =>
+              Alert.alert(
+                'Delete Company',
+                `Delete "${company.name}"? Events linked to this company will remain but will be unlinked. This cannot be undone.`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Delete', style: 'destructive', onPress: handleDelete },
+                ],
+              )
+            }
+            className="border border-red-200 py-3 rounded-xl items-center"
           >
-            <Text className="text-red-600 font-medium">Delete Company</Text>
+            <Text className="text-red-500 font-medium text-sm">Delete Company</Text>
           </TouchableOpacity>
         </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
-
-      <ConfirmSheet
-        visible={showDelete}
-        title="Delete Company"
-        message={`Delete "${company.name}"? Events linked to this company will remain but will be unlinked.`}
-        confirmLabel="Delete"
-        destructive
-        onConfirm={handleDelete}
-        onCancel={() => setShowDelete(false)}
-      />
     </View>
   );
 }
