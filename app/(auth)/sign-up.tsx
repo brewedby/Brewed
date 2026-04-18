@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView,
   Platform, ScrollView, ActivityIndicator, Alert,
@@ -6,11 +6,39 @@ import {
 import { Link } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 
+type Strength = { label: string; color: string; bars: number };
+
+function scorePassword(pw: string): Strength {
+  if (!pw) return { label: '', color: '#57534e', bars: 0 };
+  let score = 0;
+  if (pw.length >= 6) score++;
+  if (pw.length >= 10) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (score <= 2) return { label: 'Weak', color: '#ef4444', bars: 1 };
+  if (score <= 3) return { label: 'Medium', color: '#f59e0b', bars: 2 };
+  return { label: 'Strong', color: '#22c55e', bars: 3 };
+}
+
 export default function SignUpScreen() {
   const [businessName, setBusinessName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const confirmRef = useRef<TextInput>(null);
+
+  const strength = useMemo(() => scorePassword(password), [password]);
+  const passwordsMatch = confirmPassword.length === 0 || confirmPassword === password;
+  const canSubmit =
+    email.trim().length > 0 &&
+    password.length >= 6 &&
+    confirmPassword === password &&
+    !loading;
 
   async function handleSignUp() {
     if (!email || !password) {
@@ -21,11 +49,15 @@ export default function SignUpScreen() {
       Alert.alert('Error', 'Password must be at least 6 characters.');
       return;
     }
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match.');
+      return;
+    }
     setLoading(true);
     const { error } = await supabase.auth.signUp({
-      email,
+      email: email.trim(),
       password,
-      options: { data: { business_name: businessName } },
+      options: { data: { business_name: businessName.trim() } },
     });
     setLoading(false);
     if (error) {
@@ -60,12 +92,16 @@ export default function SignUpScreen() {
                 autoCapitalize="words"
                 value={businessName}
                 onChangeText={setBusinessName}
+                returnKeyType="next"
+                onSubmitEditing={() => emailRef.current?.focus()}
+                blurOnSubmit={false}
               />
             </View>
 
             <View>
               <Text className="text-stone-300 mb-1.5 font-medium">Email</Text>
               <TextInput
+                ref={emailRef}
                 className="bg-stone-800 text-white px-4 py-3.5 rounded-xl border border-stone-700"
                 placeholder="you@example.com"
                 placeholderTextColor="#78716c"
@@ -74,12 +110,16 @@ export default function SignUpScreen() {
                 autoComplete="email"
                 value={email}
                 onChangeText={setEmail}
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                blurOnSubmit={false}
               />
             </View>
 
             <View>
               <Text className="text-stone-300 mb-1.5 font-medium">Password</Text>
               <TextInput
+                ref={passwordRef}
                 className="bg-stone-800 text-white px-4 py-3.5 rounded-xl border border-stone-700"
                 placeholder="Min. 6 characters"
                 placeholderTextColor="#78716c"
@@ -87,13 +127,59 @@ export default function SignUpScreen() {
                 autoComplete="password-new"
                 value={password}
                 onChangeText={setPassword}
+                returnKeyType="next"
+                onSubmitEditing={() => confirmRef.current?.focus()}
+                blurOnSubmit={false}
               />
+              {password.length > 0 && (
+                <View className="mt-2 flex-row items-center gap-2">
+                  <View className="flex-row gap-1 flex-1">
+                    {[1, 2, 3].map((i) => (
+                      <View
+                        key={i}
+                        style={{
+                          flex: 1,
+                          height: 4,
+                          borderRadius: 2,
+                          backgroundColor: i <= strength.bars ? strength.color : '#44403c',
+                        }}
+                      />
+                    ))}
+                  </View>
+                  <Text style={{ color: strength.color, fontSize: 11, fontWeight: '600', minWidth: 54, textAlign: 'right' }}>
+                    {strength.label}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View>
+              <Text className="text-stone-300 mb-1.5 font-medium">Confirm Password</Text>
+              <TextInput
+                ref={confirmRef}
+                className="bg-stone-800 text-white px-4 py-3.5 rounded-xl border"
+                style={{ borderColor: passwordsMatch ? '#44403c' : '#dc2626' }}
+                placeholder="Re-enter your password"
+                placeholderTextColor="#78716c"
+                secureTextEntry
+                autoComplete="password-new"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                returnKeyType="done"
+                onSubmitEditing={handleSignUp}
+              />
+              {!passwordsMatch && (
+                <Text className="text-red-500 text-xs mt-1.5">Passwords don't match</Text>
+              )}
             </View>
 
             <TouchableOpacity
               className="bg-amber-700 py-4 rounded-xl items-center mt-2"
+              style={{ opacity: canSubmit ? 1 : 0.6 }}
               onPress={handleSignUp}
-              disabled={loading}
+              disabled={!canSubmit}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canSubmit }}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />

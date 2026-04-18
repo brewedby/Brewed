@@ -2,11 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { FlashList } from '@shopify/flash-list';
 import { useEvents } from '@/lib/queries/events';
 import { useCompanies } from '@/lib/queries/companies';
 import { EventCard } from '@/components/events/EventCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { QueryError } from '@/components/shared/QueryError';
 import { formatDateRange } from '@/lib/formatters';
 import { STATUSES, STATUS_LABELS } from '@/constants';
 import type { ApplicationStatus, EventWithFinancials, CompanyWithStats } from '@/types';
@@ -92,7 +94,7 @@ export default function EventsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data: eventsRaw, isLoading, refetch } = useEvents({ status: statusFilter, year: yearFilter });
+  const { data: eventsRaw, isLoading, isError, error, refetch } = useEvents({ status: statusFilter, year: yearFilter });
   const { data: companies } = useCompanies();
 
   async function handleRefresh() {
@@ -137,6 +139,33 @@ export default function EventsScreen() {
   const totalRevenue = events.reduce((s, e) => s + (e.event_financials?.gross_sales ?? 0), 0);
   const totalNet = events.reduce((s, e) => s + e.calculations.netProfit, 0);
 
+  type RowItem =
+    | { kind: 'banner'; id: string; a: EventWithFinancials; b: EventWithFinancials }
+    | { kind: 'section'; id: string; title: string; count: number }
+    | { kind: 'event'; id: string; event: EventWithFinancials };
+
+  const rowItems = useMemo<RowItem[]>(() => {
+    const items: RowItem[] = [];
+    if (viewFilter !== 'completed') {
+      overlappingPairs.forEach(({ a, b }, i) => {
+        items.push({ kind: 'banner', id: `banner-${i}-${a.id}-${b.id}`, a, b });
+      });
+    }
+    if (viewFilter !== 'completed' && upcoming.length > 0) {
+      if (viewFilter === 'all') {
+        items.push({ kind: 'section', id: 'sec-upcoming', title: 'Upcoming', count: upcoming.length });
+      }
+      upcoming.forEach((e) => items.push({ kind: 'event', id: e.id, event: e }));
+    }
+    if (viewFilter !== 'upcoming' && completed.length > 0) {
+      if (viewFilter === 'all') {
+        items.push({ kind: 'section', id: 'sec-completed', title: 'Completed', count: completed.length });
+      }
+      completed.forEach((e) => items.push({ kind: 'event', id: e.id, event: e }));
+    }
+    return items;
+  }, [viewFilter, overlappingPairs, upcoming, completed]);
+
   return (
     <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
       {/* Header */}
@@ -145,6 +174,8 @@ export default function EventsScreen() {
           <Text className="text-2xl font-bold text-stone-900">Events</Text>
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/events/new')}
+            accessibilityRole="button"
+            accessibilityLabel="Add new event"
             className="bg-amber-700 px-4 py-2 rounded-xl"
           >
             <Text className="text-white font-semibold text-sm">+ New</Text>
@@ -166,7 +197,7 @@ export default function EventsScreen() {
         </View>
 
         {/* Upcoming / Completed / All tabs */}
-        <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+        <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }} accessibilityRole="radiogroup">
           {(['upcoming', 'completed', 'all'] as const).map((v) => {
             const labels = { upcoming: 'Upcoming', completed: 'Completed', all: 'All' };
             const isActive = viewFilter === v;
@@ -174,6 +205,9 @@ export default function EventsScreen() {
               <TouchableOpacity
                 key={v}
                 onPress={() => setViewFilter(v)}
+                accessibilityRole="radio"
+                accessibilityLabel={`Show ${labels[v].toLowerCase()} events`}
+                accessibilityState={{ selected: isActive }}
                 style={{
                   flex: 1, paddingVertical: 7, borderRadius: 10, alignItems: 'center',
                   backgroundColor: isActive ? '#1c1917' : '#f5f5f4',
@@ -188,9 +222,12 @@ export default function EventsScreen() {
         </View>
 
         {/* Status filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} accessibilityRole="radiogroup">
           <TouchableOpacity
             onPress={() => setStatusFilter('all')}
+            accessibilityRole="radio"
+            accessibilityLabel="Show all statuses"
+            accessibilityState={{ selected: statusFilter === 'all' }}
             style={{
               paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1,
               backgroundColor: statusFilter === 'all' ? '#1c1917' : '#ffffff',
@@ -203,6 +240,9 @@ export default function EventsScreen() {
             <TouchableOpacity
               key={s}
               onPress={() => setStatusFilter(statusFilter === s ? 'all' : s)}
+              accessibilityRole="radio"
+              accessibilityLabel={`Filter by ${STATUS_LABELS[s]}`}
+              accessibilityState={{ selected: statusFilter === s }}
               style={{
                 paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1,
                 backgroundColor: statusFilter === s ? '#1c1917' : '#ffffff',
@@ -217,9 +257,12 @@ export default function EventsScreen() {
         </ScrollView>
 
         {/* Year filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginTop: 6 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginTop: 6 }} accessibilityRole="radiogroup">
           <TouchableOpacity
             onPress={() => setYearFilter(undefined)}
+            accessibilityRole="radio"
+            accessibilityLabel="Show events from all years"
+            accessibilityState={{ selected: !yearFilter }}
             style={{
               paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 1,
               backgroundColor: !yearFilter ? '#fef3c7' : '#ffffff',
@@ -232,6 +275,9 @@ export default function EventsScreen() {
             <TouchableOpacity
               key={y}
               onPress={() => setYearFilter(yearFilter === y ? undefined : y)}
+              accessibilityRole="radio"
+              accessibilityLabel={`Filter by year ${y}`}
+              accessibilityState={{ selected: yearFilter === y }}
               style={{
                 paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 1,
                 backgroundColor: yearFilter === y ? '#fef3c7' : '#ffffff',
@@ -259,52 +305,51 @@ export default function EventsScreen() {
 
       {isLoading ? (
         <LoadingSpinner message="Loading events..." />
-      ) : (
+      ) : isError ? (
+        <QueryError error={error} onRetry={refetch} message="Couldn't load events" />
+      ) : events.length === 0 ? (
         <ScrollView
           className="flex-1 px-4 pt-4"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#b45309" />}
+          keyboardDismissMode="on-drag"
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#b45309" colors={["#b45309"]} />}
         >
-          {events.length === 0 ? (
-            <EmptyState
-              icon="🎪"
-              title="No events yet"
-              description="Apply to your first event and track it here."
-              action={{ label: '+ Add Event', onPress: () => router.push('/(tabs)/events/new') }}
-            />
-          ) : (
-            <>
-              {/* Overlap warnings — only shown in upcoming/all view */}
-              {viewFilter !== 'completed' && overlappingPairs.map(({ a, b }, i) => (
-                <OverlapBanner key={i} a={a} b={b} companyMap={companyMap} />
-              ))}
-
-              {/* Upcoming section */}
-              {viewFilter !== 'completed' && upcoming.length > 0 && (
-                <>
-                  {viewFilter === 'all' && <SectionHeader title="Upcoming" count={upcoming.length} />}
-                  {upcoming.map((event) => <EventCard key={event.id} event={event} />)}
-                </>
-              )}
-
-              {/* Completed section */}
-              {viewFilter !== 'upcoming' && completed.length > 0 && (
-                <>
-                  {viewFilter === 'all' && <SectionHeader title="Completed" count={completed.length} />}
-                  {completed.map((event) => <EventCard key={event.id} event={event} />)}
-                </>
-              )}
-
-              {/* Empty state for active filter */}
-              {viewFilter === 'upcoming' && upcoming.length === 0 && (
-                <EmptyState icon="📅" title="No upcoming events" description="All events are in the past." />
-              )}
-              {viewFilter === 'completed' && completed.length === 0 && (
-                <EmptyState icon="✅" title="No completed events" description="Events that have passed will appear here." />
-              )}
-            </>
-          )}
-          <View style={{ height: 32 }} />
+          <EmptyState
+            icon="🎪"
+            title="No events yet"
+            description="Apply to your first event and track it here."
+            action={{ label: '+ Add Event', onPress: () => router.push('/(tabs)/events/new') }}
+            tip="Tip: You can import events from the Discover tab"
+          />
         </ScrollView>
+      ) : rowItems.length === 0 ? (
+        <ScrollView
+          className="flex-1 px-4 pt-4"
+          keyboardDismissMode="on-drag"
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#b45309" colors={["#b45309"]} />}
+        >
+          {viewFilter === 'upcoming' ? (
+            <EmptyState icon="📅" title="No upcoming events" description="All events are in the past." />
+          ) : viewFilter === 'completed' ? (
+            <EmptyState icon="✅" title="No completed events" description="Events that have passed will appear here." />
+          ) : null}
+        </ScrollView>
+      ) : (
+        <View className="flex-1 px-4 pt-4">
+          <FlashList
+            data={rowItems}
+            keyExtractor={(item) => item.id}
+            estimatedItemSize={140}
+            keyboardDismissMode="on-drag"
+            getItemType={(item) => item.kind}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#b45309" colors={["#b45309"]} />}
+            ListFooterComponent={<View style={{ height: 32 }} />}
+            renderItem={({ item }) => {
+              if (item.kind === 'banner') return <OverlapBanner a={item.a} b={item.b} companyMap={companyMap} />;
+              if (item.kind === 'section') return <SectionHeader title={item.title} count={item.count} />;
+              return <EventCard event={item.event} />;
+            }}
+          />
+        </View>
       )}
     </View>
   );

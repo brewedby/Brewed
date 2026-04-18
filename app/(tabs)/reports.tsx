@@ -62,15 +62,23 @@ export default function ReportsScreen() {
       <View className="bg-white px-4 pt-2 pb-3 border-b border-stone-100">
         <View className="flex-row items-center justify-between mb-3">
           <Text className="text-2xl font-bold text-stone-900">Reports</Text>
-          <TouchableOpacity onPress={handleExport} className="border border-amber-300 px-3 py-1.5 rounded-xl">
+          <TouchableOpacity
+            onPress={handleExport}
+            accessibilityRole="button"
+            accessibilityLabel="Export report as CSV"
+            className="border border-amber-300 px-3 py-1.5 rounded-xl"
+          >
             <Text className="text-amber-700 font-medium text-sm">Export CSV</Text>
           </TouchableOpacity>
         </View>
-        <View className="flex-row gap-2">
+        <View className="flex-row gap-2" accessibilityRole="radiogroup">
           {YEARS.map((y) => (
             <TouchableOpacity
               key={y}
               onPress={() => setYear(y)}
+              accessibilityRole="radio"
+              accessibilityLabel={`Show reports for ${y}`}
+              accessibilityState={{ selected: year === y }}
               className={`px-4 py-1.5 rounded-full ${year === y ? 'bg-amber-700' : 'bg-stone-100'}`}
             >
               <Text className={`text-sm font-medium ${year === y ? 'text-white' : 'text-stone-600'}`}>{y}</Text>

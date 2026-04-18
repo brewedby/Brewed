@@ -80,11 +80,18 @@ export default function UnitDetailScreen() {
         <View style={{ height: 4, backgroundColor: colors.dot }} />
         <View className="px-4 pt-3 pb-4">
           <View className="flex-row items-center justify-between mb-2">
-            <TouchableOpacity onPress={() => router.back()} className="flex-row items-center">
+            <TouchableOpacity
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Back to fleet"
+              className="flex-row items-center"
+            >
               <Text className="text-amber-500 font-semibold text-sm">‹ Fleet</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => router.push(`/(tabs)/fleet/${id}/edit`)}
+              accessibilityRole="button"
+              accessibilityLabel="Edit unit"
               className="bg-stone-900 px-4 py-1.5 rounded-xl"
             >
               <Text className="text-white font-semibold text-sm">Edit</Text>

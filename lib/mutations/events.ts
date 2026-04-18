@@ -104,9 +104,42 @@ export function useCreateEvent() {
   });
 }
 
+// Fields on the event row itself that are safe to optimistically merge into
+// cached lists without recomputing derived data.
+const EVENT_ROW_FIELDS = [
+  'name', 'date', 'end_date', 'location', 'description', 'application_date',
+  'status', 'notes', 'company_id', 'overnight_stay', 'documents_uploaded', 'application_url',
+] as const;
+
+function pickEventRowFields(data: EventFormValues): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const key of EVENT_ROW_FIELDS) {
+    if (key in data) out[key] = (data as any)[key];
+  }
+  return out;
+}
+
 export function useUpdateEvent() {
   const qc = useQueryClient();
   return useMutation({
+    onMutate: async ({ id, data }: { id: string; data: EventFormValues }) => {
+      await qc.cancelQueries({ queryKey: ['events'] });
+      const patch = pickEventRowFields(data);
+      const snapshots = qc.getQueriesData<any>({ queryKey: ['events'] });
+      snapshots.forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          qc.setQueryData(key, value.map((e: any) => (e?.id === id ? { ...e, ...patch } : e)));
+        } else if (value && typeof value === 'object' && value.id === id) {
+          qc.setQueryData(key, { ...value, ...patch });
+        }
+      });
+      return { snapshots };
+    },
+    onError: (_err, _vars, context) => {
+      context?.snapshots?.forEach(([key, value]) => {
+        qc.setQueryData(key, value);
+      });
+    },
     mutationFn: async ({ id, data }: { id: string; data: EventFormValues }) => {
       // 1. Update event
       const { error: eventError } = await supabase

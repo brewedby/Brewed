@@ -9,17 +9,12 @@ export function useCompanies() {
     queryFn: async () => {
       const { data: companies, error } = await supabase
         .from('concessions_companies')
-        .select('*')
+        .select('*, events(id, status, date, end_date, company_id, event_financials(*))')
         .order('name');
       if (error) throw error;
 
-      const { data: events, error: evError } = await supabase
-        .from('events')
-        .select('*, event_financials(*)');
-      if (evError) throw evError;
-
-      const mapped = (companies ?? []).map((company) => {
-        const companyEvents = (events ?? []).filter((e) => e.company_id === company.id);
+      const mapped = (companies ?? []).map((company: any) => {
+        const companyEvents = (company.events ?? []) as any[];
         const acceptedEvents = companyEvents.filter((e) => e.status === 'accepted');
         const totalRevenue = companyEvents.reduce(
           (sum, e) => sum + (e.event_financials?.gross_sales ?? 0),
@@ -43,8 +38,10 @@ export function useCompanies() {
         const avgProfitMargin = margins.length > 0 ? margins.reduce((a, b) => a + b, 0) / margins.length : null;
         const completedEventCount = completedAccepted.length;
 
+        // Strip embedded events from the returned object to keep CompanyWithStats clean
+        const { events: _embedded, ...companyBase } = company;
         return {
-          ...company,
+          ...companyBase,
           totalEvents: companyEvents.length,
           acceptedEvents: acceptedEvents.length,
           totalRevenue,

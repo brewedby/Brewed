@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Linking } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEvent, useDeleteEvent } from '@/lib/queries/events';
@@ -110,6 +111,7 @@ export default function EventDetailScreen() {
     if (error) {
       Alert.alert('Error', 'Could not update status. Please try again.');
     } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       qc.invalidateQueries({ queryKey: ['events'] });
       qc.invalidateQueries({ queryKey: ['events', id] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
@@ -185,11 +187,18 @@ export default function EventDetailScreen() {
         <View style={{ height: 4, backgroundColor: dotColor }} />
         <View className="px-4 pt-3 pb-4">
           <View className="flex-row items-center justify-between mb-2">
-            <TouchableOpacity onPress={() => router.back()} className="flex-row items-center">
+            <TouchableOpacity
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Back to applications"
+              className="flex-row items-center"
+            >
               <Text className="text-amber-500 font-semibold text-sm">‹ Applications</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => router.push(`/(tabs)/events/${id}/edit`)}
+              accessibilityRole="button"
+              accessibilityLabel="Edit event"
               className="bg-slate-900 px-4 py-1.5 rounded-xl"
             >
               <Text className="text-white font-semibold text-sm">Edit</Text>
@@ -228,6 +237,8 @@ export default function EventDetailScreen() {
               </View>
               <TouchableOpacity
                 onPress={handleAcknowledgeChange}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss page changed alert"
                 className="bg-orange-100 px-2.5 py-1 rounded-lg"
               >
                 <Text className="text-orange-700 text-xs font-semibold">Dismiss</Text>
@@ -256,6 +267,8 @@ export default function EventDetailScreen() {
             </View>
             <TouchableOpacity
               onPress={() => router.push(`/(tabs)/events/${id}/edit`)}
+              accessibilityRole="button"
+              accessibilityLabel="Add sales figures"
               style={{ backgroundColor: '#b45309', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}
             >
               <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>Add →</Text>
@@ -278,6 +291,9 @@ export default function EventDetailScreen() {
                   key={s}
                   onPress={() => !active && handleStatusChange(s)}
                   disabled={updatingStatus || active}
+                  accessibilityRole="radio"
+                  accessibilityLabel={`Set status to ${STATUS_LABELS[s]}`}
+                  accessibilityState={{ selected: active, disabled: updatingStatus || active }}
                   style={{
                     flexDirection: 'row', alignItems: 'center',
                     paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1,
@@ -386,6 +402,9 @@ export default function EventDetailScreen() {
           <TouchableOpacity
             onPress={handleDuplicate}
             disabled={duplicating}
+            accessibilityRole="button"
+            accessibilityLabel="Duplicate event"
+            accessibilityState={{ disabled: duplicating }}
             style={{ borderWidth: 1, borderColor: '#d6d3d1', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
           >
             <Text style={{ color: '#57534e', fontWeight: '500', fontSize: 14 }}>

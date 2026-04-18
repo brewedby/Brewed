@@ -11,13 +11,19 @@ export function useDashboard(year?: number) {
     queryKey: ['dashboard', targetYear],
     queryFn: async (): Promise<DashboardStats> => {
       const [eventsRes, unitsRes] = await Promise.all([
-        supabase.from('events').select('*, event_financials(*), concessions_companies(*), units(*)').order('date', { ascending: false }),
+        supabase.from('events').select('*, event_financials(*), concessions_companies(*), event_units(units(*))').order('date', { ascending: false }),
         supabase.from('units').select('*').order('name'),
       ]);
       if (eventsRes.error) throw eventsRes.error;
 
-      const allEvents = eventsRes.data ?? [];
+      const allEventsRaw = eventsRes.data ?? [];
       const allUnits = unitsRes.data ?? [];
+
+      // Normalise: events↔units is many-to-many via event_units
+      const allEvents = allEventsRaw.map((e: any) => ({
+        ...e,
+        units: (e.event_units ?? []).map((eu: any) => eu.units).filter(Boolean),
+      }));
 
       const ytdEvents = allEvents.filter((e) => e.date.startsWith(`${targetYear}`));
 
@@ -50,7 +56,6 @@ export function useDashboard(year?: number) {
         .slice(0, 5)
         .map((e) => ({
           ...e,
-          units: e.units ? [e.units] : [],
           calculations: e.event_financials ? calcEventFinancials(e.event_financials) : EMPTY_CALCULATIONS,
         })) as any) as EventWithFinancials[];
 
@@ -76,15 +81,20 @@ export function useDashboard(year?: number) {
       });
       const statusBreakdown: StatusCount[] = Array.from(statusMap.entries()).map(([status, count]) => ({ status, count }));
 
-      // Unit statuses — map each unit to its current/next accepted event
+      // Unit statuses — map each unit to its current/next accepted event.
+      // events↔units is many-to-many via event_units, so filter by membership, not a direct FK.
       const unitStatuses: UnitWithStatus[] = allUnits.map((unit) => {
         const unitEvent = allEvents
-          .filter((e) => e.unit_id === unit.id && e.status === 'accepted' && e.date >= today)
+          .filter((e) =>
+            e.status === 'accepted' &&
+            e.date >= today &&
+            (e.units as any[]).some((u: any) => u?.id === unit.id),
+          )
           .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null;
         return {
           ...unit,
           currentEvent: unitEvent
-            ? ({ ...unitEvent, units: unitEvent.units ? [unitEvent.units] : [], calculations: unitEvent.event_financials ? calcEventFinancials(unitEvent.event_financials) : EMPTY_CALCULATIONS } as any as EventWithFinancials)
+            ? ({ ...unitEvent, calculations: unitEvent.event_financials ? calcEventFinancials(unitEvent.event_financials) : EMPTY_CALCULATIONS } as any as EventWithFinancials)
             : null,
         };
       });

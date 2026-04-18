@@ -53,11 +53,18 @@ export default function CompanyDetailScreen() {
     <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
       <View className="bg-white px-4 pt-2 pb-4 border-b border-stone-100">
         <View className="flex-row items-center justify-between mb-2">
-          <TouchableOpacity onPress={() => router.back()} className="p-1">
+          <TouchableOpacity
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Back to companies"
+            className="p-1"
+          >
             <Text className="text-amber-600 text-base">‹ Companies</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.push(`/(tabs)/companies/${id}/edit`)}
+            accessibilityRole="button"
+            accessibilityLabel="Edit company"
             className="bg-amber-700 px-4 py-1.5 rounded-xl"
           >
             <Text className="text-white font-semibold text-sm">Edit</Text>

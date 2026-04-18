@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Switch, Modal,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { format, parseISO, isValid } from 'date-fns';
 import { useForm, Controller, useFieldArray, Control, UseFormWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -622,6 +623,7 @@ export function EventForm({
           : data.application_date,
       };
       await onSubmit(converted);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       router.back();
     } catch (e: unknown) {
       const msg =

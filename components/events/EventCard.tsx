@@ -10,7 +10,7 @@ interface Props {
   event: EventWithFinancials;
 }
 
-export function EventCard({ event }: Props) {
+export const EventCard = React.memo(function EventCard({ event }: Props) {
   const router = useRouter();
   const fin = event.event_financials;
   const calc = event.calculations;
@@ -115,4 +115,4 @@ export function EventCard({ event }: Props) {
       </View>
     </TouchableOpacity>
   );
-}
+});

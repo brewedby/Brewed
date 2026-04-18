@@ -5,12 +5,13 @@ import { useRouter } from 'expo-router';
 import { useCompanies } from '@/lib/queries/companies';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { QueryError } from '@/components/shared/QueryError';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 
 export default function CompaniesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { data: companies, isLoading, refetch } = useCompanies();
+  const { data: companies, isLoading, isError, error, refetch } = useCompanies();
   const [refreshing, setRefreshing] = useState(false);
 
   async function handleRefresh() {
@@ -26,6 +27,8 @@ export default function CompaniesScreen() {
           <Text className="text-2xl font-bold text-stone-900">Companies</Text>
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/companies/new')}
+            accessibilityRole="button"
+            accessibilityLabel="Add new company"
             className="bg-amber-700 px-4 py-2 rounded-xl"
           >
             <Text className="text-white font-semibold text-sm">+ Add Company</Text>
@@ -35,6 +38,8 @@ export default function CompaniesScreen() {
 
       {isLoading ? (
         <LoadingSpinner message="Loading companies..." />
+      ) : isError ? (
+        <QueryError error={error} onRetry={refetch} message="Couldn't load companies" />
       ) : (
         <ScrollView
           className="flex-1 px-4 pt-4"

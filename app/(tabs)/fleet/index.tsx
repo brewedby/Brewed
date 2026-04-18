@@ -7,6 +7,7 @@ import { useUnits } from '@/lib/queries/units';
 import { UnitCard } from '@/components/units/UnitCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { QueryError } from '@/components/shared/QueryError';
 import type { UnitWithStatus } from '@/types';
 
 export default function FleetScreen() {
@@ -15,7 +16,7 @@ export default function FleetScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const { data: dashboardStats, isLoading: dashboardLoading, refetch: refetchDashboard } = useDashboard();
-  const { data: rawUnits, isLoading: unitsLoading, refetch: refetchUnits } = useUnits();
+  const { data: rawUnits, isLoading: unitsLoading, isError, error, refetch: refetchUnits } = useUnits();
 
   const isLoading = dashboardLoading && unitsLoading;
 
@@ -40,6 +41,8 @@ export default function FleetScreen() {
           <Text className="text-2xl font-bold text-stone-900">Your Fleet</Text>
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/fleet/new')}
+            accessibilityRole="button"
+            accessibilityLabel="Add new unit"
             className="bg-amber-700 px-4 py-2 rounded-xl"
           >
             <Text className="text-white font-semibold text-sm">+ Add Unit</Text>
@@ -64,6 +67,8 @@ export default function FleetScreen() {
 
       {isLoading ? (
         <LoadingSpinner message="Loading fleet..." />
+      ) : isError ? (
+        <QueryError error={error} onRetry={refetchUnits} message="Couldn't load fleet" />
       ) : (
         <ScrollView
           className="flex-1 px-4 pt-4"

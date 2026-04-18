@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, ScrollView, TouchableOpacity, Text, Alert, ActivityIndicator, Modal,
 } from 'react-native';
-import { useForm, Controller } from 'react-hook-form';
+import * as Haptics from 'expo-haptics';
+import { useForm, Controller, Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
 import { format, parseISO, isValid } from 'date-fns';
@@ -35,19 +36,31 @@ function WheelColumn({
 }) {
   const scrollRef = useRef<ScrollView>(null);
   const [selectedIdx, setSelectedIdx] = useState(Math.max(0, Math.min(initialIndex, items.length - 1)));
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastReportedIdx = useRef<number>(selectedIdx);
 
   useEffect(() => {
     const safeIdx = Math.max(0, Math.min(initialIndex, items.length - 1));
     setSelectedIdx(safeIdx);
+    lastReportedIdx.current = safeIdx;
     setTimeout(() => {
       scrollRef.current?.scrollTo({ y: safeIdx * ITEM_HEIGHT, animated: false });
     }, 200);
   }, [initialIndex, items.length]);
 
+  useEffect(() => () => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+  }, []);
+
   function handleScrollEnd(y: number) {
-    const idx = Math.max(0, Math.min(Math.round(y / ITEM_HEIGHT), items.length - 1));
-    setSelectedIdx(idx);
-    onChange(idx);
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      const idx = Math.max(0, Math.min(Math.round(y / ITEM_HEIGHT), items.length - 1));
+      if (idx === lastReportedIdx.current) return;
+      lastReportedIdx.current = idx;
+      setSelectedIdx(idx);
+      onChange(idx);
+    }, 50);
   }
 
   return (
@@ -320,7 +333,7 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
   const router = useRouter();
 
   const { control, handleSubmit, formState: { errors } } = useForm<UnitFormValues>({
-    resolver: zodResolver(unitSchema) as any,
+    resolver: zodResolver(unitSchema) as Resolver<UnitFormValues>,
     defaultValues: {
       name: '',
       registration: '',
@@ -342,6 +355,7 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
     setLoading(true);
     try {
       await onSubmit(data);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       router.back();
     } catch (e: any) {
       Alert.alert('Error', e.message ?? 'Failed to save unit');

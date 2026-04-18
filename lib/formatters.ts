@@ -1,31 +1,35 @@
 import { format, parseISO, isValid } from 'date-fns';
 
-export function formatCurrency(value: number): string {
+export function formatCurrency(value: number | null | undefined): string {
+  const n = value == null || !Number.isFinite(value) ? 0 : value;
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',
     currency: 'GBP',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value);
+  }).format(n);
 }
 
-export function formatCurrencyCompact(value: number): string {
-  if (Math.abs(value) >= 1000) {
+export function formatCurrencyCompact(value: number | null | undefined): string {
+  const n = value == null || !Number.isFinite(value) ? 0 : value;
+  if (Math.abs(n) >= 1000) {
     return new Intl.NumberFormat('en-GB', {
       style: 'currency',
       currency: 'GBP',
       notation: 'compact',
       maximumFractionDigits: 1,
-    }).format(value);
+    }).format(n);
   }
-  return formatCurrency(value);
+  return formatCurrency(n);
 }
 
-export function formatPercent(value: number, decimals = 1): string {
-  return `${value.toFixed(decimals)}%`;
+export function formatPercent(value: number | null | undefined, decimals = 1): string {
+  const n = value == null || !Number.isFinite(value) ? 0 : value;
+  return `${n.toFixed(decimals)}%`;
 }
 
-export function formatDate(dateStr: string): string {
+export function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
   try {
     const date = parseISO(dateStr);
     if (!isValid(date)) return dateStr;
@@ -35,7 +39,8 @@ export function formatDate(dateStr: string): string {
   }
 }
 
-export function formatDateShort(dateStr: string): string {
+export function formatDateShort(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
   try {
     const date = parseISO(dateStr);
     if (!isValid(date)) return dateStr;
@@ -45,7 +50,8 @@ export function formatDateShort(dateStr: string): string {
   }
 }
 
-export function formatDateRange(startStr: string, endStr?: string | null): string {
+export function formatDateRange(startStr: string | null | undefined, endStr?: string | null): string {
+  if (!startStr) return '';
   const start = formatDate(startStr);
   if (!endStr) return start;
   try {

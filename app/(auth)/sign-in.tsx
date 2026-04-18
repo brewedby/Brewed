@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView,
   Platform, ScrollView, ActivityIndicator, Alert,
@@ -10,16 +10,37 @@ export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
+  const passwordRef = useRef<TextInput>(null);
+
+  const canSubmit = email.trim().length > 0 && password.length > 0 && !loading;
 
   async function handleSignIn() {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter your email and password.');
+    if (!canSubmit) {
+      if (!email || !password) {
+        Alert.alert('Error', 'Please enter your email and password.');
+      }
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setLoading(false);
     if (error) Alert.alert('Sign in failed', error.message);
+  }
+
+  async function handleForgotPassword() {
+    if (!email.trim()) {
+      Alert.alert('Enter your email', 'Please type your email address above, then tap "Forgot password?" again.');
+      return;
+    }
+    setSendingReset(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+    setSendingReset(false);
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      Alert.alert('Check your email', `A password reset link has been sent to ${email.trim()}.`);
+    }
   }
 
   return (
@@ -29,7 +50,6 @@ export default function SignInScreen() {
     >
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         <View className="flex-1 justify-center px-6 py-12">
-          {/* Logo / Brand */}
           <View className="items-center mb-10">
             <View className="w-20 h-20 rounded-2xl bg-amber-700 items-center justify-center mb-4">
               <Text className="text-4xl">☕</Text>
@@ -38,7 +58,6 @@ export default function SignInScreen() {
             <Text className="text-stone-400 mt-1">Coffee Truck Management</Text>
           </View>
 
-          {/* Form */}
           <View className="gap-4">
             <View>
               <Text className="text-stone-300 mb-1.5 font-medium">Email</Text>
@@ -51,12 +70,23 @@ export default function SignInScreen() {
                 autoComplete="email"
                 value={email}
                 onChangeText={setEmail}
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                blurOnSubmit={false}
               />
             </View>
 
             <View>
-              <Text className="text-stone-300 mb-1.5 font-medium">Password</Text>
+              <View className="flex-row items-center justify-between mb-1.5">
+                <Text className="text-stone-300 font-medium">Password</Text>
+                <TouchableOpacity onPress={handleForgotPassword} disabled={sendingReset} accessibilityRole="button">
+                  <Text className="text-amber-500 text-xs font-medium">
+                    {sendingReset ? 'Sending…' : 'Forgot password?'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
               <TextInput
+                ref={passwordRef}
                 className="bg-stone-800 text-white px-4 py-3.5 rounded-xl border border-stone-700"
                 placeholder="••••••••"
                 placeholderTextColor="#78716c"
@@ -64,13 +94,18 @@ export default function SignInScreen() {
                 autoComplete="password"
                 value={password}
                 onChangeText={setPassword}
+                returnKeyType="done"
+                onSubmitEditing={handleSignIn}
               />
             </View>
 
             <TouchableOpacity
               className="bg-amber-700 py-4 rounded-xl items-center mt-2"
+              style={{ opacity: canSubmit ? 1 : 0.6 }}
               onPress={handleSignIn}
-              disabled={loading}
+              disabled={!canSubmit}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canSubmit }}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />

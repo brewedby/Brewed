@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, ScrollView, TouchableOpacity, Text, Alert, ActivityIndicator } from 'react-native';
-import { useForm, Controller } from 'react-hook-form';
+import * as Haptics from 'expo-haptics';
+import { useForm, Controller, Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
 import { companySchema, CompanyFormValues } from '@/lib/validations/company.schema';
@@ -17,7 +18,7 @@ export function CompanyForm({ defaultValues, onSubmit, submitLabel = 'Save Compa
   const router = useRouter();
 
   const { control, handleSubmit, formState: { errors } } = useForm<CompanyFormValues>({
-    resolver: zodResolver(companySchema) as any,
+    resolver: zodResolver(companySchema) as Resolver<CompanyFormValues>,
     defaultValues: { name: '', contact_name: '', email: '', phone: '', website: '', notes: '', ...defaultValues },
   });
 
@@ -25,6 +26,7 @@ export function CompanyForm({ defaultValues, onSubmit, submitLabel = 'Save Compa
     setLoading(true);
     try {
       await onSubmit(data);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       router.back();
     } catch (e: any) {
       Alert.alert('Error', e.message ?? 'Failed to save company');

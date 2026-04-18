@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import { RevenueBarChart } from '@/components/dashboard/RevenueBarChart';
 import { StatusPieChart } from '@/components/dashboard/StatusPieChart';
 import { EventCard } from '@/components/events/EventCard';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { QueryError } from '@/components/shared/QueryError';
 import { useAuth } from '@/lib/auth';
 import { useProfile } from '@/lib/queries/profile';
 import { UNIT_STATUS_COLORS } from '@/constants';
@@ -20,12 +21,46 @@ const YEARS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2];
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { data: profile } = useProfile(user?.id);
   const [year, setYear] = useState(CURRENT_YEAR);
   const [refreshing, setRefreshing] = useState(false);
   const [showFees, setShowFees] = useState(false);
-  const { data: stats, isLoading, refetch } = useDashboard(year);
+  const { data: stats, isLoading, isError, error, refetch } = useDashboard(year);
+
+  const insights = useMemo<{ icon: string; text: string; color: string }[]>(() => {
+    if (!stats) return [];
+    const result: { icon: string; text: string; color: string }[] = [];
+
+    const pendingCount = stats.statusBreakdown.find((s) => s.status === 'pending')?.count ?? 0;
+    if (pendingCount > 0) {
+      result.push({ icon: '📋', text: `${pendingCount} application${pendingCount > 1 ? 's' : ''} awaiting a decision`, color: '#b45309' });
+    }
+
+    const bestMonth = [...stats.monthlyRevenue].sort((a, b) => b.netProfit - a.netProfit)[0];
+    if (bestMonth && bestMonth.netProfit > 0) {
+      result.push({ icon: '🏆', text: `Best month: ${bestMonth.month} (£${bestMonth.netProfit.toFixed(0)} net)`, color: '#15803d' });
+    }
+
+    const today = new Date();
+    stats.unitStatuses.forEach((u) => {
+      const dates = [
+        { label: 'MOT', d: u.mot_date },
+        { label: 'Tax', d: u.tax_date },
+      ];
+      dates.forEach(({ label, d }) => {
+        if (!d) return;
+        const days = Math.ceil((new Date(d).getTime() - today.getTime()) / 86400000);
+        if (days < 0) result.push({ icon: '🔴', text: `${u.name} ${label} has expired`, color: '#dc2626' });
+        else if (days <= 30) result.push({ icon: '🟡', text: `${u.name} ${label} expires in ${days} day${days !== 1 ? 's' : ''}`, color: '#d97706' });
+      });
+    });
+
+    if (stats.upcomingEvents.length === 0 && stats.totalEventsYtd > 0) {
+      result.push({ icon: '📅', text: 'No upcoming accepted events', color: '#64748b' });
+    }
+    return result;
+  }, [stats]);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -37,19 +72,14 @@ export default function DashboardScreen() {
     <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
       {/* Header */}
       <View className="bg-white px-4 pt-2 pb-3 border-b border-stone-100">
-        <View className="flex-row items-center justify-between mb-2">
-          <View className="flex-row items-center gap-2">
-            <View className="w-8 h-8 bg-amber-700 rounded-lg items-center justify-center">
-              <Text className="text-base">☕</Text>
-            </View>
-            <View>
-              <Text className="font-bold text-stone-900 text-base">{profile?.business_name ?? 'My Business'}</Text>
-              <Text className="text-stone-400 text-xs">{user?.email}</Text>
-            </View>
+        <View className="flex-row items-center gap-2 mb-2">
+          <View className="w-8 h-8 bg-amber-700 rounded-lg items-center justify-center">
+            <Text className="text-base">☕</Text>
           </View>
-          <TouchableOpacity onPress={signOut}>
-            <Text className="text-stone-400 text-sm">Sign out</Text>
-          </TouchableOpacity>
+          <View>
+            <Text className="font-bold text-stone-900 text-base">{profile?.business_name ?? 'My Business'}</Text>
+            <Text className="text-stone-400 text-xs">{user?.email}</Text>
+          </View>
         </View>
 
         {/* Year selector */}
@@ -68,6 +98,8 @@ export default function DashboardScreen() {
 
       {isLoading ? (
         <LoadingSpinner message="Loading dashboard..." />
+      ) : isError ? (
+        <QueryError error={error} onRetry={refetch} message="Couldn't load dashboard" />
       ) : (
         <ScrollView
           className="flex-1"
@@ -111,53 +143,16 @@ export default function DashboardScreen() {
             </View>
 
             {/* Insights strip */}
-            {stats && (() => {
-              const insights: { icon: string; text: string; color: string }[] = [];
-
-              // Pending applications count
-              const pendingCount = stats.statusBreakdown.find((s) => s.status === 'pending')?.count ?? 0;
-              if (pendingCount > 0) {
-                insights.push({ icon: '📋', text: `${pendingCount} application${pendingCount > 1 ? 's' : ''} awaiting a decision`, color: '#b45309' });
-              }
-
-              // Best month this year
-              const bestMonth = [...stats.monthlyRevenue].sort((a, b) => b.netProfit - a.netProfit)[0];
-              if (bestMonth && bestMonth.netProfit > 0) {
-                insights.push({ icon: '🏆', text: `Best month: ${bestMonth.month} (£${bestMonth.netProfit.toFixed(0)} net)`, color: '#15803d' });
-              }
-
-              // Fleet compliance warnings
-              const today = new Date();
-              stats.unitStatuses.forEach((u) => {
-                const dates = [
-                  { label: 'MOT', d: u.mot_date },
-                  { label: 'Tax', d: u.tax_date },
-                ];
-                dates.forEach(({ label, d }) => {
-                  if (!d) return;
-                  const days = Math.ceil((new Date(d).getTime() - today.getTime()) / 86400000);
-                  if (days < 0) insights.push({ icon: '🔴', text: `${u.name} ${label} has expired`, color: '#dc2626' });
-                  else if (days <= 30) insights.push({ icon: '🟡', text: `${u.name} ${label} expires in ${days} day${days !== 1 ? 's' : ''}`, color: '#d97706' });
-                });
-              });
-
-              // No upcoming events
-              if (stats.upcomingEvents.length === 0 && stats.totalEventsYtd > 0) {
-                insights.push({ icon: '📅', text: 'No upcoming accepted events', color: '#64748b' });
-              }
-
-              if (insights.length === 0) return null;
-              return (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                  {insights.map((ins, i) => (
-                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#ffffff', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#e7e5e4', maxWidth: 260 }}>
-                      <Text style={{ fontSize: 14 }}>{ins.icon}</Text>
-                      <Text style={{ fontSize: 12, fontWeight: '500', color: ins.color, flexShrink: 1 }}>{ins.text}</Text>
-                    </View>
-                  ))}
-                </ScrollView>
-              );
-            })()}
+            {insights.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {insights.map((ins, i) => (
+                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#ffffff', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#e7e5e4', maxWidth: 260 }}>
+                    <Text style={{ fontSize: 14 }}>{ins.icon}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '500', color: ins.color, flexShrink: 1 }}>{ins.text}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
 
             {/* Committed Fees — collapsible */}
             {stats && stats.committedFees > 0 && (
