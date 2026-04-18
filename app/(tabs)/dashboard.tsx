@@ -110,6 +110,55 @@ export default function DashboardScreen() {
               />
             </View>
 
+            {/* Insights strip */}
+            {stats && (() => {
+              const insights: { icon: string; text: string; color: string }[] = [];
+
+              // Pending applications count
+              const pendingCount = stats.statusBreakdown.find((s) => s.status === 'pending')?.count ?? 0;
+              if (pendingCount > 0) {
+                insights.push({ icon: '📋', text: `${pendingCount} application${pendingCount > 1 ? 's' : ''} awaiting a decision`, color: '#b45309' });
+              }
+
+              // Best month this year
+              const bestMonth = [...stats.monthlyRevenue].sort((a, b) => b.netProfit - a.netProfit)[0];
+              if (bestMonth && bestMonth.netProfit > 0) {
+                insights.push({ icon: '🏆', text: `Best month: ${bestMonth.month} (£${bestMonth.netProfit.toFixed(0)} net)`, color: '#15803d' });
+              }
+
+              // Fleet compliance warnings
+              const today = new Date();
+              stats.unitStatuses.forEach((u) => {
+                const dates = [
+                  { label: 'MOT', d: u.mot_date },
+                  { label: 'Tax', d: u.tax_date },
+                ];
+                dates.forEach(({ label, d }) => {
+                  if (!d) return;
+                  const days = Math.ceil((new Date(d).getTime() - today.getTime()) / 86400000);
+                  if (days < 0) insights.push({ icon: '🔴', text: `${u.name} ${label} has expired`, color: '#dc2626' });
+                  else if (days <= 30) insights.push({ icon: '🟡', text: `${u.name} ${label} expires in ${days} day${days !== 1 ? 's' : ''}`, color: '#d97706' });
+                });
+              });
+
+              // No upcoming events
+              if (stats.upcomingEvents.length === 0 && stats.totalEventsYtd > 0) {
+                insights.push({ icon: '📅', text: 'No upcoming accepted events', color: '#64748b' });
+              }
+
+              if (insights.length === 0) return null;
+              return (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                  {insights.map((ins, i) => (
+                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#ffffff', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#e7e5e4', maxWidth: 260 }}>
+                      <Text style={{ fontSize: 14 }}>{ins.icon}</Text>
+                      <Text style={{ fontSize: 12, fontWeight: '500', color: ins.color, flexShrink: 1 }}>{ins.text}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              );
+            })()}
+
             {/* Committed Fees — collapsible */}
             {stats && stats.committedFees > 0 && (
               <View className="bg-amber-50 border border-amber-200 rounded-2xl overflow-hidden">

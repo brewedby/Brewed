@@ -3,6 +3,8 @@ import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Linkin
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEvent, useDeleteEvent } from '@/lib/queries/events';
+import { useCreateEvent } from '@/lib/mutations/events';
+import { useAuth } from '@/lib/auth';
 import { FinancialsCard } from '@/components/events/FinancialsCard';
 import { WeatherCard } from '@/components/events/WeatherCard';
 import { StaffingList } from '@/components/events/StaffingList';
@@ -79,10 +81,13 @@ export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
+  const { user } = useAuth();
   const { data: event, isLoading, refetch } = useEvent(id);
   const deleteEvent = useDeleteEvent();
+  const createEvent = useCreateEvent();
   const [refreshing, setRefreshing] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -115,6 +120,53 @@ export default function EventDetailScreen() {
   async function handleAcknowledgeChange() {
     await supabase.from('events').update({ url_changed: false }).eq('id', id);
     qc.invalidateQueries({ queryKey: ['events', id] });
+  }
+
+  async function handleDuplicate() {
+    if (!user || !event) return;
+    setDuplicating(true);
+    try {
+      const newEvent = await createEvent.mutateAsync({
+        userId: user.id,
+        data: {
+          name: `${event.name} (copy)`,
+          date: '',
+          end_date: '',
+          location: event.location,
+          description: event.description ?? '',
+          application_date: '',
+          application_url: event.application_url ?? '',
+          status: 'pending',
+          notes: event.notes ?? '',
+          company_id: event.company_id ?? '',
+          unit_ids: event.units?.map((u) => u.id) ?? [],
+          overnight_stay: event.overnight_stay,
+          documents_uploaded: false,
+          gross_sales: 0,
+          zero_rated_sales: 0,
+          standard_rated_sales: 0,
+          concessions_commission_pct: event.event_financials?.concessions_commission_pct ?? 0,
+          pitch_fee_refund_pct: event.event_financials?.pitch_fee_refund_pct ?? 0,
+          cost_of_goods: 0,
+          pitch_fee: event.event_financials?.pitch_fee ?? 0,
+          power_fee: event.event_financials?.power_fee ?? 0,
+          travel_costs: event.event_financials?.travel_costs ?? 0,
+          camping_costs: event.event_financials?.camping_costs ?? 0,
+          equipment_costs: event.event_financials?.equipment_costs ?? 0,
+          other_costs: event.event_financials?.other_costs ?? 0,
+          staffing_costs: 0,
+          fresh_milk_litres: 0,
+          alt_milk_litres: 0,
+          staffing_entries: [],
+          infrastructure_items: [],
+        },
+      });
+      router.replace(`/(tabs)/events/${newEvent.id}/edit`);
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'Could not duplicate event');
+    } finally {
+      setDuplicating(false);
+    }
   }
 
   if (isLoading) return <LoadingSpinner message="Loading application..." />;
@@ -189,6 +241,25 @@ export default function EventDetailScreen() {
                 <Text className="text-white font-semibold text-sm">Open Application Page ↗</Text>
               </TouchableOpacity>
             )}
+          </View>
+        )}
+
+        {/* Post-event completion prompt */}
+        {event.status === 'accepted' &&
+          event.date < new Date().toISOString().split('T')[0] &&
+          (!event.event_financials || event.event_financials.gross_sales === 0) && (
+          <View style={{ backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fcd34d', borderRadius: 16, padding: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Text style={{ fontSize: 20 }}>📋</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: '700', color: '#92400e', fontSize: 14 }}>Event has passed</Text>
+              <Text style={{ color: '#b45309', fontSize: 12, marginTop: 2 }}>No sales figures entered yet — add the actuals to keep your reports accurate.</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => router.push(`/(tabs)/events/${id}/edit`)}
+              style={{ backgroundColor: '#b45309', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}
+            >
+              <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>Add →</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -311,7 +382,16 @@ export default function EventDetailScreen() {
           )}
         </View>
 
-        <View className="bg-white rounded-2xl p-4 border border-stone-100 mb-6">
+        <View className="bg-white rounded-2xl p-4 border border-stone-100 mb-6 gap-3">
+          <TouchableOpacity
+            onPress={handleDuplicate}
+            disabled={duplicating}
+            style={{ borderWidth: 1, borderColor: '#d6d3d1', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
+          >
+            <Text style={{ color: '#57534e', fontWeight: '500', fontSize: 14 }}>
+              {duplicating ? 'Duplicating…' : '📋 Duplicate Event'}
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() =>
               Alert.alert(

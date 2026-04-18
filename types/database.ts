@@ -47,6 +47,9 @@ export interface Database {
           notes: string | null;
           status: UnitStatus;
           vehicle_type: string | null;
+          height_m: number | null;
+          length_m: number | null;
+          width_m: number | null;
           mot_date: string | null;
           tax_date: string | null;
           service_date: string | null;
@@ -62,6 +65,9 @@ export interface Database {
           notes?: string | null;
           status?: UnitStatus;
           vehicle_type?: string | null;
+          height_m?: number | null;
+          length_m?: number | null;
+          width_m?: number | null;
           mot_date?: string | null;
           tax_date?: string | null;
           service_date?: string | null;
@@ -77,6 +83,9 @@ export interface Database {
           notes?: string | null;
           status?: UnitStatus;
           vehicle_type?: string | null;
+          height_m?: number | null;
+          length_m?: number | null;
+          width_m?: number | null;
           mot_date?: string | null;
           tax_date?: string | null;
           service_date?: string | null;

@@ -127,6 +127,33 @@ export default function UnitDetailScreen() {
           </View>
         )}
 
+        {/* Dimensions */}
+        {(unit.height_m != null || unit.length_m != null || unit.width_m != null) && (
+          <View className="bg-white rounded-2xl p-4 border border-stone-100 mb-4">
+            <Text className="font-bold text-stone-900 mb-3">Dimensions</Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              {unit.height_m != null && (
+                <View style={{ flex: 1, backgroundColor: '#f8fafc', borderRadius: 10, padding: 12, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: '#0f172a' }}>{unit.height_m.toFixed(1)}</Text>
+                  <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Height (m)</Text>
+                </View>
+              )}
+              {unit.length_m != null && (
+                <View style={{ flex: 1, backgroundColor: '#f8fafc', borderRadius: 10, padding: 12, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: '#0f172a' }}>{unit.length_m.toFixed(1)}</Text>
+                  <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Length (m)</Text>
+                </View>
+              )}
+              {unit.width_m != null && (
+                <View style={{ flex: 1, backgroundColor: '#f8fafc', borderRadius: 10, padding: 12, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: '#0f172a' }}>{unit.width_m.toFixed(1)}</Text>
+                  <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Width (m)</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Vehicle dates */}
         {(unit.mot_date || unit.tax_date || unit.service_date) && (
           <View className="bg-white rounded-2xl p-4 border border-stone-100 mb-4">

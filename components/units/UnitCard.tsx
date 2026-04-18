@@ -64,6 +64,15 @@ export function UnitCard({ unit, currentEvent, onPress }: Props) {
                   </View>
                 ) : null}
               </View>
+              {(unit.height_m != null || unit.length_m != null || unit.width_m != null) ? (
+                <Text style={{ fontSize: 10, color: '#a8a29e', marginTop: 2 }}>
+                  {[
+                    unit.height_m != null && `H ${unit.height_m.toFixed(1)}m`,
+                    unit.length_m != null && `L ${unit.length_m.toFixed(1)}m`,
+                    unit.width_m  != null && `W ${unit.width_m.toFixed(1)}m`,
+                  ].filter(Boolean).join(' · ')}
+                </Text>
+              ) : null}
             </View>
             <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: colors.bgHex, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.dot }} />

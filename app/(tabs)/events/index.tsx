@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useEvents } from '@/lib/queries/events';
@@ -89,6 +89,7 @@ export default function EventsScreen() {
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all');
   const [yearFilter, setYearFilter] = useState<number | undefined>(undefined);
   const [viewFilter, setViewFilter] = useState<'upcoming' | 'completed' | 'all'>('upcoming');
+  const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
   const { data: eventsRaw, isLoading, refetch } = useEvents({ status: statusFilter, year: yearFilter });
@@ -102,10 +103,14 @@ export default function EventsScreen() {
 
   const today = new Date().toISOString().split('T')[0];
 
-  const events = useMemo(
-    () => [...(eventsRaw ?? [])].sort((a, b) => a.date.localeCompare(b.date)),
-    [eventsRaw],
-  );
+  const events = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const sorted = [...(eventsRaw ?? [])].sort((a, b) => a.date.localeCompare(b.date));
+    if (!q) return sorted;
+    return sorted.filter(
+      (e) => e.name.toLowerCase().includes(q) || e.location.toLowerCase().includes(q),
+    );
+  }, [eventsRaw, searchQuery]);
 
   const upcoming = useMemo(() => events.filter((e) => (e.end_date ?? e.date) >= today), [events, today]);
   const completed = useMemo(() => events.filter((e) => (e.end_date ?? e.date) < today), [events, today]);
@@ -144,6 +149,20 @@ export default function EventsScreen() {
           >
             <Text className="text-white font-semibold text-sm">+ New</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Search */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f5f4', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10, gap: 8 }}>
+          <Text style={{ color: '#a8a29e', fontSize: 14 }}>🔍</Text>
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search events or locations..."
+            placeholderTextColor="#a8a29e"
+            style={{ flex: 1, fontSize: 14, color: '#1c1917', padding: 0 }}
+            clearButtonMode="while-editing"
+            returnKeyType="search"
+          />
         </View>
 
         {/* Upcoming / Completed / All tabs */}

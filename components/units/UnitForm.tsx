@@ -172,6 +172,103 @@ function DatePickerModal({
   );
 }
 
+// Build an array of metric values: start, end, step (all × 10 to avoid float precision)
+function metricValues(startTenths: number, endTenths: number): string[] {
+  const result: string[] = [];
+  for (let i = startTenths; i <= endTenths; i++) {
+    result.push((i / 10).toFixed(1));
+  }
+  return result;
+}
+
+const HEIGHT_VALUES = metricValues(5, 50);  // 0.5m–5.0m
+const LENGTH_VALUES = metricValues(10, 200); // 1.0m–20.0m
+const WIDTH_VALUES  = metricValues(10, 45);  // 1.0m–4.5m
+
+function MetricPickerModal({
+  visible, value, values, unit, onConfirm, onClose,
+}: {
+  visible: boolean; value: number | null; values: string[]; unit: string;
+  onConfirm: (v: number) => void; onClose: () => void;
+}) {
+  const defaultIdx = value != null
+    ? Math.max(0, values.indexOf(value.toFixed(1)))
+    : Math.floor(values.length / 2);
+  const [idx, setIdx] = useState(defaultIdx);
+
+  useEffect(() => {
+    if (!visible) return;
+    const i = value != null ? values.indexOf(value.toFixed(1)) : Math.floor(values.length / 2);
+    setIdx(Math.max(0, i));
+  }, [visible]);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' }}>
+        <TouchableOpacity style={{ flex: 1 }} onPress={onClose} activeOpacity={1} />
+        <View style={{ backgroundColor: '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 8 }}>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontSize: 16, color: '#64748b' }}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: '#334155' }}>{unit}</Text>
+            <TouchableOpacity onPress={() => { onConfirm(parseFloat(values[idx])); onClose(); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#1e293b' }}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ paddingHorizontal: 60, paddingBottom: 36 }}>
+            <WheelColumn items={values} initialIndex={Math.max(0, idx)} onChange={setIdx} />
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function MetricPickerButton({
+  label, value, values, unit, onChange,
+}: {
+  label: string; value: number | null; values: string[]; unit: string;
+  onChange: (v: number | null) => void;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <View>
+      <Text style={{ color: '#475569', fontSize: 14, fontWeight: '600', marginBottom: 6 }}>{label}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <TouchableOpacity
+          onPress={() => setShow(true)}
+          style={{
+            flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+            borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12,
+            paddingHorizontal: 14, paddingVertical: 12, backgroundColor: '#ffffff',
+          }}
+        >
+          <Text style={{ color: value != null ? '#0f172a' : '#94a3b8', fontSize: 15 }}>
+            {value != null ? `${value.toFixed(1)} m` : 'Not set'}
+          </Text>
+          <Text style={{ color: '#94a3b8', fontSize: 13 }}>▾</Text>
+        </TouchableOpacity>
+        {value != null && (
+          <TouchableOpacity onPress={() => onChange(null)} style={{ padding: 10 }}>
+            <Text style={{ color: '#94a3b8', fontSize: 16 }}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      {show && (
+        <MetricPickerModal
+          visible={show}
+          value={value}
+          values={values}
+          unit={unit}
+          onConfirm={onChange}
+          onClose={() => setShow(false)}
+        />
+      )}
+    </View>
+  );
+}
+
 function DatePickerButton({
   label, value, onChange, required,
 }: {
@@ -230,6 +327,9 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
       notes: '',
       status: 'active',
       vehicle_type: '',
+      height_m: null,
+      length_m: null,
+      width_m: null,
       mot_date: '',
       tax_date: '',
       service_date: '',
@@ -318,6 +418,52 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
               </View>
             )}
           />
+
+          {/* Dimensions */}
+          <View>
+            <Text style={{ color: '#475569', fontSize: 14, fontWeight: '600', marginBottom: 8 }}>Dimensions</Text>
+            <View style={{ gap: 10 }}>
+              <Controller
+                control={control}
+                name="height_m"
+                render={({ field }) => (
+                  <MetricPickerButton
+                    label="Height"
+                    value={field.value ?? null}
+                    values={HEIGHT_VALUES}
+                    unit="metres"
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="length_m"
+                render={({ field }) => (
+                  <MetricPickerButton
+                    label="Length"
+                    value={field.value ?? null}
+                    values={LENGTH_VALUES}
+                    unit="metres"
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <Controller
+                control={control}
+                name="width_m"
+                render={({ field }) => (
+                  <MetricPickerButton
+                    label="Width"
+                    value={field.value ?? null}
+                    values={WIDTH_VALUES}
+                    unit="metres"
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+            </View>
+          </View>
 
           {/* Status */}
           <Controller
