@@ -216,7 +216,7 @@ function MetricPickerModal({
               <Text style={{ fontSize: 16, fontWeight: '700', color: '#1e293b' }}>Done</Text>
             </TouchableOpacity>
           </View>
-          <View style={{ paddingHorizontal: 60, paddingBottom: 36 }}>
+          <View style={{ flexDirection: 'row', paddingHorizontal: 60, paddingBottom: 36 }}>
             <WheelColumn items={values} initialIndex={Math.max(0, idx)} onChange={setIdx} />
           </View>
         </View>
