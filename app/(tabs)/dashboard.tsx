@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Modal, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useDashboard } from '@/lib/queries/dashboard';
 import { formatCurrencyCompact, formatCurrency, formatPercent, formatDateRange } from '@/lib/formatters';
-import { StatCard } from '@/components/dashboard/StatCard';
 import { RevenueBarChart } from '@/components/dashboard/RevenueBarChart';
 import { StatusPieChart } from '@/components/dashboard/StatusPieChart';
 import { EventCard } from '@/components/events/EventCard';
@@ -16,7 +16,49 @@ import { UNIT_STATUS_COLORS } from '@/constants';
 import type { UnitWithStatus } from '@/types';
 
 const CURRENT_YEAR = new Date().getFullYear();
-const YEARS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2];
+const YEARS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i);
+
+function YearPickerModal({ visible, current, onSelect, onClose }: {
+  visible: boolean; current: number;
+  onSelect: (y: number) => void; onClose: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <View style={{
+          backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden',
+          width: 220,
+          shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 8,
+        }}>
+          <View style={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#f5f5f4' }}>
+            <Text style={{ fontWeight: '700', fontSize: 14, color: '#1c1917' }}>Select Year</Text>
+          </View>
+          {YEARS.map((y) => (
+            <TouchableOpacity
+              key={y}
+              onPress={() => { onSelect(y); onClose(); }}
+              style={{
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                paddingHorizontal: 20, paddingVertical: 14,
+                backgroundColor: y === current ? '#fef3c7' : '#fff',
+                borderBottomWidth: 1, borderBottomColor: '#fafaf9',
+              }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: y === current ? '700' : '400', color: y === current ? '#b45309' : '#1c1917' }}>
+                {y}
+              </Text>
+              {y === current && <Ionicons name="checkmark" size={16} color="#b45309" />}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -24,6 +66,7 @@ export default function DashboardScreen() {
   const { user } = useAuth();
   const { data: profile } = useProfile(user?.id);
   const [year, setYear] = useState(CURRENT_YEAR);
+  const [yearPickerOpen, setYearPickerOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showFees, setShowFees] = useState(false);
   const { data: stats, isLoading, isError, error, refetch } = useDashboard(year);
@@ -45,11 +88,7 @@ export default function DashboardScreen() {
     const today = new Date();
     const alertedKeys = new Set<string>();
     stats.unitStatuses.forEach((u) => {
-      const dates = [
-        { label: 'MOT', d: u.mot_date },
-        { label: 'Tax', d: u.tax_date },
-      ];
-      dates.forEach(({ label, d }) => {
+      [{ label: 'MOT', d: u.mot_date }, { label: 'Tax', d: u.tax_date }].forEach(({ label, d }) => {
         if (!d) return;
         const key = `${u.id}:${label}`;
         if (alertedKeys.has(key)) return;
@@ -58,7 +97,7 @@ export default function DashboardScreen() {
           result.push({ icon: '🔴', text: `${u.name} ${label} has expired`, color: '#dc2626' });
           alertedKeys.add(key);
         } else if (days <= 30) {
-          result.push({ icon: '🟡', text: `${u.name} ${label} expires in ${days} day${days !== 1 ? 's' : ''}`, color: '#d97706' });
+          result.push({ icon: '🟡', text: `${u.name} ${label} expires in ${days}d`, color: '#d97706' });
           alertedKeys.add(key);
         }
       });
@@ -80,29 +119,41 @@ export default function DashboardScreen() {
     <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
       {/* Header */}
       <View className="bg-white px-4 pt-2 pb-3 border-b border-stone-100">
-        <View className="flex-row items-center gap-2 mb-2">
-          <View className="w-8 h-8 bg-amber-700 rounded-lg items-center justify-center">
-            <Text className="text-base">☕</Text>
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center gap-2">
+            <View className="w-8 h-8 bg-amber-700 rounded-lg items-center justify-center">
+              <Text className="text-base">☕</Text>
+            </View>
+            <View>
+              <Text className="font-bold text-stone-900 text-base">{profile?.business_name ?? 'My Business'}</Text>
+              <Text className="text-stone-400 text-xs">{user?.email}</Text>
+            </View>
           </View>
-          <View>
-            <Text className="font-bold text-stone-900 text-base">{profile?.business_name ?? 'My Business'}</Text>
-            <Text className="text-stone-400 text-xs">{user?.email}</Text>
-          </View>
-        </View>
 
-        {/* Year selector */}
-        <View className="flex-row gap-2">
-          {YEARS.map((y) => (
-            <TouchableOpacity
-              key={y}
-              onPress={() => setYear(y)}
-              className={`px-4 py-1.5 rounded-full ${year === y ? 'bg-amber-700' : 'bg-stone-100'}`}
-            >
-              <Text className={`text-sm font-medium ${year === y ? 'text-white' : 'text-stone-600'}`}>{y}</Text>
-            </TouchableOpacity>
-          ))}
+          {/* Year selector pill */}
+          <TouchableOpacity
+            onPress={() => setYearPickerOpen(true)}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 5,
+              backgroundColor: '#fef3c7', borderRadius: 20,
+              paddingHorizontal: 12, paddingVertical: 6,
+              borderWidth: 1, borderColor: '#fcd34d',
+            }}
+            accessibilityLabel={`Currently showing ${year}. Tap to change year.`}
+            accessibilityRole="button"
+          >
+            <Text style={{ color: '#92400e', fontWeight: '600', fontSize: 13 }}>{year}</Text>
+            <Ionicons name="chevron-down" size={13} color="#92400e" />
+          </TouchableOpacity>
         </View>
       </View>
+
+      <YearPickerModal
+        visible={yearPickerOpen}
+        current={year}
+        onSelect={setYear}
+        onClose={() => setYearPickerOpen(false)}
+      />
 
       {isLoading ? (
         <LoadingSpinner message="Loading dashboard..." />
@@ -114,40 +165,44 @@ export default function DashboardScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" />}
         >
           <View className="px-4 pt-4 gap-4">
-            {/* Stats grid */}
-            <View className="flex-row gap-3">
-              <StatCard
-                title="Gross Sales"
-                value={formatCurrencyCompact(stats?.grossSalesYtd ?? 0)}
-                icon="💰"
-                colorScheme="amber"
-              />
-              <StatCard
-                title="Net Profit"
-                value={formatCurrencyCompact(stats?.netProfitYtd ?? 0)}
-                icon="📈"
-                colorScheme={(stats?.netProfitYtd ?? 0) >= 0 ? 'green' : 'red'}
-                subtitle={(stats?.committedFees ?? 0) > 0 ? `Excl. £${(stats!.committedFees).toFixed(0)} committed` : undefined}
-              />
-            </View>
 
-            <View className="flex-row gap-3">
-              <StatCard
-                title="Events YTD"
-                value={String(stats?.totalEventsYtd ?? 0)}
-                icon="🎪"
-              />
-              <StatCard
-                title="Acceptance Rate"
-                value={`${(stats?.acceptanceRate ?? 0).toFixed(0)}%`}
-                icon="✅"
-                colorScheme="green"
-              />
-              <StatCard
-                title="Avg / Event"
-                value={formatCurrencyCompact(stats?.avgRevenuePerEvent ?? 0)}
-                icon="⚖️"
-              />
+            {/* Compact stats summary card */}
+            <View
+              className="bg-white rounded-2xl border border-stone-100 overflow-hidden"
+              style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }}
+            >
+              <View style={{ height: 3, backgroundColor: '#d97706' }} />
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {[
+                  { label: 'Gross Sales', value: formatCurrencyCompact(stats?.grossSalesYtd ?? 0), color: '#b45309' },
+                  { label: 'Net Profit',  value: formatCurrencyCompact(stats?.netProfitYtd ?? 0),  color: (stats?.netProfitYtd ?? 0) >= 0 ? '#15803d' : '#dc2626' },
+                  { label: 'Events',      value: String(stats?.totalEventsYtd ?? 0),                color: '#1c1917' },
+                  { label: 'Acceptance',  value: `${(stats?.acceptanceRate ?? 0).toFixed(0)}%`,     color: '#15803d' },
+                  { label: 'Avg / Event', value: formatCurrencyCompact(stats?.avgRevenuePerEvent ?? 0), color: '#1c1917' },
+                ].map((s, i) => (
+                  <View
+                    key={s.label}
+                    style={{
+                      width: '50%',
+                      padding: 14,
+                      borderTopWidth: i >= 2 ? 1 : 0,
+                      borderRightWidth: i % 2 === 0 ? 1 : 0,
+                      borderColor: '#f5f5f4',
+                      // Last item spans full width if odd count
+                      ...(i === 4 ? { width: '100%', borderRightWidth: 0 } : {}),
+                    }}
+                  >
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: s.color }}>{s.value}</Text>
+                    <Text style={{ fontSize: 11, color: '#a8a29e', marginTop: 2 }}>{s.label}</Text>
+                  </View>
+                ))}
+              </View>
+              {(stats?.committedFees ?? 0) > 0 && (
+                <View style={{ borderTopWidth: 1, borderTopColor: '#f5f5f4', paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 12, color: '#b45309' }}>💳 Committed fees</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#92400e' }}>{formatCurrency(stats!.committedFees)}</Text>
+                </View>
+              )}
             </View>
 
             {/* Insights strip */}
@@ -162,53 +217,36 @@ export default function DashboardScreen() {
               </ScrollView>
             )}
 
-            {/* Committed Fees — collapsible */}
+            {/* Committed Fees breakdown — collapsible */}
             {stats && stats.committedFees > 0 && (
               <View className="bg-amber-50 border border-amber-200 rounded-2xl overflow-hidden">
                 <TouchableOpacity
                   onPress={() => setShowFees((v) => !v)}
                   activeOpacity={0.7}
-                  style={{ padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                  style={{ padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
                 >
-                  <View style={{ flex: 1, marginRight: 12 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={{ fontWeight: '700', color: '#78350f', fontSize: 14 }}>💳 Committed Fees</Text>
-                      <View style={{ backgroundColor: '#fde68a', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
-                        <Text style={{ color: '#78350f', fontSize: 11, fontWeight: '700' }}>
-                          {stats.upcomingCommitments.length} event{stats.upcomingCommitments.length !== 1 ? 's' : ''}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={{ color: '#b45309', fontSize: 11, marginTop: 2 }}>
-                      {showFees ? 'Tap to collapse' : 'Tap to see breakdown'}
-                    </Text>
-                  </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={{ fontWeight: '700', color: '#92400e', fontSize: 16 }}>{formatCurrency(stats.committedFees)}</Text>
-                    <Text style={{ color: '#b45309', fontSize: 13 }}>{showFees ? '▲' : '▼'}</Text>
+                    <Text style={{ fontWeight: '700', color: '#78350f', fontSize: 13 }}>💳 Committed Fees</Text>
+                    <View style={{ backgroundColor: '#fde68a', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
+                      <Text style={{ color: '#78350f', fontSize: 11, fontWeight: '700' }}>
+                        {stats.upcomingCommitments.length} event{stats.upcomingCommitments.length !== 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={{ fontWeight: '700', color: '#92400e', fontSize: 14 }}>{formatCurrency(stats.committedFees)}</Text>
+                    <Ionicons name={showFees ? 'chevron-up' : 'chevron-down'} size={14} color="#b45309" />
                   </View>
                 </TouchableOpacity>
-
                 {showFees && (
-                  <View style={{ paddingHorizontal: 16, paddingBottom: 16, borderTopWidth: 1, borderTopColor: '#fde68a' }}>
-                    <Text style={{ color: '#b45309', fontSize: 11, paddingTop: 12, marginBottom: 8 }}>
-                      Pitch + power fees paid for upcoming accepted events
-                    </Text>
+                  <View style={{ paddingHorizontal: 14, paddingBottom: 14, borderTopWidth: 1, borderTopColor: '#fde68a' }}>
                     {stats.upcomingCommitments.map((c, idx) => (
-                      <View
-                        key={c.id}
-                        style={{
-                          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                          paddingVertical: 10,
-                          borderTopWidth: idx === 0 ? 0 : 1,
-                          borderTopColor: '#fef3c7',
-                        }}
-                      >
+                      <View key={c.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderTopWidth: idx === 0 ? 0 : 1, borderTopColor: '#fef3c7' }}>
                         <View style={{ flex: 1, marginRight: 8 }}>
                           <Text style={{ color: '#78350f', fontSize: 13, fontWeight: '600' }} numberOfLines={1}>{c.name}</Text>
                           <Text style={{ color: '#b45309', fontSize: 11, marginTop: 1 }}>{formatDateRange(c.date, c.end_date)}</Text>
                         </View>
-                        <Text style={{ color: '#92400e', fontWeight: '700', fontSize: 14 }}>{formatCurrency(c.committedFee)}</Text>
+                        <Text style={{ color: '#92400e', fontWeight: '700', fontSize: 13 }}>{formatCurrency(c.committedFee)}</Text>
                       </View>
                     ))}
                   </View>
@@ -227,20 +265,12 @@ export default function DashboardScreen() {
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
                   {stats.unitStatuses.map((unit: UnitWithStatus) => (
-                    <View
-                      key={unit.id}
-                      className="bg-white rounded-2xl p-3 border border-slate-100 w-40 overflow-hidden"
-                      style={{ borderLeftWidth: 3, borderLeftColor: UNIT_STATUS_COLORS[unit.status].dot }}
-                    >
+                    <View key={unit.id} className="bg-white rounded-2xl p-3 border border-slate-100 w-40 overflow-hidden" style={{ borderLeftWidth: 3, borderLeftColor: UNIT_STATUS_COLORS[unit.status].dot }}>
                       <Text className="font-bold text-slate-900 text-sm" numberOfLines={1}>{unit.name}</Text>
-                      {unit.registration ? (
-                        <Text className="text-xs text-slate-400 mt-0.5">{unit.registration}</Text>
-                      ) : null}
+                      {unit.registration ? <Text className="text-xs text-slate-400 mt-0.5">{unit.registration}</Text> : null}
                       <View className="mt-1.5">
                         {unit.currentEvent ? (
-                          <Text className="text-xs text-amber-700" numberOfLines={1}>
-                            📍 {unit.currentEvent.name}
-                          </Text>
+                          <Text className="text-xs text-amber-700" numberOfLines={1}>📍 {unit.currentEvent.name}</Text>
                         ) : unit.status === 'active' ? (
                           <Text className="text-xs text-green-600">✅ Free</Text>
                         ) : unit.status === 'maintenance' ? (
@@ -255,21 +285,14 @@ export default function DashboardScreen() {
 
             {/* Milk Usage */}
             {stats && (stats.totalFreshMilkLitres > 0 || stats.totalAltMilkLitres > 0) && (
-              <View>
-                <Text className="font-bold text-stone-900 mb-3">Milk Used (YTD) — {year}</Text>
-                <View className="flex-row gap-3">
-                  <View className="flex-1 bg-white rounded-xl p-3 border border-slate-100">
-                    <Text className="text-slate-700 font-semibold text-sm">
-                      🥛 {stats.totalFreshMilkLitres.toFixed(1)} L
-                    </Text>
-                    <Text className="text-slate-400 text-xs mt-0.5">Fresh Milk</Text>
-                  </View>
-                  <View className="flex-1 bg-white rounded-xl p-3 border border-slate-100">
-                    <Text className="text-slate-700 font-semibold text-sm">
-                      🌱 {stats.totalAltMilkLitres.toFixed(1)} L
-                    </Text>
-                    <Text className="text-slate-400 text-xs mt-0.5">Alt Milk</Text>
-                  </View>
+              <View className="flex-row gap-3">
+                <View className="flex-1 bg-white rounded-xl p-3 border border-slate-100">
+                  <Text className="text-slate-700 font-semibold text-sm">🥛 {stats.totalFreshMilkLitres.toFixed(1)} L</Text>
+                  <Text className="text-slate-400 text-xs mt-0.5">Fresh Milk YTD</Text>
+                </View>
+                <View className="flex-1 bg-white rounded-xl p-3 border border-slate-100">
+                  <Text className="text-slate-700 font-semibold text-sm">🌱 {stats.totalAltMilkLitres.toFixed(1)} L</Text>
+                  <Text className="text-slate-400 text-xs mt-0.5">Alt Milk YTD</Text>
                 </View>
               </View>
             )}
@@ -278,9 +301,7 @@ export default function DashboardScreen() {
             {stats && <RevenueBarChart data={stats.monthlyRevenue} />}
 
             {/* Status breakdown */}
-            {stats && stats.statusBreakdown.length > 0 && (
-              <StatusPieChart data={stats.statusBreakdown} />
-            )}
+            {stats && stats.statusBreakdown.length > 0 && <StatusPieChart data={stats.statusBreakdown} />}
 
             {/* Reports quick access */}
             <TouchableOpacity
