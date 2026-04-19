@@ -6,8 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/lib/auth';
 import { useProfile, useUpdateProfile } from '@/lib/queries/profile';
 import type { Metric } from '@/lib/queries/profile';
-
-const BUSINESS_TYPES = ['Coffee', 'Street Food', 'Pizza', 'Burgers', 'Desserts', 'Bakery', 'Other'];
+import { BUSINESS_TYPES } from '@/constants';
 const CURRENCIES = [
   { code: 'GBP', symbol: '£', label: 'GBP (£)' },
   { code: 'EUR', symbol: '€', label: 'EUR (€)' },
@@ -17,7 +16,7 @@ const DEFAULT_METRICS: Metric[] = [
   { id: 'revenue',  name: 'Revenue',      unit: '£',      enabled: true,  builtin: true },
   { id: 'profit',   name: 'Net Profit',   unit: '£',      enabled: true,  builtin: true },
   { id: 'covers',   name: 'Covers',       unit: 'covers', enabled: true,  builtin: true },
-  { id: 'drinks',   name: 'Drinks Sold',  unit: 'drinks', enabled: false, builtin: true },
+  { id: 'items',    name: 'Items Sold',   unit: 'items',  enabled: false, builtin: true },
 ];
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
@@ -29,7 +28,7 @@ export default function SettingsScreen() {
   const updateProfile = useUpdateProfile();
 
   const [businessName, setBusinessName] = useState('');
-  const [businessType, setBusinessType] = useState('Coffee');
+  const [businessType, setBusinessType] = useState(BUSINESS_TYPES[0]);
   const [currency, setCurrency] = useState('GBP');
   const [metrics, setMetrics] = useState<Metric[]>(DEFAULT_METRICS);
   const [newName, setNewName] = useState('');
@@ -40,7 +39,7 @@ export default function SettingsScreen() {
   useEffect(() => {
     if (profile) {
       setBusinessName(profile.business_name ?? '');
-      setBusinessType(profile.business_type ?? 'Coffee');
+      setBusinessType(profile.business_type ?? BUSINESS_TYPES[0]);
       setCurrency(profile.currency ?? 'GBP');
       if (profile.custom_metrics?.length > 0) {
         setMetrics(profile.custom_metrics);
@@ -120,7 +119,7 @@ export default function SettingsScreen() {
             <TextInput
               value={businessName}
               onChangeText={setBusinessName}
-              placeholder="e.g. Brewed by Boon"
+              placeholder="e.g. My Trading Co"
               accessibilityLabel="Business name"
               className="border border-stone-200 rounded-xl px-3 py-2.5 text-stone-900"
             />
@@ -224,7 +223,7 @@ export default function SettingsScreen() {
               <TextInput
                 value={newName}
                 onChangeText={setNewName}
-                placeholder="Name (e.g. Coffees Sold)"
+                placeholder="Name (e.g. Items Sold)"
                 placeholderTextColor="#a8a29e"
                 accessibilityLabel="New metric name"
                 style={{

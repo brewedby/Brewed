@@ -30,7 +30,7 @@ export function useProfile(userId: string | undefined) {
       if (error) return null;
       return {
         ...data,
-        business_type: data.business_type ?? 'Coffee',
+        business_type: data.business_type ?? 'Other',
         currency: data.currency ?? 'GBP',
         custom_metrics: data.custom_metrics ?? [],
       };

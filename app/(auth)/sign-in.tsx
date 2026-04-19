@@ -61,7 +61,7 @@ export default function SignInScreen() {
               <Ionicons name="cafe" size={44} color="#fbbf24" />
             </View>
             <Text className="text-3xl font-bold text-white">Brewed by Boon</Text>
-            <Text className="text-stone-400 mt-1">Coffee Truck Management</Text>
+            <Text className="text-stone-400 mt-1">Mobile Trader Management</Text>
           </View>
 
           <View className="gap-4">

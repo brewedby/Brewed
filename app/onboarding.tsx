@@ -4,15 +4,14 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { useUpdateProfile } from '@/lib/queries/profile';
-
-const BUSINESS_TYPES = ['Coffee', 'Street Food', 'Pizza', 'Burgers', 'Desserts', 'Bakery', 'Other'];
+import { BUSINESS_TYPES } from '@/constants';
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const updateProfile = useUpdateProfile();
   const [businessName, setBusinessName] = useState('');
-  const [businessType, setBusinessType] = useState('Coffee');
+  const [businessType, setBusinessType] = useState(BUSINESS_TYPES[0]);
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
@@ -115,7 +114,7 @@ export default function OnboardingScreen() {
           <TextInput
             value={businessName}
             onChangeText={setBusinessName}
-            placeholder="e.g. Brewed by Boon"
+            placeholder="e.g. My Trading Co"
             placeholderTextColor="#a8a29e"
             className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3.5 text-stone-900 mb-5"
             autoCapitalize="words"

@@ -6,6 +6,8 @@ import { useReports } from '@/lib/queries/reports';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { EventStatusBadge } from '@/components/shared/EventStatusBadge';
 import { formatCurrency, formatPercent, formatDate } from '@/lib/formatters';
+import { useAuth } from '@/lib/auth';
+import { useProfile } from '@/lib/queries/profile';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2];
@@ -16,6 +18,9 @@ export default function ReportsScreen() {
   const [year, setYear] = useState(CURRENT_YEAR);
   const [refreshing, setRefreshing] = useState(false);
   const { data, isLoading, refetch } = useReports(year);
+  const { user } = useAuth();
+  const { data: profile } = useProfile(user?.id);
+  const businessName = profile?.business_name ?? 'My Business';
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -51,7 +56,7 @@ export default function ReportsScreen() {
 
     const csv = header + rows;
     try {
-      await Share.share({ message: csv, title: `Brewed by Boon - ${year} Report` });
+      await Share.share({ message: csv, title: `${businessName} - ${year} Report` });
     } catch {
       Alert.alert('Error', 'Could not export report');
     }

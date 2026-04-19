@@ -114,7 +114,7 @@ export default function SignUpScreen() {
               <Text className="text-stone-300 mb-1.5 font-medium">Business Name</Text>
               <TextInput
                 className="bg-stone-800 text-white px-4 py-3.5 rounded-xl border border-stone-700"
-                placeholder="Brewed by Boon Ltd"
+                placeholder="e.g. My Trading Co Ltd"
                 placeholderTextColor="#78716c"
                 autoCapitalize="words"
                 value={businessName}

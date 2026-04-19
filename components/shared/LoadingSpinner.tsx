@@ -28,11 +28,7 @@ export function LoadingSpinner({ message }: Props) {
         </View>
       </Animated.View>
       <ActivityIndicator size="small" color="#f59e0b" />
-      {message ? (
-        <Text className="text-stone-500 text-sm mt-2">{message}</Text>
-      ) : (
-        <Text className="text-stone-400 text-xs mt-2 font-medium">Brewed by Boon</Text>
-      )}
+      {message && <Text className="text-stone-500 text-sm mt-2">{message}</Text>}
     </View>
   );
 }
