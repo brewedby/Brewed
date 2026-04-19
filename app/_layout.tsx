@@ -5,8 +5,10 @@ import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as Linking from 'expo-linking';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { useProfile } from '@/lib/queries/profile';
+import { supabase } from '@/lib/supabase';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,6 +21,26 @@ function RootLayoutNav() {
   const { data: profile, isLoading: profileLoading } = useProfile(user?.id);
   const segments = useSegments();
   const router = useRouter();
+
+  useEffect(() => {
+    function handleDeepLink(url: string) {
+      const hash = url.split('#')[1];
+      if (!hash) return;
+      const params = Object.fromEntries(new URLSearchParams(hash));
+      if (params.type === 'recovery' && params.access_token) {
+        supabase.auth.setSession({
+          access_token: params.access_token,
+          refresh_token: params.refresh_token ?? '',
+        }).then(() => {
+          router.replace('/(auth)/reset-password');
+        });
+      }
+    }
+
+    Linking.getInitialURL().then((url) => { if (url) handleDeepLink(url); });
+    const sub = Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     if (loading) return;

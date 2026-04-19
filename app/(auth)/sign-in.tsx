@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { supabase } from '@/lib/supabase';
 
 export default function SignInScreen() {
@@ -35,7 +36,8 @@ export default function SignInScreen() {
       return;
     }
     setSendingReset(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+    const redirectTo = Linking.createURL('reset-password');
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
     setSendingReset(false);
     if (error) {
       Alert.alert('Error', error.message);
