@@ -166,39 +166,40 @@ export default function DashboardScreen() {
         >
           <View className="px-4 pt-4 gap-4">
 
-            {/* Compact stats summary card */}
-            <View
-              className="bg-white rounded-2xl border border-stone-100 overflow-hidden"
-              style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }}
-            >
-              <View style={{ height: 3, backgroundColor: '#d97706' }} />
+            {/* Stats card */}
+            <View style={{ backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
+              <View style={{ backgroundColor: '#92400e', paddingHorizontal: 16, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={{ color: '#fef3c7', fontWeight: '700', fontSize: 13, letterSpacing: 0.2 }}>{year} Performance</Text>
+                {(stats?.grossSalesYtd ?? 0) > 0 && (stats?.netProfitYtd ?? 0) > 0 && (
+                  <View style={{ backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 }}>
+                    <Text style={{ color: '#fde68a', fontSize: 12, fontWeight: '700' }}>
+                      {((stats!.netProfitYtd / stats!.grossSalesYtd) * 100).toFixed(0)}% net margin
+                    </Text>
+                  </View>
+                )}
+              </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {[
-                  { label: 'Gross Sales', value: formatCurrencyCompact(stats?.grossSalesYtd ?? 0), color: '#b45309' },
-                  { label: 'Net Profit',  value: formatCurrencyCompact(stats?.netProfitYtd ?? 0),  color: (stats?.netProfitYtd ?? 0) >= 0 ? '#15803d' : '#dc2626' },
-                  { label: 'Events',      value: String(stats?.totalEventsYtd ?? 0),                color: '#1c1917' },
-                  { label: 'Acceptance',  value: `${(stats?.acceptanceRate ?? 0).toFixed(0)}%`,     color: '#15803d' },
-                  { label: 'Avg / Event', value: formatCurrencyCompact(stats?.avgRevenuePerEvent ?? 0), color: '#1c1917' },
+                  { icon: '💷', label: 'Gross Sales',  value: formatCurrencyCompact(stats?.grossSalesYtd ?? 0), color: '#b45309' },
+                  { icon: '📈', label: 'Net Profit',   value: formatCurrencyCompact(stats?.netProfitYtd ?? 0),  color: (stats?.netProfitYtd ?? 0) >= 0 ? '#15803d' : '#dc2626' },
+                  { icon: '🎪', label: 'Events',       value: String(stats?.totalEventsYtd ?? 0),               color: '#1c1917' },
+                  { icon: '✅', label: 'Acceptance',   value: `${(stats?.acceptanceRate ?? 0).toFixed(0)}%`,    color: '#15803d' },
                 ].map((s, i) => (
-                  <View
-                    key={s.label}
-                    style={{
-                      width: '50%',
-                      padding: 14,
-                      borderTopWidth: i >= 2 ? 1 : 0,
-                      borderRightWidth: i % 2 === 0 ? 1 : 0,
-                      borderColor: '#f5f5f4',
-                      // Last item spans full width if odd count
-                      ...(i === 4 ? { width: '100%', borderRightWidth: 0 } : {}),
-                    }}
-                  >
-                    <Text style={{ fontSize: 18, fontWeight: '700', color: s.color }}>{s.value}</Text>
-                    <Text style={{ fontSize: 11, color: '#a8a29e', marginTop: 2 }}>{s.label}</Text>
+                  <View key={s.label} style={{ width: '50%', padding: 16, borderTopWidth: i >= 2 ? 1 : 0, borderRightWidth: i % 2 === 0 ? 1 : 0, borderColor: '#f5f5f4' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                      <Text style={{ fontSize: 12 }}>{s.icon}</Text>
+                      <Text style={{ fontSize: 10, color: '#a8a29e', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 }}>{s.label}</Text>
+                    </View>
+                    <Text style={{ fontSize: 24, fontWeight: '800', color: s.color, letterSpacing: -0.5 }}>{s.value}</Text>
                   </View>
                 ))}
               </View>
+              <View style={{ borderTopWidth: 1, borderTopColor: '#f5f5f4', paddingHorizontal: 16, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fafaf9' }}>
+                <Text style={{ fontSize: 12, color: '#a8a29e', fontWeight: '500' }}>Avg revenue / event</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#b45309' }}>{formatCurrencyCompact(stats?.avgRevenuePerEvent ?? 0)}</Text>
+              </View>
               {(stats?.committedFees ?? 0) > 0 && (
-                <View style={{ borderTopWidth: 1, borderTopColor: '#f5f5f4', paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ borderTopWidth: 1, borderTopColor: '#f5f5f4', paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text style={{ fontSize: 12, color: '#b45309' }}>💳 Committed fees</Text>
                   <Text style={{ fontSize: 12, fontWeight: '700', color: '#92400e' }}>{formatCurrency(stats!.committedFees)}</Text>
                 </View>

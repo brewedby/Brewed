@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useMemo, startTransition } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, startTransition } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   RefreshControl, Linking, Alert, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { useDiscoverEvents } from '@/lib/queries/discover';
 import { useCompanies } from '@/lib/queries/companies';
 import { useCreateEvent } from '@/lib/mutations/events';
@@ -62,77 +64,103 @@ function VerifiedBadge({ lastVerifiedAt }: { lastVerifiedAt: string | null }) {
   );
 }
 
-function EventCard({ event, onAdd, adding }: { event: DiscoveredEvent; onAdd: (e: DiscoveredEvent) => void; adding: boolean }) {
+function EventCard({
+  event, onAdd, adding, isApplied, onToggleApplied,
+}: {
+  event: DiscoveredEvent;
+  onAdd: (e: DiscoveredEvent) => void;
+  adding: boolean;
+  isApplied: boolean;
+  onToggleApplied: (id: string) => void;
+}) {
   const catStyle = CATEGORY_STYLES[event.category] ?? DEFAULT_CATEGORY_STYLE;
 
   return (
-    <View className="bg-white rounded-2xl mb-3 border border-slate-100 overflow-hidden">
-      <View className="h-1 bg-amber-400" />
-      <View className="p-4">
-        {event.featured && (
+    <View style={{ backgroundColor: isApplied ? '#f9fafb' : '#fff', borderRadius: 18, marginBottom: 10, borderWidth: 1, borderColor: isApplied ? '#e2e8f0' : '#f1f5f9', overflow: 'hidden', opacity: isApplied ? 0.75 : 1 }}>
+      <View style={{ height: 3, backgroundColor: isApplied ? '#94a3b8' : '#f59e0b' }} />
+      <View style={{ padding: 14 }}>
+        {event.featured && !isApplied && (
           <View style={{ alignSelf: 'flex-start', backgroundColor: '#fef3c7', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 12, marginBottom: 8 }}>
             <Text style={{ color: '#b45309', fontSize: 12, fontWeight: '600' }}>⭐ Featured</Text>
           </View>
         )}
 
-        <View className="flex-row items-start justify-between mb-2">
-          <Text className="font-bold text-slate-900 text-base leading-snug flex-1 mr-3" numberOfLines={2}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
+          <Text style={{ fontWeight: '700', color: '#0f172a', fontSize: 14, lineHeight: 20, flex: 1, marginRight: 10 }} numberOfLines={2}>
             {event.title}
           </Text>
           <View style={{ backgroundColor: catStyle.bg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
-            <Text style={{ color: catStyle.text, fontSize: 11, fontWeight: '500' }}>{event.category}</Text>
+            <Text style={{ color: catStyle.text, fontSize: 10, fontWeight: '600' }}>{event.category}</Text>
           </View>
         </View>
 
         {event.organiser && (
-          <Text className="text-slate-400 text-xs mb-2">Organised by {event.organiser}</Text>
+          <Text style={{ color: '#94a3b8', fontSize: 11, marginBottom: 6 }}>by {event.organiser}</Text>
         )}
 
-        <Text className="text-slate-600 text-sm leading-relaxed mb-3" numberOfLines={3}>
+        <Text style={{ color: '#475569', fontSize: 13, lineHeight: 19, marginBottom: 10 }} numberOfLines={isApplied ? 1 : 3}>
           {event.description}
         </Text>
 
-        <View className="flex-row flex-wrap gap-1.5 mb-3">
-          {event.location && (
-            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
-              <Text className="text-slate-500 text-xs">📍 {event.location}</Text>
-            </View>
-          )}
-          {event.dateHint && (
-            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
-              <Text className="text-slate-500 text-xs">📅 {event.dateHint}</Text>
-            </View>
-          )}
-          {event.estimatedFootfall && (
-            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
-              <Text className="text-slate-500 text-xs">👥 {event.estimatedFootfall}</Text>
-            </View>
-          )}
-          {event.pitchFeeRange && (
-            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
-              <Text className="text-slate-500 text-xs">💷 {event.pitchFeeRange}</Text>
-            </View>
-          )}
-        </View>
-
-        <View className="flex-row gap-2">
-          <TouchableOpacity
-            onPress={() => { if (event.url) Linking.openURL(event.url); }}
-            className="flex-1 border border-slate-200 py-2.5 rounded-xl items-center"
-          >
-            <Text className="text-slate-600 font-medium text-sm">View & Apply ↗</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => onAdd(event)}
-            disabled={adding}
-            className="flex-1 bg-amber-500 py-2.5 rounded-xl items-center"
-          >
-            {adding ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text className="text-white font-semibold text-sm">+ Track It</Text>
+        {!isApplied && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+            {event.location && (
+              <View style={{ backgroundColor: '#f8fafc', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 }}>
+                <Text style={{ color: '#64748b', fontSize: 11 }}>📍 {event.location}</Text>
+              </View>
             )}
+            {event.dateHint && (
+              <View style={{ backgroundColor: '#f8fafc', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 }}>
+                <Text style={{ color: '#64748b', fontSize: 11 }}>📅 {event.dateHint}</Text>
+              </View>
+            )}
+            {event.estimatedFootfall && (
+              <View style={{ backgroundColor: '#f8fafc', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 }}>
+                <Text style={{ color: '#64748b', fontSize: 11 }}>👥 {event.estimatedFootfall}</Text>
+              </View>
+            )}
+            {event.pitchFeeRange && (
+              <View style={{ backgroundColor: '#f8fafc', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 }}>
+                <Text style={{ color: '#64748b', fontSize: 11 }}>💷 {event.pitchFeeRange}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {!isApplied && (
+            <TouchableOpacity
+              onPress={() => { if (event.url) Linking.openURL(event.url); }}
+              style={{ flex: 1, borderWidth: 1, borderColor: '#e2e8f0', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }}
+            >
+              <Text style={{ color: '#475569', fontWeight: '600', fontSize: 13 }}>View & Apply ↗</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={() => onToggleApplied(event.id)}
+            style={{ flex: isApplied ? undefined : 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+              paddingVertical: 10, paddingHorizontal: isApplied ? 14 : 0, borderRadius: 12,
+              backgroundColor: isApplied ? '#f1f5f9' : '#dcfce7',
+              borderWidth: 1, borderColor: isApplied ? '#e2e8f0' : '#bbf7d0' }}
+          >
+            <Ionicons name={isApplied ? 'close-circle-outline' : 'checkmark-circle-outline'} size={15} color={isApplied ? '#94a3b8' : '#16a34a'} />
+            <Text style={{ fontWeight: '600', fontSize: 13, color: isApplied ? '#94a3b8' : '#15803d' }}>
+              {isApplied ? 'Undo' : 'Applied'}
+            </Text>
           </TouchableOpacity>
+          {!isApplied && (
+            <TouchableOpacity
+              onPress={() => onAdd(event)}
+              disabled={adding}
+              style={{ flex: 1, backgroundColor: '#f59e0b', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }}
+            >
+              {adding ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>+ Track</Text>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </View>
@@ -232,6 +260,9 @@ export default function DiscoverScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
+
+  const appliedStorageKey = user ? `brewed:discover:applied:${user.id}` : null;
 
   useEffect(() => {
     supabase
@@ -245,9 +276,31 @@ export default function DiscoverScreen() {
       });
   }, []);
 
+  useEffect(() => {
+    if (!appliedStorageKey) return;
+    AsyncStorage.getItem(appliedStorageKey).then((raw) => {
+      if (raw) setAppliedIds(new Set(JSON.parse(raw)));
+    });
+  }, [appliedStorageKey]);
+
+  useFocusEffect(useCallback(() => {
+    refetch();
+  }, []));
+
   const { data: allResults = [], isLoading, refetch, error } = useDiscoverEvents({});
   const { data: companies = [] } = useCompanies();
   const createEvent = useCreateEvent();
+
+  async function toggleApplied(id: string) {
+    setAppliedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      if (appliedStorageKey) {
+        AsyncStorage.setItem(appliedStorageKey, JSON.stringify([...next]));
+      }
+      return next;
+    });
+  }
 
   const events = useMemo(() => allResults.filter((r) => !r.isCompany), [allResults]);
   const concessionsCos = useMemo(() => allResults.filter((r) => r.isCompany), [allResults]);
@@ -378,6 +431,9 @@ export default function DiscoverScreen() {
       setAddingId(null);
     }
   }
+
+  const unappliedEvents = useMemo(() => filteredEvents.filter((e) => !appliedIds.has(e.id)), [filteredEvents, appliedIds]);
+  const appliedEvents = useMemo(() => filteredEvents.filter((e) => appliedIds.has(e.id)), [filteredEvents, appliedIds]);
 
   const currentCategories = activeTab === 'events' ? EVENT_CATEGORIES : COMPANY_CATEGORIES;
   const currentCount = activeTab === 'events' ? filteredEvents.length : filteredCompanies.length;
@@ -549,14 +605,40 @@ export default function DiscoverScreen() {
               ))}
             </>
           ) : (
-            filteredEvents.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                onAdd={handleAddEvent}
-                adding={addingId === event.id}
-              />
-            ))
+            <>
+              {unappliedEvents.map((event) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  onAdd={handleAddEvent}
+                  adding={addingId === event.id}
+                  isApplied={false}
+                  onToggleApplied={toggleApplied}
+                />
+              ))}
+              {appliedEvents.length > 0 && (
+                <>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 10 }}>
+                    <View style={{ flex: 1, height: 1, backgroundColor: '#e2e8f0' }} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#f1f5f9', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
+                      <Ionicons name="checkmark-circle" size={12} color="#16a34a" />
+                      <Text style={{ fontSize: 11, fontWeight: '600', color: '#64748b' }}>Applied ({appliedEvents.length})</Text>
+                    </View>
+                    <View style={{ flex: 1, height: 1, backgroundColor: '#e2e8f0' }} />
+                  </View>
+                  {appliedEvents.map((event) => (
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      onAdd={handleAddEvent}
+                      adding={addingId === event.id}
+                      isApplied={true}
+                      onToggleApplied={toggleApplied}
+                    />
+                  ))}
+                </>
+              )}
+            </>
           )}
 
           <View style={{ height: 24 }} />
