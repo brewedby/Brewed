@@ -4,8 +4,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { STATUS_COLORS, STATUS_LABELS } from '@/constants';
+import { isoDate as _isoDate } from '@/lib/formatters';
 import { OverlapModal } from './OverlapModal';
 import type { EventWithFinancials, ApplicationStatus } from '@/types';
+
 
 // Re-export scoring helpers so legacy imports of `scoreEvent` / `ScoreResult`
 // from `@/components/events/CalendarView` continue to work.
@@ -50,6 +52,22 @@ function eventsOnDate(events: EventWithFinancials[], date: Date): EventWithFinan
   });
 }
 
+function eventsInMonth(events: EventWithFinancials[], year: number, month: number): EventWithFinancials[] {
+  const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+  const lastDay = isoDate(new Date(year, month + 1, 0));
+  return events.filter((e) => {
+    const start = e.date;
+    const end = e.end_date ?? e.date;
+    return start <= lastDay && end >= firstDay;
+  });
+}
+
+function formatShortDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${d} ${monthNames[m - 1]}`;
+}
+
 // ── main CalendarView ────────────────────────────────────────────────────────────────────────────
 
 export function CalendarView({
@@ -67,6 +85,27 @@ export function CalendarView({
 
   const grid = useMemo(() => buildGrid(year, month), [year, month]);
   const todayStr = isoDate(today);
+
+  const monthEvents = useMemo(() => eventsInMonth(events, year, month), [events, year, month]);
+
+  const eventsByUnit = useMemo(() => {
+    const map = new Map<string, { unitName: string; events: EventWithFinancials[] }>();
+    monthEvents.forEach((e) => {
+      if (e.units.length === 0) {
+        const existing = map.get('__none__');
+        if (existing) existing.events.push(e);
+        else map.set('__none__', { unitName: 'No unit assigned', events: [e] });
+      } else {
+        e.units.forEach((u) => {
+          const existing = map.get(u.id);
+          if (existing) existing.events.push(e);
+          else map.set(u.id, { unitName: u.name, events: [e] });
+        });
+      }
+    });
+    map.forEach((group) => group.events.sort((a, b) => a.date.localeCompare(b.date)));
+    return [...map.values()].sort((a, b) => a.unitName.localeCompare(b.unitName));
+  }, [monthEvents]);
 
   function prevMonth() {
     if (month === 0) { setMonth(11); setYear(y => y - 1); }

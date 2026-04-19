@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, TextInput, FlatList } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, TextInput, FlatList, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useEvents } from '@/lib/queries/events';
 import { useCompanies } from '@/lib/queries/companies';
 import { EventCard } from '@/components/events/EventCard';
@@ -12,7 +13,55 @@ import { formatDateRange, toISODateString } from '@/lib/formatters';
 import { STATUSES, STATUS_LABELS } from '@/constants';
 import type { ApplicationStatus, EventWithFinancials, CompanyWithStats } from '@/types';
 
-const YEARS = [new Date().getFullYear(), new Date().getFullYear() - 1, new Date().getFullYear() - 2];
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS_LIST = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i);
+
+function FilterModal<T extends string | number>({
+  visible, title, options, labelOf, selected, onSelect, onClose,
+}: {
+  visible: boolean;
+  title: string;
+  options: T[];
+  labelOf: (v: T) => string;
+  selected: T;
+  onSelect: (v: T) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <View style={{ backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', width: 240 }}
+              onStartShouldSetResponder={() => true}>
+          <View style={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#f5f5f4' }}>
+            <Text style={{ fontWeight: '700', fontSize: 14, color: '#1c1917' }}>{title}</Text>
+          </View>
+          {options.map((opt) => {
+            const isSelected = opt === selected;
+            return (
+              <TouchableOpacity
+                key={String(opt)}
+                onPress={() => { onSelect(opt); onClose(); }}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                  paddingVertical: 14, paddingHorizontal: 20,
+                  backgroundColor: isSelected ? '#fef3c7' : '#fff',
+                  borderBottomWidth: 1, borderBottomColor: '#fafaf9' }}
+              >
+                <Text style={{ color: isSelected ? '#b45309' : '#1c1917', fontWeight: isSelected ? '700' : '400', fontSize: 14 }}>
+                  {labelOf(opt)}
+                </Text>
+                {isSelected && <Ionicons name="checkmark" size={16} color="#b45309" />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
 
 function eventsOverlap(a: EventWithFinancials, b: EventWithFinancials): boolean {
   const aEnd = a.end_date ?? a.date;
@@ -92,6 +141,8 @@ export default function EventsScreen() {
   const [viewFilter, setViewFilter] = useState<'upcoming' | 'completed' | 'all'>('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [yearModalOpen, setYearModalOpen] = useState(false);
 
   const { data: eventsRaw, isLoading, isError, error, refetch } = useEvents({ status: statusFilter, year: yearFilter });
   const { data: companies } = useCompanies();
@@ -138,6 +189,12 @@ export default function EventsScreen() {
 
   const totalRevenue = events.reduce((s, e) => s + (e.event_financials?.gross_sales ?? 0), 0);
   const totalNet = events.reduce((s, e) => s + e.calculations.netProfit, 0);
+
+  const YEAR_OPTIONS = [0, ...YEARS_LIST];
+  const yearLabel = (v: number) => v === 0 ? 'All Years' : String(v);
+  const selectedYear = yearFilter ?? 0;
+  const STATUS_OPTIONS: (ApplicationStatus | 'all')[] = ['all', ...STATUSES];
+  const statusLabel = (v: ApplicationStatus | 'all') => v === 'all' ? 'All Statuses' : STATUS_LABELS[v];
 
   type RowItem =
     | { kind: 'banner'; id: string; a: EventWithFinancials; b: EventWithFinancials }
@@ -221,73 +278,54 @@ export default function EventsScreen() {
           })}
         </View>
 
-        {/* Status filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} accessibilityRole="radiogroup">
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
           <TouchableOpacity
-            onPress={() => setStatusFilter('all')}
-            accessibilityRole="radio"
-            accessibilityLabel="Show all statuses"
-            accessibilityState={{ selected: statusFilter === 'all' }}
-            style={{
-              paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1,
-              backgroundColor: statusFilter === 'all' ? '#1c1917' : '#ffffff',
-              borderColor: statusFilter === 'all' ? '#1c1917' : '#d6d3d1',
-            }}
+            onPress={() => setStatusModalOpen(true)}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+              paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12,
+              backgroundColor: statusFilter !== 'all' ? '#fef3c7' : '#f5f5f4',
+              borderWidth: 1, borderColor: statusFilter !== 'all' ? '#fcd34d' : '#e7e5e4' }}
           >
-            <Text style={{ fontSize: 12, fontWeight: '500', color: statusFilter === 'all' ? '#ffffff' : '#57534e' }}>All</Text>
+            <Text style={{ fontSize: 13, fontWeight: '600',
+              color: statusFilter !== 'all' ? '#92400e' : '#78716c' }}>
+              {statusFilter === 'all' ? 'All Statuses' : STATUS_LABELS[statusFilter]}
+            </Text>
+            <Ionicons name="chevron-down" size={14} color={statusFilter !== 'all' ? '#b45309' : '#a8a29e'} />
           </TouchableOpacity>
-          {STATUSES.map((s) => (
-            <TouchableOpacity
-              key={s}
-              onPress={() => setStatusFilter(statusFilter === s ? 'all' : s)}
-              accessibilityRole="radio"
-              accessibilityLabel={`Filter by ${STATUS_LABELS[s]}`}
-              accessibilityState={{ selected: statusFilter === s }}
-              style={{
-                paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, borderWidth: 1,
-                backgroundColor: statusFilter === s ? '#1c1917' : '#ffffff',
-                borderColor: statusFilter === s ? '#1c1917' : '#d6d3d1',
-              }}
-            >
-              <Text style={{ fontSize: 12, fontWeight: '500', color: statusFilter === s ? '#ffffff' : '#57534e' }}>
-                {STATUS_LABELS[s]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
 
-        {/* Year filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginTop: 6 }} accessibilityRole="radiogroup">
           <TouchableOpacity
-            onPress={() => setYearFilter(undefined)}
-            accessibilityRole="radio"
-            accessibilityLabel="Show events from all years"
-            accessibilityState={{ selected: !yearFilter }}
-            style={{
-              paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 1,
-              backgroundColor: !yearFilter ? '#fef3c7' : '#ffffff',
-              borderColor: !yearFilter ? '#fcd34d' : '#d6d3d1',
-            }}
+            onPress={() => setYearModalOpen(true)}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+              paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12,
+              backgroundColor: yearFilter != null ? '#fef3c7' : '#f5f5f4',
+              borderWidth: 1, borderColor: yearFilter != null ? '#fcd34d' : '#e7e5e4' }}
           >
-            <Text style={{ fontSize: 12, fontWeight: '500', color: !yearFilter ? '#92400e' : '#78716c' }}>All Years</Text>
+            <Text style={{ fontSize: 13, fontWeight: '600',
+              color: yearFilter != null ? '#92400e' : '#78716c' }}>
+              {yearFilter != null ? String(yearFilter) : 'All Years'}
+            </Text>
+            <Ionicons name="chevron-down" size={14} color={yearFilter != null ? '#b45309' : '#a8a29e'} />
           </TouchableOpacity>
-          {YEARS.map((y) => (
-            <TouchableOpacity
-              key={y}
-              onPress={() => setYearFilter(yearFilter === y ? undefined : y)}
-              accessibilityRole="radio"
-              accessibilityLabel={`Filter by year ${y}`}
-              accessibilityState={{ selected: yearFilter === y }}
-              style={{
-                paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, borderWidth: 1,
-                backgroundColor: yearFilter === y ? '#fef3c7' : '#ffffff',
-                borderColor: yearFilter === y ? '#fcd34d' : '#d6d3d1',
-              }}
-            >
-              <Text style={{ fontSize: 12, fontWeight: '500', color: yearFilter === y ? '#92400e' : '#78716c' }}>{y}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        </View>
+
+        <FilterModal
+          visible={statusModalOpen}
+          title="Filter by Status"
+          options={STATUS_OPTIONS}
+          labelOf={statusLabel}
+          selected={statusFilter}
+          onSelect={(v) => setStatusFilter(v)}
+          onClose={() => setStatusModalOpen(false)}
+        />
+        <FilterModal
+          visible={yearModalOpen}
+          title="Filter by Year"
+          options={YEAR_OPTIONS}
+          labelOf={yearLabel}
+          selected={selectedYear}
+          onSelect={(v) => setYearFilter(v === 0 ? undefined : v)}
+          onClose={() => setYearModalOpen(false)}
+        />
       </View>
 
       {/* Summary strip */}
