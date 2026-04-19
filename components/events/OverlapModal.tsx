@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { STATUS_COLORS, STATUS_LABELS } from '@/constants';
 import { formatCurrency, formatPercent } from '@/lib/formatters';
 import { scoreEvent } from '@/lib/scoring';
@@ -48,13 +49,28 @@ export function OverlapModal({ events, allEvents, date, onClose, router }: Props
           </View>
 
           {isOverlap && winner && (
-            <View className="bg-green-50 border border-green-200 rounded-2xl p-3 mb-4">
-              <Text className="text-green-800 font-semibold text-sm">
-                Recommendation: <Text className="font-bold">{winner.event.name}</Text>
-              </Text>
-              <Text className="text-green-700 text-xs mt-0.5">
-                Score {winner.result.score}/100 — {winner.result.label}
-              </Text>
+            <View className="bg-green-50 border border-green-200 rounded-2xl p-3 mb-4 flex-row items-center">
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: '#fef3c7',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 10,
+                }}
+              >
+                <Ionicons name="trophy" size={20} color="#d97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text className="text-green-800 font-semibold text-sm">
+                  Recommendation: <Text className="font-bold">{winner.event.name}</Text>
+                </Text>
+                <Text className="text-green-700 text-xs mt-0.5">
+                  Score {winner.result.score}/100 — {winner.result.label}
+                </Text>
+              </View>
             </View>
           )}
 
@@ -70,9 +86,19 @@ export function OverlapModal({ events, allEvents, date, onClose, router }: Props
                   <View style={{ height: 3, backgroundColor: colors.dot }} />
                   <View className="p-3">
                     <View className="flex-row items-start justify-between mb-1">
-                      <Text className="font-bold text-slate-900 flex-1 mr-2" numberOfLines={2}>
-                        {event.name}
-                      </Text>
+                      <View className="flex-row items-center flex-1 mr-2">
+                        {isWinner && isOverlap && (
+                          <Ionicons
+                            name="trophy"
+                            size={14}
+                            color="#d97706"
+                            style={{ marginRight: 6 }}
+                          />
+                        )}
+                        <Text className="font-bold text-slate-900 flex-1" numberOfLines={2}>
+                          {event.name}
+                        </Text>
+                      </View>
                       {isOverlap && (
                         <View className="items-end">
                           <Text className={`text-xl font-black ${result.color}`}>{result.score}</Text>

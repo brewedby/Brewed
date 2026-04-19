@@ -36,7 +36,7 @@ export default function CalendarScreen() {
         <ScrollView
           className="flex-1 px-4 pt-8"
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#b45309" />
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" />
           }
         >
           <EmptyState
@@ -49,7 +49,7 @@ export default function CalendarScreen() {
         <CalendarView
           events={events}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#b45309" />
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" />
           }
         />
       )}

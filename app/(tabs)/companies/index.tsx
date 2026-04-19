@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useCompanies } from '@/lib/queries/companies';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
@@ -43,7 +44,7 @@ export default function CompaniesScreen() {
       ) : (
         <ScrollView
           className="flex-1 px-4 pt-4"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#b45309" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" colors={['#f59e0b']} />}
         >
           {!companies || companies.length === 0 ? (
             <EmptyState
@@ -57,17 +58,26 @@ export default function CompaniesScreen() {
               <TouchableOpacity
                 key={company.id}
                 onPress={() => router.push(`/(tabs)/companies/${company.id}`)}
-                className="bg-white rounded-2xl p-4 mb-3 border border-stone-100 shadow-sm"
+                accessibilityRole="button"
+                accessibilityLabel={`Open company ${company.name}`}
+                className="bg-white rounded-2xl p-4 mb-3 border border-stone-100"
                 activeOpacity={0.7}
+                style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}
               >
                 <View className="flex-row items-start justify-between">
                   <View className="flex-1 mr-3">
                     <Text className="font-semibold text-stone-900 text-base">{company.name}</Text>
                     {company.contact_name && (
-                      <Text className="text-stone-500 text-sm mt-0.5">👤 {company.contact_name}</Text>
+                      <View className="flex-row items-center mt-1">
+                        <Ionicons name="person-outline" size={12} color="#78716c" />
+                        <Text className="text-stone-500 text-sm ml-1.5">{company.contact_name}</Text>
+                      </View>
                     )}
                     {company.email && (
-                      <Text className="text-stone-400 text-xs mt-0.5">✉️ {company.email}</Text>
+                      <View className="flex-row items-center mt-1">
+                        <Ionicons name="mail-outline" size={11} color="#a8a29e" />
+                        <Text className="text-stone-400 text-xs ml-1.5">{company.email}</Text>
+                      </View>
                     )}
                   </View>
                   <View className="items-end">

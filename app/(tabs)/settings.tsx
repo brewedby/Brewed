@@ -109,7 +109,7 @@ export default function SettingsScreen() {
       <ScrollView
         className="flex-1 px-4 pt-4"
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#b45309" colors={['#b45309']} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" colors={['#f59e0b']} />}
       >
 
         {/* ── Business Profile ── */}

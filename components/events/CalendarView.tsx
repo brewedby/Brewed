@@ -113,49 +113,96 @@ export function CalendarView({
         {grid.map((row, ri) => (
           <View key={ri} className="flex-row px-1">
             {row.map((date, ci) => {
-              if (!date) return <View key={ci} className="flex-1 m-0.5 h-16" />;
+              if (!date) return <View key={ci} className="flex-1 m-0.5 h-20" />;
               const dayEvents = eventsOnDate(events, date);
               const ds = isoDate(date);
               const isToday = ds === todayStr;
               const hasOverlap = dayEvents.length >= 2;
               const statusSet = [...new Set(dayEvents.map((e) => e.status))];
+              const hasEvents = dayEvents.length > 0;
 
               return (
                 <TouchableOpacity
                   key={ci}
-                  onPress={() => dayEvents.length > 0 && setSelected({ date: ds, events: dayEvents })}
-                  activeOpacity={dayEvents.length > 0 ? 0.7 : 1}
-                  className={`flex-1 m-0.5 h-16 rounded-xl p-1.5 ${
-                    isToday ? 'bg-amber-50 border border-amber-300' : 'bg-white border border-stone-100'
+                  onPress={() => hasEvents && setSelected({ date: ds, events: dayEvents })}
+                  activeOpacity={hasEvents ? 0.7 : 1}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    hasEvents
+                      ? `${date.getDate()} ${MONTHS[month]}, ${dayEvents.length} event${dayEvents.length !== 1 ? 's' : ''}`
+                      : `${date.getDate()} ${MONTHS[month]}, no events`
+                  }
+                  accessibilityState={{ disabled: !hasEvents }}
+                  style={{
+                    elevation: isToday ? 2 : 0,
+                    shadowColor: isToday ? '#f59e0b' : 'transparent',
+                    shadowOpacity: isToday ? 0.15 : 0,
+                    shadowRadius: isToday ? 4 : 0,
+                    shadowOffset: { width: 0, height: 1 },
+                  }}
+                  className={`flex-1 m-0.5 h-20 rounded-xl p-1.5 ${
+                    isToday
+                      ? 'bg-amber-100 border-2 border-amber-500'
+                      : hasEvents
+                      ? 'bg-white border border-stone-200'
+                      : 'bg-white border border-stone-100'
                   }`}
                 >
                   <View className="flex-row items-center justify-between mb-1">
-                    <Text className={`text-xs font-semibold ${isToday ? 'text-amber-600' : 'text-stone-700'}`}>
-                      {date.getDate()}
-                    </Text>
+                    <View
+                      className={`${
+                        isToday
+                          ? 'bg-amber-500 px-1.5 rounded-full'
+                          : ''
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs font-bold ${
+                          isToday ? 'text-white' : 'text-stone-700'
+                        }`}
+                      >
+                        {date.getDate()}
+                      </Text>
+                    </View>
                     {hasOverlap && (
-                      <View className="bg-red-100 px-1 rounded">
-                        <Text className="text-red-600 text-xs font-bold">!</Text>
+                      <View className="bg-red-100 px-1 rounded-md">
+                        <Text className="text-red-600 text-[10px] font-bold">!</Text>
                       </View>
                     )}
                   </View>
 
-                  <View className="flex-row flex-wrap gap-0.5">
-                    {statusSet.slice(0, 3).map((status) => (
+                  <View className="flex-row flex-wrap gap-[3px]">
+                    {statusSet.slice(0, 4).map((status) => (
                       <View
                         key={status}
-                        style={{ backgroundColor: STATUS_COLORS[status as ApplicationStatus]?.dot ?? '#94a3b8', width: 6, height: 6, borderRadius: 3 }}
+                        style={{
+                          backgroundColor: STATUS_COLORS[status as ApplicationStatus]?.dot ?? '#94a3b8',
+                          width: 7,
+                          height: 7,
+                          borderRadius: 4,
+                        }}
                       />
                     ))}
                   </View>
 
                   {dayEvents.length === 1 && (
-                    <Text className="text-stone-500 text-xs mt-0.5 leading-tight" numberOfLines={1}>
+                    <Text
+                      className={`text-[10px] mt-1 leading-tight font-medium ${
+                        isToday ? 'text-amber-900' : 'text-stone-600'
+                      }`}
+                      numberOfLines={2}
+                    >
                       {dayEvents[0].name}
                     </Text>
                   )}
                   {dayEvents.length > 1 && (
-                    <Text className="text-stone-500 text-xs mt-0.5">{dayEvents.length} events</Text>
+                    <Text
+                      className={`text-[10px] mt-1 font-semibold ${
+                        isToday ? 'text-amber-900' : 'text-stone-700'
+                      }`}
+                    >
+                      {dayEvents.length} events
+                    </Text>
                   )}
                 </TouchableOpacity>
               );

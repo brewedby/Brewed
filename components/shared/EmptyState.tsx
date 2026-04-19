@@ -17,18 +17,30 @@ interface Props {
 
 export function EmptyState({ icon = '📋', title, description, action, secondaryAction, tip }: Props) {
   const opacity = useRef(new Animated.Value(0)).current;
+  const iconScale = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
-    Animated.timing(opacity, {
-      toValue: 1,
-      duration: 400,
-      useNativeDriver: true,
-    }).start();
-  }, [opacity]);
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.spring(iconScale, {
+        toValue: 1,
+        friction: 4,
+        tension: 110,
+        delay: 80,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [opacity, iconScale]);
 
   return (
     <Animated.View className="flex-1 items-center justify-center px-8 py-16" style={{ opacity }}>
-      <Text className="text-6xl mb-4">{icon}</Text>
+      <Animated.Text className="text-6xl mb-4" style={{ transform: [{ scale: iconScale }] }}>
+        {icon}
+      </Animated.Text>
       <Text className="text-lg font-semibold text-stone-700 text-center">{title}</Text>
       {description && (
         <Text className="text-stone-500 text-center mt-2">{description}</Text>

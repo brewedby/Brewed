@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Switch, Modal,
 } from 'react-native';
@@ -11,6 +11,7 @@ import { eventSchema } from '@/lib/validations/event.schema';
 import type { EventFormValues } from '@/lib/validations/event.schema';
 import { FormField } from '@/components/shared/FormField';
 import { CurrencyInput } from '@/components/shared/CurrencyInput';
+import { WheelColumn } from '@/components/shared/WheelColumn';
 import { formatCurrency } from '@/lib/formatters';
 import {
   STATUSES, STATUS_LABELS, STATUS_COLORS,
@@ -37,83 +38,10 @@ function SectionHeader({ title }: { title: string }) {
   );
 }
 
-const ITEM_HEIGHT = 48;
-const VISIBLE_ITEMS = 5;
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 function daysInMonth(month1based: number, year: number): number {
   return new Date(year, month1based, 0).getDate();
-}
-
-function WheelColumn({
-  items,
-  initialIndex,
-  onChange,
-}: {
-  items: (string | number)[];
-  initialIndex: number;
-  onChange: (index: number) => void;
-}) {
-  const scrollRef = useRef<ScrollView>(null);
-  const [selectedIdx, setSelectedIdx] = useState(Math.max(0, Math.min(initialIndex, items.length - 1)));
-
-  useEffect(() => {
-    const safeIdx = Math.max(0, Math.min(initialIndex, items.length - 1));
-    setSelectedIdx(safeIdx);
-    setTimeout(() => {
-      scrollRef.current?.scrollTo({ y: safeIdx * ITEM_HEIGHT, animated: false });
-    }, 200);
-  }, [initialIndex, items.length]);
-
-  function handleScrollEnd(y: number) {
-    const idx = Math.max(0, Math.min(Math.round(y / ITEM_HEIGHT), items.length - 1));
-    setSelectedIdx(idx);
-    onChange(idx);
-  }
-
-  return (
-    <View style={{ flex: 1, overflow: 'hidden' }}>
-      {/* Selection highlight band */}
-      <View
-        pointerEvents="none"
-        style={{
-          position: 'absolute', top: ITEM_HEIGHT * 2, left: 4, right: 4,
-          height: ITEM_HEIGHT, backgroundColor: '#f1f5f9', borderRadius: 10,
-        }}
-      />
-      <ScrollView
-        ref={scrollRef}
-        snapToInterval={ITEM_HEIGHT}
-        decelerationRate="fast"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * 2 }}
-        style={{ height: ITEM_HEIGHT * VISIBLE_ITEMS }}
-        onMomentumScrollEnd={(e) => handleScrollEnd(e.nativeEvent.contentOffset.y)}
-        onScrollEndDrag={(e) => handleScrollEnd(e.nativeEvent.contentOffset.y)}
-      >
-        {items.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={{ height: ITEM_HEIGHT, justifyContent: 'center', alignItems: 'center' }}
-            onPress={() => {
-              setSelectedIdx(index);
-              onChange(index);
-              scrollRef.current?.scrollTo({ y: index * ITEM_HEIGHT, animated: true });
-            }}
-            activeOpacity={0.6}
-          >
-            <Text style={{
-              fontSize: selectedIdx === index ? 17 : 15,
-              fontWeight: selectedIdx === index ? '600' : '400',
-              color: selectedIdx === index ? '#0f172a' : '#94a3b8',
-            }}>
-              {String(item)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
 }
 
 function DatePickerModal({
@@ -611,6 +539,29 @@ export function EventForm({
   const selectedCompanyId = watch('company_id');
   const selectedUnitIds = (watch('unit_ids') ?? []) as string[];
 
+  function tabHasError(tab: (typeof TABS)[number]): boolean {
+    if (tab === 'Details') {
+      return Boolean(
+        errors.name || errors.date || errors.end_date || errors.location ||
+        errors.application_date || errors.application_url || errors.status ||
+        errors.company_id || errors.description,
+      );
+    }
+    if (tab === 'Financials') {
+      return Boolean(
+        errors.gross_sales || errors.zero_rated_sales || errors.standard_rated_sales ||
+        errors.concessions_commission_pct || errors.pitch_fee || errors.pitch_fee_refund_pct ||
+        errors.power_fee || errors.cost_of_goods || errors.staffing_costs ||
+        errors.travel_costs || errors.camping_costs || errors.equipment_costs ||
+        errors.other_costs || errors.fresh_milk_litres || errors.alt_milk_litres,
+      );
+    }
+    if (tab === 'Staffing') return Boolean(errors.staffing_entries);
+    if (tab === 'Costs') return Boolean(errors.infrastructure_items);
+    if (tab === 'Notes') return Boolean(errors.notes);
+    return false;
+  }
+
   async function handleFormSubmit(data: EventFormValues) {
     setLoading(true);
     try {
@@ -647,23 +598,40 @@ export function EventForm({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 4 }}
         >
-          {TABS.map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-full ${
-                activeTab === tab ? 'bg-slate-900' : 'bg-slate-100'
-              }`}
-            >
-              <Text
-                className={`text-sm font-semibold ${
-                  activeTab === tab ? 'text-white' : 'text-slate-800'
+          {TABS.map((tab) => {
+            const tabErrors = tabHasError(tab);
+            return (
+              <TouchableOpacity
+                key={tab}
+                onPress={() => setActiveTab(tab)}
+                accessibilityRole="tab"
+                accessibilityLabel={tabErrors ? `${tab} tab — has errors` : `${tab} tab`}
+                accessibilityState={{ selected: activeTab === tab }}
+                className={`px-4 py-2 rounded-full flex-row items-center ${
+                  activeTab === tab ? 'bg-slate-900' : 'bg-slate-100'
                 }`}
               >
-                {tab}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text
+                  className={`text-sm font-semibold ${
+                    activeTab === tab ? 'text-white' : 'text-slate-800'
+                  }`}
+                >
+                  {tab}
+                </Text>
+                {tabErrors && (
+                  <View
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: 4,
+                      backgroundColor: '#ef4444',
+                      marginLeft: 6,
+                    }}
+                  />
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 

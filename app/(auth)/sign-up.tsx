@@ -4,6 +4,7 @@ import {
   Platform, ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
 import { Link } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 
 type Strength = { label: string; color: string; bars: number };
@@ -75,8 +76,34 @@ export default function SignUpScreen() {
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         <View className="flex-1 justify-center px-6 py-12">
           <View className="items-center mb-10">
-            <View className="w-20 h-20 rounded-2xl bg-amber-700 items-center justify-center mb-4">
-              <Text className="text-4xl">☕</Text>
+            <View
+              style={{
+                width: 84,
+                height: 84,
+                borderRadius: 24,
+                backgroundColor: '#78350f',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 18,
+                elevation: 6,
+                shadowColor: '#b45309',
+                shadowOpacity: 0.45,
+                shadowRadius: 14,
+                shadowOffset: { width: 0, height: 6 },
+              }}
+            >
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 10,
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  borderWidth: 2,
+                  borderColor: 'rgba(251, 191, 36, 0.25)',
+                }}
+              />
+              <Ionicons name="cafe" size={44} color="#fbbf24" />
             </View>
             <Text className="text-3xl font-bold text-white">Create Account</Text>
             <Text className="text-stone-400 mt-1">Start tracking your events</Text>

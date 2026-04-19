@@ -97,7 +97,7 @@ export default function ReportsScreen() {
       ) : (
         <ScrollView
           className="flex-1 px-4 pt-4"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#b45309" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" />}
         >
           {/* Annual summary */}
           <View className="flex-row flex-wrap gap-3 mb-4">

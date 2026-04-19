@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Linking } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Linking, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEvent, useDeleteEvent } from '@/lib/queries/events';
@@ -89,6 +90,18 @@ export default function EventDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
+  const [justChanged, setJustChanged] = useState<ApplicationStatus | null>(null);
+  const confirmScale = useRef(new Animated.Value(0)).current;
+
+  function playConfirmAnimation(status: ApplicationStatus) {
+    setJustChanged(status);
+    confirmScale.setValue(0);
+    Animated.sequence([
+      Animated.spring(confirmScale, { toValue: 1, friction: 5, useNativeDriver: true }),
+      Animated.delay(900),
+      Animated.timing(confirmScale, { toValue: 0, duration: 220, useNativeDriver: true }),
+    ]).start(() => setJustChanged(null));
+  }
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -112,6 +125,7 @@ export default function EventDetailScreen() {
       Alert.alert('Error', 'Could not update status. Please try again.');
     } else {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      playConfirmAnimation(newStatus);
       qc.invalidateQueries({ queryKey: ['events'] });
       qc.invalidateQueries({ queryKey: ['events', id] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
@@ -133,10 +147,10 @@ export default function EventDetailScreen() {
         data: {
           name: `${event.name} (copy)`,
           date: new Date().toISOString().split('T')[0],
-          end_date: null,
+          end_date: undefined,
           location: event.location,
           description: event.description ?? '',
-          application_date: null,
+          application_date: undefined,
           application_url: event.application_url ?? '',
           status: 'pending',
           notes: event.notes ?? '',
@@ -209,21 +223,33 @@ export default function EventDetailScreen() {
 
           <View className="flex-row items-center flex-wrap gap-2 mb-1">
             <EventStatusBadge status={event.status} />
-            <Text className="text-slate-500 text-sm">📅 {formatDateRange(event.date, event.end_date)}</Text>
+            <View className="flex-row items-center">
+              <Ionicons name="calendar-outline" size={13} color="#64748b" />
+              <Text className="text-slate-500 text-sm ml-1.5">{formatDateRange(event.date, event.end_date)}</Text>
+            </View>
           </View>
-          <Text className="text-slate-500 text-sm">📍 {event.location}</Text>
+          <View className="flex-row items-center mt-1">
+            <Ionicons name="location-outline" size={13} color="#64748b" />
+            <Text className="text-slate-500 text-sm ml-1.5">{event.location}</Text>
+          </View>
           {event.concessions_companies && (
-            <Text className="text-slate-400 text-xs mt-0.5">🏢 {event.concessions_companies.name}</Text>
+            <View className="flex-row items-center mt-1">
+              <Ionicons name="business-outline" size={12} color="#94a3b8" />
+              <Text className="text-slate-400 text-xs ml-1.5">{event.concessions_companies.name}</Text>
+            </View>
           )}
           {event.units?.length > 0 && (
-            <Text className="text-slate-400 text-xs mt-0.5">🚐 {event.units.map((u) => u.name).join(' · ')}</Text>
+            <View className="flex-row items-center mt-1">
+              <Ionicons name="car-outline" size={12} color="#94a3b8" />
+              <Text className="text-slate-400 text-xs ml-1.5">{event.units.map((u) => u.name).join(' · ')}</Text>
+            </View>
           )}
         </View>
       </View>
 
       <ScrollView
         className="flex-1 px-4 pt-4"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" colors={['#f59e0b']} />}
       >
         {/* URL change alert */}
         {event.url_changed && (
@@ -280,8 +306,30 @@ export default function EventDetailScreen() {
         <ApplicationTimeline currentStatus={event.status} />
 
         {/* Quick status update */}
-        <View className="bg-white rounded-2xl p-4 border border-slate-100 mb-4">
-          <Text className="font-bold text-slate-700 mb-3">Update Status</Text>
+        <View className="bg-white rounded-2xl p-4 border border-slate-100 mb-4" style={{ overflow: 'hidden' }}>
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="font-bold text-slate-700">Update Status</Text>
+            {justChanged && (
+              <Animated.View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  backgroundColor: '#dcfce7',
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 999,
+                  transform: [{ scale: confirmScale }],
+                  opacity: confirmScale,
+                }}
+              >
+                <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                <Text style={{ color: '#166534', fontSize: 11, fontWeight: '700' }}>
+                  Set to {STATUS_LABELS[justChanged]}
+                </Text>
+              </Animated.View>
+            )}
+          </View>
           <View className="flex-row flex-wrap gap-2">
             {STATUSES.map((s) => {
               const colors = STATUS_COLORS[s];
@@ -407,9 +455,12 @@ export default function EventDetailScreen() {
             accessibilityState={{ disabled: duplicating }}
             style={{ borderWidth: 1, borderColor: '#d6d3d1', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
           >
-            <Text style={{ color: '#57534e', fontWeight: '500', fontSize: 14 }}>
-              {duplicating ? 'Duplicating…' : '📋 Duplicate Event'}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="copy-outline" size={15} color="#57534e" />
+              <Text style={{ color: '#57534e', fontWeight: '500', fontSize: 14 }}>
+                {duplicating ? 'Duplicating…' : 'Duplicate Event'}
+              </Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() =>

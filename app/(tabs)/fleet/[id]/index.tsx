@@ -115,7 +115,7 @@ export default function UnitDetailScreen() {
       <ScrollView
         className="flex-1 px-4 pt-4"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#b45309" />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" />
         }
       >
         {/* Current / upcoming event highlight */}

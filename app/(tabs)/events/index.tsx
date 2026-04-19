@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, TextInput, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { FlashList } from '@shopify/flash-list';
 import { useEvents } from '@/lib/queries/events';
 import { useCompanies } from '@/lib/queries/companies';
 import { EventCard } from '@/components/events/EventCard';
@@ -103,7 +102,8 @@ export default function EventsScreen() {
     setRefreshing(false);
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  // Memoise today's ISO date so downstream memos don't churn on every render.
+  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
 
   const events = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -311,7 +311,7 @@ export default function EventsScreen() {
         <ScrollView
           className="flex-1 px-4 pt-4"
           keyboardDismissMode="on-drag"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#b45309" colors={["#b45309"]} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" colors={["#f59e0b"]} />}
         >
           <EmptyState
             icon="🎪"
@@ -325,7 +325,7 @@ export default function EventsScreen() {
         <ScrollView
           className="flex-1 px-4 pt-4"
           keyboardDismissMode="on-drag"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#b45309" colors={["#b45309"]} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" colors={["#f59e0b"]} />}
         >
           {viewFilter === 'upcoming' ? (
             <EmptyState icon="📅" title="No upcoming events" description="All events are in the past." />
@@ -335,13 +335,15 @@ export default function EventsScreen() {
         </ScrollView>
       ) : (
         <View className="flex-1 px-4 pt-4">
-          <FlashList
+          <FlatList
             data={rowItems}
             keyExtractor={(item) => item.id}
-            estimatedItemSize={140}
             keyboardDismissMode="on-drag"
-            getItemType={(item) => item.kind}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#b45309" colors={["#b45309"]} />}
+            removeClippedSubviews
+            initialNumToRender={8}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" colors={["#f59e0b"]} />}
             ListFooterComponent={<View style={{ height: 32 }} />}
             renderItem={({ item }) => {
               if (item.kind === 'banner') return <OverlapBanner a={item.a} b={item.b} companyMap={companyMap} />;

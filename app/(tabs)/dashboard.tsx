@@ -43,6 +43,7 @@ export default function DashboardScreen() {
     }
 
     const today = new Date();
+    const alertedKeys = new Set<string>();
     stats.unitStatuses.forEach((u) => {
       const dates = [
         { label: 'MOT', d: u.mot_date },
@@ -50,9 +51,16 @@ export default function DashboardScreen() {
       ];
       dates.forEach(({ label, d }) => {
         if (!d) return;
+        const key = `${u.id}:${label}`;
+        if (alertedKeys.has(key)) return;
         const days = Math.ceil((new Date(d).getTime() - today.getTime()) / 86400000);
-        if (days < 0) result.push({ icon: '🔴', text: `${u.name} ${label} has expired`, color: '#dc2626' });
-        else if (days <= 30) result.push({ icon: '🟡', text: `${u.name} ${label} expires in ${days} day${days !== 1 ? 's' : ''}`, color: '#d97706' });
+        if (days < 0) {
+          result.push({ icon: '🔴', text: `${u.name} ${label} has expired`, color: '#dc2626' });
+          alertedKeys.add(key);
+        } else if (days <= 30) {
+          result.push({ icon: '🟡', text: `${u.name} ${label} expires in ${days} day${days !== 1 ? 's' : ''}`, color: '#d97706' });
+          alertedKeys.add(key);
+        }
       });
     });
 
@@ -103,7 +111,7 @@ export default function DashboardScreen() {
       ) : (
         <ScrollView
           className="flex-1"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#b45309" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" />}
         >
           <View className="px-4 pt-4 gap-4">
             {/* Stats grid */}

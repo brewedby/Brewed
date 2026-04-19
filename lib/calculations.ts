@@ -17,6 +17,10 @@ export function calcEventFinancials(
   f: EventFinancials,
   staffing?: StaffingEntry[],
 ): EventCalculations {
+  // If individual staffing entries exist we sum them (hours × rate).
+  // If the staffing array is empty or undefined, fall back to the aggregate
+  // `staffing_costs` figure the user typed directly on the Financials tab —
+  // this lets users record staffing as one lump sum without per-person detail.
   const totalStaffingCost =
     staffing && staffing.length > 0
       ? calcStaffingTotal(staffing)

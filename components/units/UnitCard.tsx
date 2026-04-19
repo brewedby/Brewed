@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { UNIT_STATUS_LABELS, UNIT_STATUS_COLORS } from '@/constants';
 import type { Unit, EventWithFinancials } from '@/types';
 import type { UnitStatus } from '@/types';
@@ -19,11 +20,15 @@ function ExpiryPill({ label, dateStr }: { label: string; dateStr: string | null 
   if (!expired && !soon) return null;
   return (
     <View style={{
-      flexDirection: 'row', alignItems: 'center', gap: 3,
+      flexDirection: 'row', alignItems: 'center', gap: 4,
       paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999,
       backgroundColor: expired ? '#fee2e2' : '#fef3c7',
     }}>
-      <Text style={{ fontSize: 10 }}>{expired ? '🔴' : '🟡'}</Text>
+      <Ionicons
+        name={expired ? 'alert-circle' : 'warning'}
+        size={11}
+        color={expired ? '#dc2626' : '#d97706'}
+      />
       <Text style={{ fontSize: 10, fontWeight: '600', color: expired ? '#991b1b' : '#92400e' }}>
         {label}{expired ? ' expired' : ` due ${days === 0 ? 'today' : `in ${days}d`}`}
       </Text>
@@ -37,16 +42,18 @@ interface Props {
   onPress: () => void;
 }
 
-export function UnitCard({ unit, currentEvent, onPress }: Props) {
+export const UnitCard = React.memo(function UnitCard({ unit, currentEvent, onPress }: Props) {
   const status = unit.status as UnitStatus;
   const colors = UNIT_STATUS_COLORS[status];
 
   return (
     <TouchableOpacity
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Open unit ${unit.name}`}
       activeOpacity={0.7}
       className="bg-white rounded-2xl mb-3 border border-stone-100 overflow-hidden"
-      style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}
+      style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}
     >
       <View style={{ flexDirection: 'row' }}>
         <View style={{ width: 4, backgroundColor: colors.dot, borderTopLeftRadius: 16, borderBottomLeftRadius: 16 }} />
@@ -82,24 +89,29 @@ export function UnitCard({ unit, currentEvent, onPress }: Props) {
             </View>
           </View>
 
-          {/* Expiry warnings */}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
             <ExpiryPill label="MOT" dateStr={unit.mot_date} />
             <ExpiryPill label="Tax" dateStr={unit.tax_date} />
             <ExpiryPill label="Service" dateStr={unit.service_date} />
           </View>
 
-          <View className="mt-2">
+          <View className="mt-2 flex-row items-center">
             {currentEvent ? (
-              <Text className="text-amber-600 text-xs font-medium" numberOfLines={1}>
-                📍 Currently at: {currentEvent.name}
-              </Text>
+              <>
+                <Ionicons name="location" size={12} color="#d97706" />
+                <Text className="text-amber-600 text-xs font-medium ml-1" numberOfLines={1}>
+                  Currently at: {currentEvent.name}
+                </Text>
+              </>
             ) : status === 'active' ? (
-              <Text className="text-green-600 text-xs font-medium">✅ Available</Text>
+              <>
+                <Ionicons name="checkmark-circle" size={12} color="#16a34a" />
+                <Text className="text-green-600 text-xs font-medium ml-1">Available</Text>
+              </>
             ) : null}
           </View>
         </View>
       </View>
     </TouchableOpacity>
   );
-}
+});

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, ScrollView, TouchableOpacity, Text, Alert, ActivityIndicator, Modal,
 } from 'react-native';
@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { format, parseISO, isValid } from 'date-fns';
 import { unitSchema } from '@/lib/validations/unit.schema';
 import { FormField } from '@/components/shared/FormField';
+import { WheelColumn } from '@/components/shared/WheelColumn';
 import { UNIT_STATUSES, UNIT_STATUS_LABELS, UNIT_STATUS_COLORS } from '@/constants';
 import type { UnitFormValues } from '@/lib/validations/unit.schema';
 import type { UnitStatus } from '@/types';
@@ -19,92 +20,10 @@ const SERVICE_INTERVALS = [
   { value: '1year',   label: 'Every year' },
 ] as const;
 
-const ITEM_HEIGHT = 48;
-const VISIBLE_ITEMS = 5;
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 function daysInMonth(month1based: number, year: number): number {
   return new Date(year, month1based, 0).getDate();
-}
-
-function WheelColumn({
-  items, initialIndex, onChange,
-}: {
-  items: (string | number)[];
-  initialIndex: number;
-  onChange: (index: number) => void;
-}) {
-  const scrollRef = useRef<ScrollView>(null);
-  const [selectedIdx, setSelectedIdx] = useState(Math.max(0, Math.min(initialIndex, items.length - 1)));
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastReportedIdx = useRef<number>(selectedIdx);
-
-  useEffect(() => {
-    const safeIdx = Math.max(0, Math.min(initialIndex, items.length - 1));
-    setSelectedIdx(safeIdx);
-    lastReportedIdx.current = safeIdx;
-    setTimeout(() => {
-      scrollRef.current?.scrollTo({ y: safeIdx * ITEM_HEIGHT, animated: false });
-    }, 200);
-  }, [initialIndex, items.length]);
-
-  useEffect(() => () => {
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-  }, []);
-
-  function handleScrollEnd(y: number) {
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => {
-      const idx = Math.max(0, Math.min(Math.round(y / ITEM_HEIGHT), items.length - 1));
-      if (idx === lastReportedIdx.current) return;
-      lastReportedIdx.current = idx;
-      setSelectedIdx(idx);
-      onChange(idx);
-    }, 50);
-  }
-
-  return (
-    <View style={{ flex: 1, overflow: 'hidden' }}>
-      <View
-        pointerEvents="none"
-        style={{
-          position: 'absolute', top: ITEM_HEIGHT * 2, left: 4, right: 4,
-          height: ITEM_HEIGHT, backgroundColor: '#f1f5f9', borderRadius: 10,
-        }}
-      />
-      <ScrollView
-        ref={scrollRef}
-        snapToInterval={ITEM_HEIGHT}
-        decelerationRate="fast"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * 2 }}
-        style={{ height: ITEM_HEIGHT * VISIBLE_ITEMS }}
-        onMomentumScrollEnd={(e) => handleScrollEnd(e.nativeEvent.contentOffset.y)}
-        onScrollEndDrag={(e) => handleScrollEnd(e.nativeEvent.contentOffset.y)}
-      >
-        {items.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={{ height: ITEM_HEIGHT, justifyContent: 'center', alignItems: 'center' }}
-            onPress={() => {
-              setSelectedIdx(index);
-              onChange(index);
-              scrollRef.current?.scrollTo({ y: index * ITEM_HEIGHT, animated: true });
-            }}
-            activeOpacity={0.6}
-          >
-            <Text style={{
-              fontSize: selectedIdx === index ? 17 : 15,
-              fontWeight: selectedIdx === index ? '600' : '400',
-              color: selectedIdx === index ? '#0f172a' : '#94a3b8',
-            }}>
-              {String(item)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
 }
 
 function DatePickerModal({

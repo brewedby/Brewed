@@ -179,7 +179,14 @@ export function WeatherCard({
     </View>
   );
 
-  if (!days || days.length === 0) return null;
+  if (!days || days.length === 0) return (
+    <View className="bg-white rounded-2xl p-4 border border-stone-100">
+      <Text className="font-bold text-stone-900 text-sm mb-1">🌤️ Weather Forecast</Text>
+      <Text className="text-stone-400 text-xs">
+        Forecast unavailable — we couldn't match "{location}" or the providers didn't return data.
+      </Text>
+    </View>
+  );
 
   const { hot, iced } = hotIcedSplit(avgTemp);
   const hasOM = days.some((d) => d.om !== null);
