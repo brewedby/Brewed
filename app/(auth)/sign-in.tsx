@@ -5,45 +5,66 @@ import {
 } from 'react-native';
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Linking from 'expo-linking';
 import { supabase } from '@/lib/supabase';
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [sendingReset, setSendingReset] = useState(false);
+
+  // OTP / forgot-password flow
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+
   const passwordRef = useRef<TextInput>(null);
+  const otpRef = useRef<TextInput>(null);
 
   const canSubmit = email.trim().length > 0 && password.length > 0 && !loading;
+  const canVerify = otpCode.trim().length === 6 && !verifyingOtp;
 
   async function handleSignIn() {
-    if (!canSubmit) {
-      if (!email || !password) {
-        Alert.alert('Error', 'Please enter your email and password.');
-      }
-      return;
-    }
+    if (!canSubmit) return;
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setLoading(false);
     if (error) Alert.alert('Sign in failed', error.message);
   }
 
-  async function handleForgotPassword() {
+  async function handleSendOtp() {
     if (!email.trim()) {
-      Alert.alert('Enter your email', 'Please type your email address above, then tap "Forgot password?" again.');
+      Alert.alert('Enter your email', 'Type your email address above then tap "Forgot password?" again.');
       return;
     }
-    setSendingReset(true);
-    const redirectTo = Linking.createURL('reset-password');
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
-    setSendingReset(false);
+    setSendingOtp(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { shouldCreateUser: false },
+    });
+    setSendingOtp(false);
     if (error) {
       Alert.alert('Error', error.message);
     } else {
-      Alert.alert('Check your email', `A password reset link has been sent to ${email.trim()}.`);
+      setOtpSent(true);
+      setOtpCode('');
+      setTimeout(() => otpRef.current?.focus(), 300);
     }
+  }
+
+  async function handleVerifyOtp() {
+    if (!canVerify) return;
+    setVerifyingOtp(true);
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: otpCode.trim(),
+      type: 'email',
+    });
+    setVerifyingOtp(false);
+    if (error) {
+      Alert.alert('Invalid code', 'That code is incorrect or has expired. Try requesting a new one.');
+    }
+    // on success the auth listener in _layout.tsx redirects automatically
   }
 
   return (
@@ -98,7 +119,7 @@ export default function SignInScreen() {
                 autoCapitalize="none"
                 autoComplete="email"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(v) => { setEmail(v); setOtpSent(false); setOtpCode(''); }}
                 returnKeyType="next"
                 onSubmitEditing={() => passwordRef.current?.focus()}
                 blurOnSubmit={false}
@@ -108,9 +129,13 @@ export default function SignInScreen() {
             <View>
               <View className="flex-row items-center justify-between mb-1.5">
                 <Text className="text-stone-300 font-medium">Password</Text>
-                <TouchableOpacity onPress={handleForgotPassword} disabled={sendingReset} accessibilityRole="button">
+                <TouchableOpacity
+                  onPress={otpSent ? handleSendOtp : handleSendOtp}
+                  disabled={sendingOtp}
+                  accessibilityRole="button"
+                >
                   <Text className="text-amber-500 text-xs font-medium">
-                    {sendingReset ? 'Sending…' : 'Forgot password?'}
+                    {sendingOtp ? 'Sending…' : otpSent ? 'Resend code' : 'Forgot password?'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -128,20 +153,56 @@ export default function SignInScreen() {
               />
             </View>
 
-            <TouchableOpacity
-              className="bg-amber-700 py-4 rounded-xl items-center mt-2"
-              style={{ opacity: canSubmit ? 1 : 0.6 }}
-              onPress={handleSignIn}
-              disabled={!canSubmit}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !canSubmit }}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text className="text-white font-semibold text-base">Sign In</Text>
-              )}
-            </TouchableOpacity>
+            {otpSent && (
+              <View>
+                <Text className="text-stone-300 mb-1.5 font-medium">
+                  6-digit code from your email
+                </Text>
+                <TextInput
+                  ref={otpRef}
+                  className="bg-stone-800 text-white px-4 py-3.5 rounded-xl border border-amber-700 tracking-widest text-center text-xl"
+                  placeholder="000000"
+                  placeholderTextColor="#78716c"
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  value={otpCode}
+                  onChangeText={setOtpCode}
+                  returnKeyType="done"
+                  onSubmitEditing={handleVerifyOtp}
+                />
+                <TouchableOpacity
+                  className="bg-amber-700 py-4 rounded-xl items-center mt-3"
+                  style={{ opacity: canVerify ? 1 : 0.6 }}
+                  onPress={handleVerifyOtp}
+                  disabled={!canVerify}
+                  accessibilityRole="button"
+                >
+                  {verifyingOtp
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text className="text-white font-semibold text-base">Sign in with code</Text>}
+                </TouchableOpacity>
+                <Text className="text-stone-500 text-xs text-center mt-2">
+                  Check your inbox — the code expires in 1 hour
+                </Text>
+              </View>
+            )}
+
+            {!otpSent && (
+              <TouchableOpacity
+                className="bg-amber-700 py-4 rounded-xl items-center mt-2"
+                style={{ opacity: canSubmit ? 1 : 0.6 }}
+                onPress={handleSignIn}
+                disabled={!canSubmit}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canSubmit }}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="text-white font-semibold text-base">Sign In</Text>
+                )}
+              </TouchableOpacity>
+            )}
 
             <View className="flex-row justify-center mt-4">
               <Text className="text-stone-400">Don't have an account? </Text>
