@@ -2,7 +2,11 @@
   "expo": {
     "name": "Brewed by Boon",
     "slug": "brewedbyboon",
+    "owner": "REPLACE_WITH_YOUR_EXPO_USERNAME",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "scheme": "brewedbyboon",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
