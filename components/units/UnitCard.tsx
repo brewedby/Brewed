@@ -27,8 +27,10 @@ function ComplianceDate({ label, dateStr }: { label: string; dateStr: string | n
     dateLabel = formatComplianceDate(dateStr);
     if (days !== null && days < 0) {
       dotColor = '#dc2626'; textColor = '#dc2626'; dateLabel = 'Expired';
-    } else if (days !== null && days <= 30) {
-      dotColor = '#d97706'; textColor = '#d97706';
+    } else if (days !== null && days <= 7) {
+      dotColor = '#dc2626'; textColor = '#dc2626';
+    } else if (days !== null && days <= 14) {
+      dotColor = '#eab308'; textColor = '#a16207';
     } else {
       dotColor = '#22c55e'; textColor = '#15803d';
     }
