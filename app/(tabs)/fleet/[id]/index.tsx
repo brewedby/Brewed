@@ -7,7 +7,7 @@ import { useEvents } from '@/lib/queries/events';
 import { EventCard } from '@/components/events/EventCard';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { formatDateRange, formatDate } from '@/lib/formatters';
+import { formatDateRange, formatDate, toISODateString } from '@/lib/formatters';
 import { UNIT_STATUS_LABELS, UNIT_STATUS_COLORS } from '@/constants';
 import type { UnitStatus } from '@/types';
 
@@ -63,12 +63,12 @@ export default function UnitDetailScreen() {
     const d = new Date(serviceDate);
     if (interval === '6months') d.setMonth(d.getMonth() + 6);
     else d.setFullYear(d.getFullYear() + 1);
-    return d.toISOString().split('T')[0];
+    return toISODateString(d);
   }
 
   const serviceDue = serviceDueDate(unit.service_date, unit.service_interval);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = toISODateString(new Date());
   const upcomingEvent = [...unitEvents]
     .filter((e) => e.status === 'accepted' && e.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null;

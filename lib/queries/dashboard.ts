@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { calcEventFinancials } from '@/lib/calculations';
-import { formatMonthLabel } from '@/lib/formatters';
+import { formatMonthLabel, toISODateString } from '@/lib/formatters';
 import { EMPTY_CALCULATIONS } from '@/types';
 import type { DashboardStats, MonthlyRevenue, StatusCount, ApplicationStatus, UnitWithStatus, EventWithFinancials } from '@/types';
 
@@ -49,7 +49,7 @@ export function useDashboard(year?: number) {
       const totalAltMilkLitres = acceptedYtdEvents.reduce((sum, e) => sum + (e.event_financials?.alt_milk_litres ?? 0), 0);
 
       // Upcoming events
-      const today = new Date().toISOString().split('T')[0];
+      const today = toISODateString(new Date());
       const upcomingEvents = (allEvents
         .filter((e) => e.date >= today && e.status === 'accepted')
         .sort((a, b) => a.date.localeCompare(b.date))
@@ -100,7 +100,7 @@ export function useDashboard(year?: number) {
       });
 
       // Committed fees: accepted upcoming events with pitch/power fees already paid
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = toISODateString(new Date());
       const committedFeeEvents = allEvents.filter((e) => {
         const eventEnd = e.end_date ?? e.date;
         return e.status === 'accepted' && eventEnd > todayStr && (e.event_financials?.pitch_fee ?? 0) + (e.event_financials?.power_fee ?? 0) > 0;

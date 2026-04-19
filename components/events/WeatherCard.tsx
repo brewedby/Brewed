@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
-import { differenceInDays, parseISO, eachDayOfInterval } from 'date-fns';
+import { differenceInDays, parseISO, eachDayOfInterval, format } from 'date-fns';
 
 interface OMDay {
   date: string;
@@ -71,7 +71,7 @@ async function fetchSevenTimer(lat: number, lon: number): Promise<STDay[]> {
   const byDate = new Map<string, { temps: number[]; weathers: string[] }>();
   for (const ds of data.dataseries ?? []) {
     const d = new Date(initDate.getTime() + ds.timepoint * 3_600_000);
-    const key = d.toISOString().split('T')[0];
+    const key = format(d, 'yyyy-MM-dd');
     if (!byDate.has(key)) byDate.set(key, { temps: [], weathers: [] });
     const entry = byDate.get(key)!;
     entry.temps.push(ds.temp2m);
@@ -143,7 +143,7 @@ export function WeatherCard({
         const eventDates = eachDayOfInterval({
           start: parseISO(startDate),
           end: parseISO(end),
-        }).map((d) => d.toISOString().split('T')[0]);
+        }).map((d) => format(d, 'yyyy-MM-dd'));
 
         const omMap = new Map(omDays.map((d) => [d.date, d]));
         const stMap = new Map(stDays.map((d) => [d.date, d]));

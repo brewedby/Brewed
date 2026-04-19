@@ -13,7 +13,7 @@ import { StaffingList } from '@/components/events/StaffingList';
 import { InfrastructureList } from '@/components/events/InfrastructureList';
 import { EventStatusBadge } from '@/components/shared/EventStatusBadge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
-import { formatDateRange, formatDate, formatCurrency } from '@/lib/formatters';
+import { formatDateRange, formatDate, formatCurrency, toISODateString } from '@/lib/formatters';
 import { STATUS_COLORS, STATUSES, STATUS_LABELS } from '@/constants';
 import type { ApplicationStatus } from '@/types';
 import { supabase } from '@/lib/supabase';
@@ -146,7 +146,7 @@ export default function EventDetailScreen() {
         userId: user.id,
         data: {
           name: `${event.name} (copy)`,
-          date: new Date().toISOString().split('T')[0],
+          date: toISODateString(new Date()),
           end_date: undefined,
           location: event.location,
           description: event.description ?? '',
@@ -283,7 +283,7 @@ export default function EventDetailScreen() {
 
         {/* Post-event completion prompt */}
         {event.status === 'accepted' &&
-          event.date < new Date().toISOString().split('T')[0] &&
+          event.date < toISODateString(new Date()) &&
           (!event.event_financials || event.event_financials.gross_sales === 0) && (
           <View style={{ backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fcd34d', borderRadius: 16, padding: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Text style={{ fontSize: 20 }}>📋</Text>

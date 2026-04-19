@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { calcEventFinancials } from '@/lib/calculations';
+import { toISODateString } from '@/lib/formatters';
 import type { CompanyWithStats, ConcessionsCompany } from '@/types';
 
 export function useCompanies() {
@@ -26,7 +27,7 @@ export function useCompanies() {
         }, 0);
         const sortedDates = companyEvents.map((e) => e.date).sort().reverse();
 
-        const today = new Date().toISOString().split('T')[0];
+        const today = toISODateString(new Date());
         const completedAccepted = companyEvents.filter((e) => {
           const eventEnd = e.end_date ?? e.date;
           return e.status === 'accepted' && eventEnd <= today && e.event_financials;

@@ -10,6 +10,7 @@ import { useCompanies } from '@/lib/queries/companies';
 import { useCreateEvent } from '@/lib/mutations/events';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { toISODateString } from '@/lib/formatters';
 import type { DiscoveredEvent } from '@/types';
 
 const REGIONS = ['All UK', 'London', 'South East', 'South West', 'East of England', 'Midlands', 'West Midlands', 'North West', 'Yorkshire', 'North East', 'Scotland', 'Wales', 'National'];
@@ -334,7 +335,7 @@ export default function DiscoverScreen() {
         userId: user.id,
         data: {
           name: eventName,
-          date: new Date().toISOString().split('T')[0],
+          date: toISODateString(new Date()),
           location: discovered.location ?? '',
           status: 'pending',
           description: discovered.description ?? '',

@@ -8,7 +8,7 @@ import { EventCard } from '@/components/events/EventCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { QueryError } from '@/components/shared/QueryError';
-import { formatDateRange } from '@/lib/formatters';
+import { formatDateRange, toISODateString } from '@/lib/formatters';
 import { STATUSES, STATUS_LABELS } from '@/constants';
 import type { ApplicationStatus, EventWithFinancials, CompanyWithStats } from '@/types';
 
@@ -103,7 +103,7 @@ export default function EventsScreen() {
   }
 
   // Memoise today's ISO date so downstream memos don't churn on every render.
-  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const today = useMemo(() => toISODateString(new Date()), []);
 
   const events = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
