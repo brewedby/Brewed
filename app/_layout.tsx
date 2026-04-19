@@ -3,7 +3,10 @@ import React, { useEffect } from 'react';
 import { View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
@@ -15,8 +18,14 @@ import { OfflineBanner } from '@/components/shared/OfflineBanner';
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 1000 * 60 * 15, retry: 2 },
+    queries: { staleTime: 1000 * 60 * 15, retry: 2, gcTime: 1000 * 60 * 60 * 24 },
   },
+});
+
+const persister = createAsyncStoragePersister({
+  storage: AsyncStorage,
+  key: 'brewed:query-cache',
+  throttleTime: 3000,
 });
 
 function RootLayoutNav() {
@@ -82,7 +91,10 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <QueryClientProvider client={queryClient}>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{ persister, maxAge: 1000 * 60 * 60 * 24 }}
+        >
           <AuthProvider>
             <View style={{ flex: 1 }}>
               <OfflineBannerWrapper />
@@ -90,7 +102,7 @@ export default function RootLayout() {
             </View>
             <StatusBar style="dark" />
           </AuthProvider>
-        </QueryClientProvider>
+        </PersistQueryClientProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );
