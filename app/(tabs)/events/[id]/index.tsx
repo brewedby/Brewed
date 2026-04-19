@@ -11,6 +11,7 @@ import { FinancialsCard } from '@/components/events/FinancialsCard';
 import { WeatherCard } from '@/components/events/WeatherCard';
 import { StaffingList } from '@/components/events/StaffingList';
 import { InfrastructureList } from '@/components/events/InfrastructureList';
+import { DocumentsSection } from '@/components/events/DocumentsSection';
 import { EventStatusBadge } from '@/components/shared/EventStatusBadge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { formatDateRange, formatDate, formatCurrency, toISODateString } from '@/lib/formatters';
@@ -407,6 +408,11 @@ export default function EventDetailScreen() {
           </View>
         )}
 
+        {/* Documents */}
+        <View className="mb-4">
+          <DocumentsSection eventId={event.id} />
+        </View>
+
         {/* Details */}
         <View className="bg-white rounded-2xl p-4 border border-slate-100 mb-4 gap-3">
           <Text className="font-bold text-slate-700">Details</Text>
@@ -422,12 +428,6 @@ export default function EventDetailScreen() {
               <Text className="text-amber-700 text-sm font-medium">🌙 Yes</Text>
             </View>
           )}
-          <View className="flex-row items-center">
-            <Text className="text-slate-400 text-sm w-32">Docs uploaded</Text>
-            <Text className={`text-sm font-medium ${event.documents_uploaded ? 'text-green-600' : 'text-slate-400'}`}>
-              {event.documents_uploaded ? '✅ Yes' : '⏳ Not yet'}
-            </Text>
-          </View>
           {event.url_last_checked_at && (
             <View className="flex-row">
               <Text className="text-slate-400 text-sm w-32">Last checked</Text>

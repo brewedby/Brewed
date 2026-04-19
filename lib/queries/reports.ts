@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { calcEventFinancials } from '@/lib/calculations';
+import { calcEventFinancials, HMRC_MILEAGE_RATE } from '@/lib/calculations';
 import { formatMonthLabel } from '@/lib/formatters';
 import { EMPTY_CALCULATIONS } from '@/types';
 import type { ReportData, MonthlyBreakdown, CompanyPerformance, ApplicationStatus } from '@/types';
@@ -61,6 +61,8 @@ export function useReports(year: number) {
 
       const totalFreshMilkLitres = allEvents.reduce((s, e) => s + (e.event_financials?.fresh_milk_litres ?? 0), 0);
       const totalAltMilkLitres = allEvents.reduce((s, e) => s + (e.event_financials?.alt_milk_litres ?? 0), 0);
+      const totalMilesDriven = allEvents.reduce((s, e) => s + (e.event_financials?.miles_driven ?? 0), 0);
+      const totalMileageAllowance = totalMilesDriven * HMRC_MILEAGE_RATE;
 
       const topEvents = [...allEvents]
         .filter((e) => e.event_financials)
@@ -98,6 +100,8 @@ export function useReports(year: number) {
         avgMargin,
         totalFreshMilkLitres,
         totalAltMilkLitres,
+        totalMilesDriven,
+        totalMileageAllowance,
         monthly: Array.from(monthlyMap.values()),
         topEvents,
         companyPerformance,

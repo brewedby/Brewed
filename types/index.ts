@@ -12,6 +12,7 @@ export type StaffingEntry = Tables['staffing_entries']['Row'];
 export type InfrastructureItem = Tables['infrastructure_items']['Row'];
 export type Unit = Tables['units']['Row'];
 export type UkEventDirectory = Tables['uk_events_directory']['Row'];
+export type EventDocument = Tables['event_documents']['Row'];
 
 export type InfrastructureCategory = 'pitch_fee' | 'travel' | 'equipment' | 'supplies' | 'other';
 
@@ -31,12 +32,15 @@ export interface EventCalculations {
   netProfit: number;
   profitMargin: number;
   totalStaffingCost: number;
+  // HMRC mileage allowance (tax deduction, not a P&L cost)
+  mileageAllowance: number;
 }
 
 export const EMPTY_CALCULATIONS: EventCalculations = {
   standardRatedNet: 0, vatCollected: 0, totalNetSales: 0,
   commissionAmount: 0, pitchFeeRefundGross: 0, netRefund: 0, effectivePitchFee: 0,
   grossProfit: 0, totalCosts: 0, netProfit: 0, profitMargin: 0, totalStaffingCost: 0,
+  mileageAllowance: 0,
 };
 
 export interface EventWithFinancials extends Event {
@@ -130,6 +134,8 @@ export interface ReportData {
   avgMargin: number;
   totalFreshMilkLitres: number;
   totalAltMilkLitres: number;
+  totalMilesDriven: number;
+  totalMileageAllowance: number;
   monthly: MonthlyBreakdown[];
   topEvents: EventWithFinancials[];
   companyPerformance: CompanyPerformance[];

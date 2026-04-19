@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Switch, Modal,
+  View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Switch, Modal, TextInput,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { format, parseISO, isValid } from 'date-fns';
@@ -19,6 +19,7 @@ import {
   UNIT_STATUS_COLORS,
 } from '@/constants';
 import type { ConcessionsCompany, ApplicationStatus, InfrastructureCategory, Unit } from '@/types';
+import { HMRC_MILEAGE_RATE } from '@/lib/calculations';
 
 const TABS = ['Details', 'Financials', 'Staffing', 'Costs', 'Notes'] as const;
 
@@ -183,6 +184,50 @@ function CalcRow({
       <Text className={`text-xs font-semibold ${highlight ? 'text-slate-900' : 'text-slate-600'}`}>
         {value}
       </Text>
+    </View>
+  );
+}
+
+function MilesDrivenField({
+  control,
+  watch,
+}: {
+  control: Control<EventFormValues>;
+  watch: UseFormWatch<EventFormValues>;
+}) {
+  const miles = watch('miles_driven') ?? 0;
+  const allowance = miles * HMRC_MILEAGE_RATE;
+
+  return (
+    <View>
+      <Controller
+        control={control}
+        name="miles_driven"
+        render={({ field }) => (
+          <View>
+            <Text className="text-stone-600 text-sm font-medium mb-1">Miles Driven</Text>
+            <View className="flex-row items-center bg-stone-50 border border-stone-200 rounded-xl px-3 py-3">
+              <TextInput
+                className="flex-1 text-stone-900 text-base"
+                value={field.value > 0 ? String(field.value) : ''}
+                onChangeText={(t) => {
+                  const n = parseFloat(t.replace(/[^0-9.]/g, ''));
+                  field.onChange(isNaN(n) ? 0 : n);
+                }}
+                keyboardType="decimal-pad"
+                placeholder="0"
+                placeholderTextColor="#a8a29e"
+              />
+              <Text className="text-stone-400 text-sm ml-1">mi</Text>
+            </View>
+          </View>
+        )}
+      />
+      {miles > 0 && (
+        <Text className="text-stone-400 text-xs mt-1">
+          HMRC allowance: {formatCurrency(allowance)} @ 45p/mile
+        </Text>
+      )}
     </View>
   );
 }
@@ -386,6 +431,7 @@ function FinancialsTabContent({
             />
           )}
         />
+        <MilesDrivenField control={control} watch={watch} />
         <Controller
           control={control}
           name="camping_costs"

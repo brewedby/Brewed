@@ -25,7 +25,7 @@ export default function ReportsScreen() {
 
   async function handleExport() {
     if (!data) return;
-    const header = 'Event,Date,End Date,Location,Company,Status,Gross Sales,Cost of Goods,Pitch Fee,Power Fee,Travel,Camping,Equipment,Other,Staffing,Net Profit,Margin%\n';
+    const header = 'Event,Date,End Date,Location,Company,Status,Gross Sales,Cost of Goods,Pitch Fee,Power Fee,Travel,Camping,Equipment,Other,Staffing,Net Profit,Margin%,Miles Driven,HMRC Allowance\n';
 
     // Export all events for the year from companyPerformance + topEvents combined, de-duped
     const allReportEvents = data.topEvents;
@@ -47,6 +47,8 @@ export default function ReportsScreen() {
       e.event_financials?.staffing_costs ?? 0,
       e.calculations.netProfit.toFixed(2),
       e.calculations.profitMargin.toFixed(1),
+      e.event_financials?.miles_driven ?? 0,
+      e.calculations.mileageAllowance.toFixed(2),
     ].join(',')).join('\n');
 
     const csv = header + rows;
@@ -113,6 +115,27 @@ export default function ReportsScreen() {
               </View>
             ))}
           </View>
+
+          {/* Mileage summary */}
+          {data.totalMilesDriven > 0 && (
+            <View className="bg-blue-50 rounded-xl p-4 border border-blue-100 mb-4">
+              <Text className="text-blue-900 font-bold text-sm mb-1">🚗 Mileage (HMRC)</Text>
+              <View className="flex-row justify-between">
+                <View>
+                  <Text className="text-blue-800 font-semibold text-base">
+                    {data.totalMilesDriven.toFixed(0)} miles
+                  </Text>
+                  <Text className="text-blue-400 text-xs mt-0.5">Total driven</Text>
+                </View>
+                <View className="items-end">
+                  <Text className="text-blue-800 font-semibold text-base">
+                    {formatCurrency(data.totalMileageAllowance)}
+                  </Text>
+                  <Text className="text-blue-400 text-xs mt-0.5">Tax allowance @ 45p/mi</Text>
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* Monthly breakdown */}
           <View className="bg-white rounded-2xl border border-stone-100 mb-4 overflow-hidden">

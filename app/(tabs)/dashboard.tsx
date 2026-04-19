@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useDashboard } from '@/lib/queries/dashboard';
@@ -14,6 +14,8 @@ import { useAuth } from '@/lib/auth';
 import { useProfile } from '@/lib/queries/profile';
 import { UNIT_STATUS_COLORS } from '@/constants';
 import type { UnitWithStatus } from '@/types';
+import { Ionicons } from '@expo/vector-icons';
+import { QuickSalesSheet } from '@/components/dashboard/QuickSalesSheet';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2];
@@ -26,6 +28,7 @@ export default function DashboardScreen() {
   const [year, setYear] = useState(CURRENT_YEAR);
   const [refreshing, setRefreshing] = useState(false);
   const [showFees, setShowFees] = useState(false);
+  const [showSalesSheet, setShowSalesSheet] = useState(false);
   const { data: stats, isLoading, isError, error, refetch } = useDashboard(year);
 
   const insights = useMemo<{ icon: string; text: string; color: string }[]>(() => {
@@ -313,6 +316,36 @@ export default function DashboardScreen() {
           </View>
         </ScrollView>
       )}
+
+      {/* Quick sales FAB */}
+      <Pressable
+        onPress={() => setShowSalesSheet(true)}
+        style={{
+          position: 'absolute',
+          bottom: 24,
+          right: 20,
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: '#b45309',
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.25,
+          shadowRadius: 4,
+          elevation: 5,
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Log today's sales"
+      >
+        <Ionicons name="add" size={28} color="white" />
+      </Pressable>
+
+      <QuickSalesSheet
+        visible={showSalesSheet}
+        onClose={() => setShowSalesSheet(false)}
+      />
     </View>
   );
 }

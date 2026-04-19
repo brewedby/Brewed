@@ -234,6 +234,7 @@ export interface Database {
           staffing_costs: number;
           fresh_milk_litres: number;
           alt_milk_litres: number;
+          miles_driven: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -255,6 +256,7 @@ export interface Database {
           staffing_costs?: number;
           fresh_milk_litres?: number;
           alt_milk_litres?: number;
+          miles_driven?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -276,6 +278,7 @@ export interface Database {
           staffing_costs?: number;
           fresh_milk_litres?: number;
           alt_milk_litres?: number;
+          miles_driven?: number | null;
           updated_at?: string;
         };
         Relationships: [
@@ -283,6 +286,46 @@ export interface Database {
             foreignKeyName: "event_financials_event_id_fkey";
             columns: ["event_id"];
             isOneToOne: true;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      event_documents: {
+        Row: {
+          id: string;
+          event_id: string;
+          user_id: string;
+          file_name: string;
+          file_size: number | null;
+          mime_type: string | null;
+          storage_path: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          user_id: string;
+          file_name: string;
+          file_size?: number | null;
+          mime_type?: string | null;
+          storage_path: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          user_id?: string;
+          file_name?: string;
+          file_size?: number | null;
+          mime_type?: string | null;
+          storage_path?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_documents_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
             referencedRelation: "events";
             referencedColumns: ["id"];
           }

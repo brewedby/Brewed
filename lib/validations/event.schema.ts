@@ -51,6 +51,9 @@ export const eventSchema = z.object({
   fresh_milk_litres: z.coerce.number().min(0),
   alt_milk_litres: z.coerce.number().min(0),
 
+  // Mileage
+  miles_driven: z.coerce.number().min(0).default(0),
+
   // Arrays
   staffing_entries: z.array(staffingEntrySchema).default([]),
   infrastructure_items: z.array(infrastructureItemSchema).default([]),

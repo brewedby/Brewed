@@ -1,5 +1,7 @@
 import type { EventFinancials, StaffingEntry, EventCalculations, EMPTY_CALCULATIONS } from '@/types';
 
+export const HMRC_MILEAGE_RATE = 0.45; // £/mile for first 10,000 miles (2024/25)
+
 export function calcStaffingTotal(entries: StaffingEntry[]): number {
   return entries.reduce((sum, e) => sum + e.hours_worked * e.hourly_rate, 0);
 }
@@ -61,6 +63,8 @@ export function calcEventFinancials(
   const netProfit = totalNetSales - totalCosts;
   const profitMargin = totalNetSales === 0 ? 0 : (netProfit / totalNetSales) * 100;
 
+  const mileageAllowance = (f.miles_driven ?? 0) * HMRC_MILEAGE_RATE;
+
   return {
     standardRatedNet,
     vatCollected,
@@ -74,6 +78,7 @@ export function calcEventFinancials(
     netProfit,
     profitMargin,
     totalStaffingCost,
+    mileageAllowance,
   };
 }
 
@@ -101,4 +106,5 @@ export const emptyFinancials: Omit<EventFinancials, 'id' | 'event_id' | 'created
   cost_of_goods: 0, pitch_fee: 0, power_fee: 0,
   travel_costs: 0, camping_costs: 0, equipment_costs: 0, other_costs: 0,
   staffing_costs: 0, fresh_milk_litres: 0, alt_milk_litres: 0,
+  miles_driven: 0,
 };

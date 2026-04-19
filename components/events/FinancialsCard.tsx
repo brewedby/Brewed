@@ -146,6 +146,21 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
         <Row label="Other" value={formatCurrency(f.other_costs ?? 0)} />
       )}
 
+      {/* ── MILEAGE ── */}
+      {(f.miles_driven ?? 0) > 0 && (
+        <>
+          <SectionLabel title="Mileage" />
+          <Row
+            label={`${f.miles_driven} miles driven`}
+            value={`${formatCurrency(c.mileageAllowance)} allowance`}
+            color="text-blue-600"
+          />
+          <Text className="text-stone-400 text-xs mb-1">
+            HMRC rate 45p/mile — tax deductible, not a P&L cost
+          </Text>
+        </>
+      )}
+
       {/* ── MILK USED ── */}
       {hasMilk && (
         <>
