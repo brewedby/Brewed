@@ -1,5 +1,6 @@
 import '../global.css';
 import React, { useEffect } from 'react';
+import { View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -9,10 +10,12 @@ import * as Linking from 'expo-linking';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { useProfile } from '@/lib/queries/profile';
 import { supabase } from '@/lib/supabase';
+import { useNetworkStatus } from '@/lib/useNetworkStatus';
+import { OfflineBanner } from '@/components/shared/OfflineBanner';
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 1000 * 60, retry: 2 },
+    queries: { staleTime: 1000 * 60 * 15, retry: 2 },
   },
 });
 
@@ -69,13 +72,22 @@ function RootLayoutNav() {
   );
 }
 
+function OfflineBannerWrapper() {
+  const isOnline = useNetworkStatus();
+  if (isOnline) return null;
+  return <OfflineBanner />;
+}
+
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <RootLayoutNav />
+            <View style={{ flex: 1 }}>
+              <OfflineBannerWrapper />
+              <RootLayoutNav />
+            </View>
             <StatusBar style="dark" />
           </AuthProvider>
         </QueryClientProvider>

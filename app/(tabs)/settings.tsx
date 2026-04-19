@@ -6,8 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/lib/auth';
 import { useProfile, useUpdateProfile } from '@/lib/queries/profile';
 import type { Metric } from '@/lib/queries/profile';
-
-const BUSINESS_TYPES = ['Coffee', 'Street Food', 'Pizza', 'Burgers', 'Desserts', 'Bakery', 'Other'];
+import { BUSINESS_TYPES } from '@/constants';
 const CURRENCIES = [
   { code: 'GBP', symbol: '£', label: 'GBP (£)' },
   { code: 'EUR', symbol: '€', label: 'EUR (€)' },

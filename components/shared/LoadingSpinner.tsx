@@ -31,7 +31,7 @@ export function LoadingSpinner({ message }: Props) {
       {message ? (
         <Text className="text-stone-500 text-sm mt-2">{message}</Text>
       ) : (
-        <Text className="text-stone-400 text-xs mt-2 font-medium">Brewed by Boon</Text>
+        <Text className="text-stone-400 text-xs mt-2 font-medium">Loading…</Text>
       )}
     </View>
   );

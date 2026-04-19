@@ -3,6 +3,8 @@ import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Share, Alert 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useReports } from '@/lib/queries/reports';
+import { useAuth } from '@/lib/auth';
+import { useProfile } from '@/lib/queries/profile';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { EventStatusBadge } from '@/components/shared/EventStatusBadge';
 import { formatCurrency, formatPercent, formatDate } from '@/lib/formatters';
@@ -13,6 +15,8 @@ const YEARS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2];
 export default function ReportsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { user } = useAuth();
+  const { data: profile } = useProfile(user?.id);
   const [year, setYear] = useState(CURRENT_YEAR);
   const [refreshing, setRefreshing] = useState(false);
   const { data, isLoading, refetch } = useReports(year);
@@ -51,7 +55,7 @@ export default function ReportsScreen() {
 
     const csv = header + rows;
     try {
-      await Share.share({ message: csv, title: `Brewed by Boon - ${year} Report` });
+      await Share.share({ message: csv, title: `${profile?.business_name ?? 'My Business'} - ${year} Report` });
     } catch {
       Alert.alert('Error', 'Could not export report');
     }

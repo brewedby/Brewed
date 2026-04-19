@@ -54,6 +54,12 @@ export const UNIT_STATUS_COLORS: Record<UnitStatus, { bg: string; text: string; 
   retired:     { bg: 'bg-stone-100',  text: 'text-stone-600',  dot: '#a8a29e', bgHex: '#f5f5f4', textHex: '#57534e' },
 };
 
+export const BUSINESS_TYPES = [
+  'Coffee', 'Street Food', 'Pizza', 'Burgers', 'Desserts', 'Bakery',
+  'Ice Cream', 'Crepes', 'Waffles', 'Cocktails', 'Craft Beer', 'Wine',
+  'Juice & Smoothies', 'Asian Food', 'Mexican Food', 'Other',
+];
+
 export const BRAND = {
   primary:   '#6b3a2a',
   secondary: '#c9813a',

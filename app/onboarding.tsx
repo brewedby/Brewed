@@ -4,8 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { useUpdateProfile } from '@/lib/queries/profile';
-
-const BUSINESS_TYPES = ['Coffee', 'Street Food', 'Pizza', 'Burgers', 'Desserts', 'Bakery', 'Other'];
+import { BUSINESS_TYPES } from '@/constants';
 
 export default function OnboardingScreen() {
   const router = useRouter();
