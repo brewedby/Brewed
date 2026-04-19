@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -8,12 +8,29 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { QueryError } from '@/components/shared/QueryError';
 import { formatCurrency, formatDate } from '@/lib/formatters';
+import type { CompanyWithStats } from '@/types';
+
+function companyScore(c: CompanyWithStats): number {
+  if (c.completedEventCount === 0 || c.avgProfitMargin == null) return -Infinity;
+  const marginFactor = Math.max(0, c.avgProfitMargin);
+  const revenueFactor = Math.log10(1 + c.totalRevenue);
+  const reliabilityFactor = Math.log10(1 + c.completedEventCount);
+  return marginFactor * revenueFactor * reliabilityFactor;
+}
 
 export default function CompaniesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { data: companies, isLoading, isError, error, refetch } = useCompanies();
   const [refreshing, setRefreshing] = useState(false);
+
+  const rankedCompanies = useMemo(() => {
+    if (!companies) return [];
+    return [...companies]
+      .filter((c) => c.completedEventCount > 0 && c.avgProfitMargin != null)
+      .sort((a, b) => companyScore(b) - companyScore(a))
+      .slice(0, 3);
+  }, [companies]);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -54,7 +71,43 @@ export default function CompaniesScreen() {
               action={{ label: '+ Add Company', onPress: () => router.push('/(tabs)/companies/new') }}
             />
           ) : (
-            companies.map((company) => (
+            <>
+            {rankedCompanies.length >= 2 && (
+              <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#f5f5f4', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 6 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#1c1917' }}>Top Performers</Text>
+                  <Text style={{ fontSize: 11, color: '#a8a29e', fontWeight: '500' }}>margin · volume · reliability</Text>
+                </View>
+                {rankedCompanies.map((c, i) => {
+                  const medals = ['🥇', '🥈', '🥉'];
+                  const isFirst = i === 0;
+                  return (
+                    <TouchableOpacity
+                      key={c.id}
+                      onPress={() => router.push(`/(tabs)/companies/${c.id}`)}
+                      activeOpacity={0.7}
+                      style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
+                        borderTopWidth: i > 0 ? 1 : 0, borderTopColor: '#fafaf9', gap: 12 }}
+                    >
+                      <Text style={{ fontSize: 20, width: 28, textAlign: 'center' }}>{medals[i]}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontWeight: isFirst ? '700' : '600', color: '#1c1917' }} numberOfLines={1}>{c.name}</Text>
+                        <Text style={{ fontSize: 11, color: '#a8a29e', marginTop: 1 }}>
+                          {c.completedEventCount} event{c.completedEventCount !== 1 ? 's' : ''} · £{c.totalRevenue >= 1000 ? `${(c.totalRevenue / 1000).toFixed(1)}k` : c.totalRevenue.toFixed(0)} revenue
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: (c.avgProfitMargin ?? 0) >= 25 ? '#16a34a' : (c.avgProfitMargin ?? 0) >= 10 ? '#b45309' : '#dc2626' }}>
+                          {(c.avgProfitMargin ?? 0).toFixed(0)}%
+                        </Text>
+                        <Text style={{ fontSize: 10, color: '#a8a29e' }}>avg margin</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+            {companies.map((company) => (
               <TouchableOpacity
                 key={company.id}
                 onPress={() => router.push(`/(tabs)/companies/${company.id}`)}
@@ -125,7 +178,8 @@ export default function CompaniesScreen() {
                   </View>
                 )}
               </TouchableOpacity>
-            ))
+            ))}
+            </>
           )}
           <View style={{ height: 32 }} />
         </ScrollView>

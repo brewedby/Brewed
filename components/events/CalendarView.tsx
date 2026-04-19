@@ -4,7 +4,6 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { STATUS_COLORS, STATUS_LABELS } from '@/constants';
-import { isoDate as _isoDate } from '@/lib/formatters';
 import { OverlapModal } from './OverlapModal';
 import type { EventWithFinancials, ApplicationStatus } from '@/types';
 
@@ -252,23 +251,64 @@ export function CalendarView({
           </View>
         ))}
 
-        <View className="mx-4 mt-3 mb-6 bg-white rounded-2xl p-3 border border-stone-100">
-          <Text className="text-stone-400 text-xs font-bold uppercase tracking-wide mb-2">Legend</Text>
-          <View className="flex-row flex-wrap gap-3">
-            {(['pending', 'waitlisted', 'accepted', 'rejected'] as ApplicationStatus[]).map((s) => (
-              <View key={s} className="flex-row items-center gap-1.5">
-                <View style={{ backgroundColor: STATUS_COLORS[s].dot, width: 8, height: 8, borderRadius: 4 }} />
-                <Text className="text-stone-500 text-xs">{STATUS_LABELS[s]}</Text>
+        <View style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 4, backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#f5f5f4' }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {(['accepted', 'pending', 'waitlisted'] as ApplicationStatus[]).map((s) => (
+              <View key={s} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: STATUS_COLORS[s].bgHex, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, gap: 5 }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: STATUS_COLORS[s].dot }} />
+                <Text style={{ fontSize: 11, fontWeight: '600', color: STATUS_COLORS[s].textHex }}>{STATUS_LABELS[s]}</Text>
               </View>
             ))}
-            <View className="flex-row items-center gap-1.5">
-              <View className="bg-red-100 px-1 rounded">
-                <Text className="text-red-600 text-xs font-bold">!</Text>
-              </View>
-              <Text className="text-stone-500 text-xs">Overlap</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fee2e2', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, gap: 5 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#dc2626' }}>!</Text>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: '#991b1b' }}>Conflict</Text>
             </View>
           </View>
         </View>
+
+        {monthEvents.length > 0 && (
+          <View style={{ marginHorizontal: 16, marginTop: 10, marginBottom: 32 }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#a8a29e', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
+              {MONTHS[month]} · {monthEvents.length} event{monthEvents.length !== 1 ? 's' : ''}
+            </Text>
+            {eventsByUnit.map((group, gi) => (
+              <View key={gi} style={{ marginBottom: 14 }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#78716c', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                  {group.unitName}
+                </Text>
+                {group.events.map((e) => (
+                  <TouchableOpacity
+                    key={e.id}
+                    onPress={() => router.push(`/(tabs)/events/${e.id}`)}
+                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                      backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11,
+                      marginBottom: 6, borderWidth: 1, borderColor: '#f5f5f4' }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#1c1917' }} numberOfLines={1}>{e.name}</Text>
+                      <Text style={{ fontSize: 11, color: '#a8a29e', marginTop: 1 }}>
+                        {e.end_date && e.end_date !== e.date
+                          ? `${formatShortDate(e.date)} – ${formatShortDate(e.end_date)}`
+                          : formatShortDate(e.date)}
+                      </Text>
+                    </View>
+                    <View style={{ backgroundColor: STATUS_COLORS[e.status as ApplicationStatus]?.bgHex ?? '#f5f5f4', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, marginLeft: 10 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '600', color: STATUS_COLORS[e.status as ApplicationStatus]?.textHex ?? '#78716c' }}>
+                        {STATUS_LABELS[e.status as ApplicationStatus] ?? e.status}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))}
+          </View>
+        )}
+        {monthEvents.length === 0 && (
+          <View style={{ marginHorizontal: 16, marginBottom: 32, marginTop: 10 }}>
+            <Text style={{ fontSize: 12, color: '#a8a29e', textAlign: 'center' }}>No events in {MONTHS[month]}</Text>
+          </View>
+        )}
       </ScrollView>
 
       {selected && (
