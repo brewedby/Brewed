@@ -385,6 +385,7 @@ export default function EventDetailScreen() {
               location={event.location}
               startDate={event.date}
               endDate={event.end_date}
+              eventId={event.id}
               onTempFetched={setForecastTemp}
             />
           </View>

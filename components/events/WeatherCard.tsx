@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { differenceInDays, parseISO, eachDayOfInterval, format } from 'date-fns';
+import { supabase } from '@/lib/supabase';
 
 interface OMDay {
   date: string;
@@ -59,6 +60,34 @@ function hotIcedSplit(avgTemp: number): { hot: number; iced: number } {
   return { hot: 20, iced: 80 };
 }
 
+async function geocode(location: string): Promise<{ lat: number; lng: number }> {
+  // 1. Nominatim (OpenStreetMap) — better coverage of UK venues and postcodes
+  try {
+    const res = await global.fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1&countrycodes=gb`,
+      { headers: { 'User-Agent': 'BrewedApp/1.0' } },
+    );
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    }
+  } catch { /* fall through */ }
+
+  // 2. Open-Meteo geocoding fallback
+  try {
+    const res = await global.fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`,
+    );
+    const data = await res.json();
+    if (data.results?.length) {
+      return { lat: data.results[0].latitude, lng: data.results[0].longitude };
+    }
+  } catch { /* fall through */ }
+
+  // 3. Silent London fallback
+  return { lat: 51.5074, lng: -0.1278 };
+}
+
 async function fetchSevenTimer(lat: number, lon: number): Promise<STDay[]> {
   const res = await global.fetch(
     `https://www.7timer.info/bin/api.pl?lon=${lon}&lat=${lat}&product=civil&output=json`,
@@ -92,11 +121,13 @@ export function WeatherCard({
   location,
   startDate,
   endDate,
+  eventId,
   onTempFetched,
 }: {
   location: string;
   startDate: string;
   endDate?: string | null;
+  eventId?: string;
   onTempFetched?: (avgTemp: number) => void;
 }) {
   const [days, setDays] = useState<DualDay[] | null>(null);
@@ -111,12 +142,30 @@ export function WeatherCard({
         if (daysUntil > 14) { setOutOfRange(true); setLoading(false); return; }
         if (daysUntil < -14) { setLoading(false); return; }
 
-        const geoRes = await global.fetch(
-          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`,
-        );
-        const geoData = await geoRes.json();
-        if (!geoData.results?.length) { setLoading(false); return; }
-        const { latitude, longitude } = geoData.results[0];
+        let latitude: number;
+        let longitude: number;
+
+        if (eventId) {
+          const { data: cached } = await supabase
+            .from('events')
+            .select('lat, lng')
+            .eq('id', eventId)
+            .single();
+
+          if (cached?.lat != null && cached?.lng != null) {
+            latitude = cached.lat;
+            longitude = cached.lng;
+          } else {
+            const coords = await geocode(location);
+            latitude = coords.lat;
+            longitude = coords.lng;
+            supabase.from('events').update({ lat: latitude, lng: longitude }).eq('id', eventId).then(() => {});
+          }
+        } else {
+          const coords = await geocode(location);
+          latitude = coords.lat;
+          longitude = coords.lng;
+        }
 
         const end = endDate ?? startDate;
 
@@ -163,7 +212,7 @@ export function WeatherCard({
       finally { setLoading(false); }
     }
     load();
-  }, [location, startDate, endDate]);
+  }, [location, startDate, endDate, eventId]);
 
   if (loading) return (
     <View className="bg-white rounded-2xl p-4 border border-stone-100 items-center">

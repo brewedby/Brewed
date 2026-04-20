@@ -152,6 +152,8 @@ export interface Database {
           page_hash: string | null;
           url_last_checked_at: string | null;
           url_changed: boolean;
+          lat: number | null;
+          lng: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -174,6 +176,8 @@ export interface Database {
           page_hash?: string | null;
           url_last_checked_at?: string | null;
           url_changed?: boolean;
+          lat?: number | null;
+          lng?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -196,6 +200,8 @@ export interface Database {
           page_hash?: string | null;
           url_last_checked_at?: string | null;
           url_changed?: boolean;
+          lat?: number | null;
+          lng?: number | null;
           updated_at?: string;
         };
         Relationships: [
