@@ -200,6 +200,8 @@ export interface DrinkSplitPrediction {
   icedPct: number;
   confidence: 'high' | 'medium' | 'low';
   basedOnDays: number;
+  basedOnRealWeatherDays: number;
+  basedOnHistoricalEvents: number;
   tempBracket: string;
 }
 

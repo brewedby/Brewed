@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { DailyTakings } from '@/types';
+import type { EventFinancialSummary } from '@/lib/drinkSplitEngine';
 
 export function useDailyTakings(eventId: string) {
   return useQuery({
@@ -33,3 +34,31 @@ export function useAllDailyTakings() {
     },
   });
 }
+
+export function useHistoricalEventSplits() {
+  return useQuery({
+    queryKey: ['historical_event_splits'],
+    queryFn: async (): Promise<EventFinancialSummary[]> => {
+      const { data, error } = await supabase
+        .from('events')
+        .select('date, event_financials(standard_rated_sales, zero_rated_sales)')
+        .eq('status', 'accepted')
+        .not('event_financials', 'is', null);
+      if (error) throw error;
+
+      return (data ?? [])
+        .filter((e: any) => {
+          const f = e.event_financials;
+          return f && (f.standard_rated_sales + f.zero_rated_sales) > 0;
+        })
+        .map((e: any) => ({
+          standard_rated_sales: e.event_financials.standard_rated_sales,
+          zero_rated_sales: e.event_financials.zero_rated_sales,
+          avg_temp_c: null,
+          month: parseInt(e.date.split('-')[1], 10),
+        }));
+    },
+    staleTime: 1000 * 60 * 10,
+  });
+}
+

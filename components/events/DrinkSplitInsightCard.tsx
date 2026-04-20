@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { useAllDailyTakings } from '@/lib/queries/dailyTakings';
+import { useAllDailyTakings, useHistoricalEventSplits } from '@/lib/queries/dailyTakings';
 import { predictDrinkSplit, projectDayTakings } from '@/lib/drinkSplitEngine';
 import { formatCurrency } from '@/lib/formatters';
 
@@ -17,7 +17,8 @@ const CONFIDENCE_STYLES = {
 
 export function DrinkSplitInsightCard({ forecastTempC, expectedTakings }: Props) {
   const { data: historicalDays = [] } = useAllDailyTakings();
-  const prediction  = predictDrinkSplit(forecastTempC, historicalDays);
+  const { data: historicalEventFinancials = [] } = useHistoricalEventSplits();
+  const prediction  = predictDrinkSplit(forecastTempC, historicalDays, historicalEventFinancials);
   const projection  = expectedTakings ? projectDayTakings(expectedTakings, prediction) : null;
   const confStyle   = CONFIDENCE_STYLES[prediction.confidence];
 
@@ -50,7 +51,10 @@ export function DrinkSplitInsightCard({ forecastTempC, expectedTakings }: Props)
 
       <Text style={{ fontSize: 10, color: '#a8a29e', marginBottom: projection ? 12 : 0 }}>
         {prediction.basedOnDays > 0
-          ? `Based on ${prediction.basedOnDays} trading day${prediction.basedOnDays > 1 ? 's' : ''} in similar conditions`
+          ? `Based on ${prediction.basedOnDays} data point${prediction.basedOnDays > 1 ? 's' : ''} in similar conditions` +
+            (prediction.basedOnRealWeatherDays > 0 || prediction.basedOnHistoricalEvents > 0
+              ? ` (${prediction.basedOnRealWeatherDays} real-weather day${prediction.basedOnRealWeatherDays !== 1 ? 's' : ''} + ${prediction.basedOnHistoricalEvents} historical event${prediction.basedOnHistoricalEvents !== 1 ? 's' : ''})`
+              : '')
           : 'Using default estimates — record your first days to improve predictions'}
       </Text>
 
