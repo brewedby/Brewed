@@ -74,6 +74,7 @@ export default function EditEventScreen() {
         units={units}
         onSubmit={(data) => updateEvent.mutateAsync({ id, data })}
         submitLabel="Save Changes"
+        eventId={id}
       />
     </View>
   );

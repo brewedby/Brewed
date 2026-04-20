@@ -10,6 +10,7 @@ interface Props {
   eventId: string;
   startDate: string;
   endDate: string;
+  readOnly?: boolean;
 }
 
 interface DayInput {
@@ -19,7 +20,7 @@ interface DayInput {
   notes: string;
 }
 
-export function DailyTakingsCard({ eventId, startDate, endDate }: Props) {
+export function DailyTakingsCard({ eventId, startDate, endDate, readOnly = false }: Props) {
   const { data: dailyTakings = [], isLoading } = useDailyTakings(eventId);
   const upsert = useUpsertDailyTakings(eventId);
   const days = eachDayOfInterval({ start: parseISO(startDate), end: parseISO(endDate) });
@@ -151,6 +152,10 @@ export function DailyTakingsCard({ eventId, startDate, endDate }: Props) {
 
       {isLoading ? (
         <ActivityIndicator color="#b45309" style={{ padding: 20 }} />
+      ) : readOnly && dailyTakings.length === 0 ? (
+        <View style={{ padding: 20, alignItems: 'center' }}>
+          <Text style={{ color: '#a8a29e', fontSize: 13 }}>No daily takings recorded yet</Text>
+        </View>
       ) : (
         days.map((day, index) => {
           const dateStr  = format(day, 'yyyy-MM-dd');
@@ -164,9 +169,10 @@ export function DailyTakingsCard({ eventId, startDate, endDate }: Props) {
           return (
             <View key={dateStr} style={{ borderTopWidth: 1, borderTopColor: '#f5f5f4' }}>
               <TouchableOpacity
-                onPress={() => setExpandedDay(isExpanded ? null : dateStr)}
+                onPress={() => readOnly ? undefined : setExpandedDay(isExpanded ? null : dateStr)}
+                disabled={readOnly}
                 style={{ flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: isToday ? '#fffbeb' : '#fff' }}
-                activeOpacity={0.7}
+                activeOpacity={readOnly ? 1 : 0.7}
               >
                 <View style={{ width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginRight: 12, backgroundColor: recorded ? '#78350f' : isToday ? '#fef3c7' : '#f5f5f4' }}>
                   <Text style={{ fontSize: 13, fontWeight: '700', color: recorded ? '#fff' : isToday ? '#92400e' : '#78716c' }}>D{dayNum}</Text>
@@ -187,10 +193,10 @@ export function DailyTakingsCard({ eventId, startDate, endDate }: Props) {
                     <Text style={{ fontSize: 11, color: '#a8a29e', marginTop: 1 }}>{isFuture ? 'Not yet' : 'Tap to enter takings'}</Text>
                   )}
                 </View>
-                <Text style={{ color: '#a8a29e', fontSize: 14 }}>{isExpanded ? '▲' : '▼'}</Text>
+                {!readOnly && <Text style={{ color: '#a8a29e', fontSize: 14 }}>{isExpanded ? '▲' : '▼'}</Text>}
               </TouchableOpacity>
 
-              {isExpanded && (
+              {isExpanded && !readOnly && (
                 <View style={{ padding: 14, paddingTop: 4, backgroundColor: isToday ? '#fffbeb' : '#fafaf9', gap: 12 }}>
                   {/* Total */}
                   <View>

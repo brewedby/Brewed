@@ -404,13 +404,14 @@ export default function EventDetailScreen() {
           </View>
         )}
 
-        {/* Daily takings — multi-day events only */}
+        {/* Daily takings summary — multi-day events only, read-only view */}
         {event.end_date && event.end_date !== event.date && (
           <View className="mb-4">
             <DailyTakingsCard
               eventId={event.id}
               startDate={event.date}
               endDate={event.end_date}
+              readOnly
             />
           </View>
         )}

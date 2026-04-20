@@ -19,6 +19,7 @@ import {
   UNIT_STATUS_COLORS,
 } from '@/constants';
 import type { ConcessionsCompany, ApplicationStatus, InfrastructureCategory, Unit } from '@/types';
+import { DailyTakingsCard } from '@/components/events/DailyTakingsCard';
 
 const TABS = ['Details', 'Financials', 'Staffing', 'Costs', 'Notes'] as const;
 
@@ -470,6 +471,7 @@ interface Props {
   units: Unit[];
   onSubmit: (data: EventFormValues) => Promise<void>;
   submitLabel?: string;
+  eventId?: string;
 }
 
 export function EventForm({
@@ -478,6 +480,7 @@ export function EventForm({
   units,
   onSubmit,
   submitLabel = 'Save Application',
+  eventId,
 }: Props) {
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>('Details');
   const [loading, setLoading] = useState(false);
@@ -538,6 +541,8 @@ export function EventForm({
   const selectedStatus = watch('status') as ApplicationStatus;
   const selectedCompanyId = watch('company_id');
   const selectedUnitIds = (watch('unit_ids') ?? []) as string[];
+  const watchedDate = watch('date');
+  const watchedEndDate = watch('end_date');
 
   function tabHasError(tab: (typeof TABS)[number]): boolean {
     if (tab === 'Details') {
@@ -934,7 +939,14 @@ export function EventForm({
             FINANCIALS TAB
         ══════════════════════════════════════════ */}
         {activeTab === 'Financials' && (
-          <FinancialsTabContent control={control} watch={watch} />
+          <>
+            <FinancialsTabContent control={control} watch={watch} />
+            {eventId && watchedDate && watchedEndDate && watchedEndDate !== watchedDate && (
+              <View style={{ marginTop: 8 }}>
+                <DailyTakingsCard eventId={eventId} startDate={watchedDate} endDate={watchedEndDate} />
+              </View>
+            )}
+          </>
         )}
 
         {/* ══════════════════════════════════════════
