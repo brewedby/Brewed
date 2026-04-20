@@ -92,10 +92,12 @@ export function WeatherCard({
   location,
   startDate,
   endDate,
+  onTempFetched,
 }: {
   location: string;
   startDate: string;
   endDate?: string | null;
+  onTempFetched?: (avgTemp: number) => void;
 }) {
   const [days, setDays] = useState<DualDay[] | null>(null);
   const [avgTemp, setAvgTemp] = useState(15);
@@ -109,7 +111,6 @@ export function WeatherCard({
         if (daysUntil > 14) { setOutOfRange(true); setLoading(false); return; }
         if (daysUntil < -14) { setLoading(false); return; }
 
-        // Geocode
         const geoRes = await global.fetch(
           `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`,
         );
@@ -119,7 +120,6 @@ export function WeatherCard({
 
         const end = endDate ?? startDate;
 
-        // Parallel fetch
         const [omRes, stDaysRaw] = await Promise.allSettled([
           global.fetch(
             `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum&start_date=${startDate}&end_date=${end}&timezone=auto`,
@@ -139,7 +139,6 @@ export function WeatherCard({
 
         const stDays: STDay[] = stDaysRaw.status === 'fulfilled' ? stDaysRaw.value : [];
 
-        // Build event date range
         const eventDates = eachDayOfInterval({
           start: parseISO(startDate),
           end: parseISO(end),
@@ -159,6 +158,7 @@ export function WeatherCard({
 
         setDays(dual);
         setAvgTemp(avg);
+        onTempFetched?.(avg);
       } catch { /* silently fail */ }
       finally { setLoading(false); }
     }

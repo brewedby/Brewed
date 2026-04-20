@@ -9,6 +9,8 @@ import { useCreateEvent } from '@/lib/mutations/events';
 import { useAuth } from '@/lib/auth';
 import { FinancialsCard } from '@/components/events/FinancialsCard';
 import { WeatherCard } from '@/components/events/WeatherCard';
+import { DailyTakingsCard } from '@/components/events/DailyTakingsCard';
+import { DrinkSplitInsightCard } from '@/components/events/DrinkSplitInsightCard';
 import { StaffingList } from '@/components/events/StaffingList';
 import { InfrastructureList } from '@/components/events/InfrastructureList';
 import { EventStatusBadge } from '@/components/shared/EventStatusBadge';
@@ -88,6 +90,7 @@ export default function EventDetailScreen() {
   const deleteEvent = useDeleteEvent();
   const createEvent = useCreateEvent();
   const [refreshing, setRefreshing] = useState(false);
+  const [forecastTemp, setForecastTemp] = useState<number | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
   const [justChanged, setJustChanged] = useState<ApplicationStatus | null>(null);
@@ -382,7 +385,15 @@ export default function EventDetailScreen() {
               location={event.location}
               startDate={event.date}
               endDate={event.end_date}
+              onTempFetched={setForecastTemp}
             />
+          </View>
+        )}
+
+        {/* Drink split prediction (when forecast available) */}
+        {forecastTemp !== null && (
+          <View className="mb-4">
+            <DrinkSplitInsightCard forecastTempC={forecastTemp} />
           </View>
         )}
 
@@ -390,6 +401,17 @@ export default function EventDetailScreen() {
         {event.event_financials && (
           <View className="mb-4">
             <FinancialsCard financials={event.event_financials} calculations={event.calculations} />
+          </View>
+        )}
+
+        {/* Daily takings — multi-day events only */}
+        {event.end_date && event.end_date !== event.date && (
+          <View className="mb-4">
+            <DailyTakingsCard
+              eventId={event.id}
+              startDate={event.date}
+              endDate={event.end_date}
+            />
           </View>
         )}
 

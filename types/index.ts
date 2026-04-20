@@ -169,6 +169,40 @@ export interface InfrastructureItemForm {
 
 export type { UnitFormValues } from '@/lib/validations/unit.schema';
 
+export interface DailyTakings {
+  id: string;
+  event_id: string;
+  day_date: string;
+  day_number: number;
+  total_takings: number;
+  hot_drinks_sales: number;
+  iced_drinks_sales: number;
+  avg_temp_c: number | null;
+  weather_code: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DailyTakingsForm {
+  day_date: string;
+  day_number: number;
+  total_takings: number;
+  hot_drinks_sales: number;
+  iced_drinks_sales: number;
+  avg_temp_c: number | null;
+  weather_code: number | null;
+  notes: string;
+}
+
+export interface DrinkSplitPrediction {
+  hotPct: number;
+  icedPct: number;
+  confidence: 'high' | 'medium' | 'low';
+  basedOnDays: number;
+  tempBracket: string;
+}
+
 export interface CompanyFormValues {
   name: string;
   contact_name?: string;
