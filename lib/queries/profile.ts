@@ -7,6 +7,7 @@ export interface Metric {
   unit: string;
   enabled: boolean;
   builtin?: boolean;
+  [key: string]: unknown;
 }
 
 export interface UserProfile {
@@ -32,7 +33,7 @@ export function useProfile(userId: string | undefined) {
         ...data,
         business_type: data.business_type ?? 'Coffee',
         currency: data.currency ?? 'GBP',
-        custom_metrics: data.custom_metrics ?? [],
+        custom_metrics: (data.custom_metrics ?? []) as Metric[],
       };
     },
     enabled: !!userId,

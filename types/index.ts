@@ -12,6 +12,7 @@ export type StaffingEntry = Tables['staffing_entries']['Row'];
 export type InfrastructureItem = Tables['infrastructure_items']['Row'];
 export type Unit = Tables['units']['Row'];
 export type UkEventDirectory = Tables['uk_events_directory']['Row'];
+export type EventDocument = Tables['event_documents']['Row'];
 
 export type InfrastructureCategory = 'pitch_fee' | 'travel' | 'equipment' | 'supplies' | 'other';
 

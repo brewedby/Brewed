@@ -52,6 +52,7 @@ export default function EditEventScreen() {
     staffing_costs: fin?.staffing_costs ?? 0,
     fresh_milk_litres: fin?.fresh_milk_litres ?? 0,
     alt_milk_litres: fin?.alt_milk_litres ?? 0,
+    miles_driven: fin?.miles_driven ?? 0,
     staffing_entries: (event.staffing_entries ?? []).map((e) => ({
       id: e.id, staff_name: e.staff_name, hours_worked: e.hours_worked, hourly_rate: e.hourly_rate,
     })),

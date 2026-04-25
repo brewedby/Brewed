@@ -55,6 +55,7 @@ export function useCreateEvent() {
         staffing_costs: staffingTotal,
         fresh_milk_litres: data.fresh_milk_litres ?? 0,
         alt_milk_litres: data.alt_milk_litres ?? 0,
+        miles_driven: data.miles_driven ?? 0,
       });
       if (finError) throw finError;
 
@@ -190,6 +191,7 @@ export function useUpdateEvent() {
           staffing_costs: staffingTotal,
           fresh_milk_litres: data.fresh_milk_litres ?? 0,
           alt_milk_litres: data.alt_milk_litres ?? 0,
+          miles_driven: data.miles_driven ?? 0,
         }, { onConflict: 'event_id' });
       if (finError) throw finError;
 
@@ -231,6 +233,23 @@ export function useUpdateEvent() {
       qc.invalidateQueries({ queryKey: ['reports'] });
       qc.invalidateQueries({ queryKey: ['companies'] });
       qc.invalidateQueries({ queryKey: ['units'] });
+    },
+  });
+}
+
+export function useLogSales() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ eventId, grossSales }: { eventId: string; grossSales: number }) => {
+      const { error } = await supabase
+        .from('event_financials')
+        .upsert({ event_id: eventId, gross_sales: grossSales }, { onConflict: 'event_id' });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['events'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ queryKey: ['reports'] });
     },
   });
 }

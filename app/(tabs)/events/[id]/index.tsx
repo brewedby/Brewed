@@ -13,6 +13,7 @@ import { DailyTakingsCard } from '@/components/events/DailyTakingsCard';
 import { DrinkSplitInsightCard } from '@/components/events/DrinkSplitInsightCard';
 import { StaffingList } from '@/components/events/StaffingList';
 import { InfrastructureList } from '@/components/events/InfrastructureList';
+import { DocumentsSection } from '@/components/events/DocumentsSection';
 import { EventStatusBadge } from '@/components/shared/EventStatusBadge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { formatDateRange, formatDate, formatCurrency, toISODateString } from '@/lib/formatters';
@@ -176,6 +177,7 @@ export default function EventDetailScreen() {
           staffing_costs: 0,
           fresh_milk_litres: 0,
           alt_milk_litres: 0,
+          miles_driven: 0,
           staffing_entries: [],
           infrastructure_items: [],
         },
@@ -430,6 +432,11 @@ export default function EventDetailScreen() {
             <InfrastructureList items={event.infrastructure_items} />
           </View>
         )}
+
+        {/* Documents */}
+        <View className="mb-4">
+          <DocumentsSection eventId={event.id} />
+        </View>
 
         {/* Details */}
         <View className="bg-white rounded-2xl p-4 border border-slate-100 mb-4 gap-3">

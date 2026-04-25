@@ -74,7 +74,7 @@ export function CalendarView({
   refreshControl,
 }: {
   events: EventWithFinancials[];
-  refreshControl?: React.ReactElement<typeof RefreshControl>;
+  refreshControl?: React.ReactElement<React.ComponentProps<typeof RefreshControl>>;
 }) {
   const today = new Date();
   const router = useRouter();

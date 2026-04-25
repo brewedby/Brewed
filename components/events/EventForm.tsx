@@ -458,6 +458,31 @@ function FinancialsTabContent({
           </Text>
         </View>
       </View>
+
+      {/* ── MILEAGE ── */}
+      <SectionHeader title="Mileage" />
+      <View className="bg-white rounded-xl p-4 border border-slate-100 gap-3">
+        <Controller
+          control={control}
+          name="miles_driven"
+          render={({ field }) => (
+            <FormField
+              label="Miles Driven (round trip)"
+              value={field.value ? String(field.value) : ''}
+              onChangeText={(t) => field.onChange(parseFloat(t) || 0)}
+              keyboardType="decimal-pad"
+              placeholder="0"
+            />
+          )}
+        />
+        {(watch('miles_driven') ?? 0) > 0 && (
+          <View className="bg-slate-50 rounded-lg px-3 py-2">
+            <Text className="text-slate-500 text-xs">
+              HMRC allowance: £{((watch('miles_driven') ?? 0) * 0.45).toFixed(2)} @ 45p/mile
+            </Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -523,6 +548,7 @@ export function EventForm({
       staffing_costs: 0,
       fresh_milk_litres: 0,
       alt_milk_litres: 0,
+      miles_driven: 0,
       staffing_entries: [],
       infrastructure_items: [],
       ...defaultValues,

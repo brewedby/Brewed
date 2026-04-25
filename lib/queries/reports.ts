@@ -72,6 +72,7 @@ export function useReports(year: number) {
         .slice(0, 10)
         .map((e) => ({
           ...e,
+          units: [],
           calculations: calcEventFinancials(e.event_financials!),
         }));
 

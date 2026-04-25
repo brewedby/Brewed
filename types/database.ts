@@ -22,18 +22,27 @@ export interface Database {
           id: string;
           business_name: string | null;
           push_token: string | null;
+          business_type: string | null;
+          currency: string | null;
+          custom_metrics: Record<string, unknown>[] | null;
           created_at: string;
         };
         Insert: {
           id: string;
           business_name?: string | null;
           push_token?: string | null;
+          business_type?: string | null;
+          currency?: string | null;
+          custom_metrics?: Record<string, unknown>[] | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           business_name?: string | null;
           push_token?: string | null;
+          business_type?: string | null;
+          currency?: string | null;
+          custom_metrics?: Record<string, unknown>[] | null;
           created_at?: string;
         };
         Relationships: [];
@@ -240,6 +249,7 @@ export interface Database {
           staffing_costs: number;
           fresh_milk_litres: number;
           alt_milk_litres: number;
+          miles_driven: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -261,6 +271,7 @@ export interface Database {
           staffing_costs?: number;
           fresh_milk_litres?: number;
           alt_milk_litres?: number;
+          miles_driven?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -282,6 +293,7 @@ export interface Database {
           staffing_costs?: number;
           fresh_milk_litres?: number;
           alt_milk_litres?: number;
+          miles_driven?: number | null;
           updated_at?: string;
         };
         Relationships: [
@@ -439,6 +451,128 @@ export interface Database {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      event_units: {
+        Row: {
+          event_id: string;
+          unit_id: string;
+        };
+        Insert: {
+          event_id: string;
+          unit_id: string;
+        };
+        Update: {
+          event_id?: string;
+          unit_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_units_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_units_unit_id_fkey";
+            columns: ["unit_id"];
+            isOneToOne: false;
+            referencedRelation: "units";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      daily_takings: {
+        Row: {
+          id: string;
+          event_id: string;
+          day_date: string;
+          day_number: number;
+          total_takings: number;
+          hot_drinks_sales: number;
+          iced_drinks_sales: number;
+          avg_temp_c: number | null;
+          weather_code: number | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          day_date: string;
+          day_number: number;
+          total_takings?: number;
+          hot_drinks_sales?: number;
+          iced_drinks_sales?: number;
+          avg_temp_c?: number | null;
+          weather_code?: number | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          day_date?: string;
+          day_number?: number;
+          total_takings?: number;
+          hot_drinks_sales?: number;
+          iced_drinks_sales?: number;
+          avg_temp_c?: number | null;
+          weather_code?: number | null;
+          notes?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "daily_takings_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      event_documents: {
+        Row: {
+          id: string;
+          event_id: string;
+          user_id: string;
+          file_name: string;
+          file_size: number | null;
+          mime_type: string | null;
+          storage_path: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          user_id: string;
+          file_name: string;
+          file_size?: number | null;
+          mime_type?: string | null;
+          storage_path: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          user_id?: string;
+          file_name?: string;
+          file_size?: number | null;
+          mime_type?: string | null;
+          storage_path?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_documents_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          }
+        ];
       };
     };
     Views: Record<string, never>;

@@ -411,10 +411,12 @@ export default function DiscoverScreen() {
           staffing_costs: 0,
           fresh_milk_litres: 0,
           alt_milk_litres: 0,
+          miles_driven: 0,
           // Flags
           overnight_stay: false,
           documents_uploaded: false,
           // Arrays
+          unit_ids: [],
           staffing_entries: [],
           infrastructure_items: [],
         },

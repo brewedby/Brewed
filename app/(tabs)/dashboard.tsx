@@ -7,6 +7,7 @@ import { useDashboard } from '@/lib/queries/dashboard';
 import { formatCurrencyCompact, formatCurrency, formatPercent, formatDateRange } from '@/lib/formatters';
 import { RevenueBarChart } from '@/components/dashboard/RevenueBarChart';
 import { StatusPieChart } from '@/components/dashboard/StatusPieChart';
+import { QuickSalesSheet } from '@/components/dashboard/QuickSalesSheet';
 import { EventCard } from '@/components/events/EventCard';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { QueryError } from '@/components/shared/QueryError';
@@ -69,6 +70,7 @@ export default function DashboardScreen() {
   const [yearPickerOpen, setYearPickerOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showFees, setShowFees] = useState(false);
+  const [quickSalesOpen, setQuickSalesOpen] = useState(false);
   const { data: stats, isLoading, isError, error, refetch } = useDashboard(year);
 
   const insights = useMemo<{ icon: string; text: string; color: string }[]>(() => {
@@ -335,6 +337,33 @@ export default function DashboardScreen() {
           </View>
         </ScrollView>
       )}
+
+      {/* Quick Sales FAB */}
+      <TouchableOpacity
+        onPress={() => setQuickSalesOpen(true)}
+        accessibilityLabel="Log today's sales"
+        accessibilityRole="button"
+        style={{
+          position: 'absolute',
+          bottom: 24 + insets.bottom,
+          right: 20,
+          width: 52,
+          height: 52,
+          borderRadius: 26,
+          backgroundColor: '#b45309',
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: '#000',
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 3 },
+          elevation: 6,
+        }}
+      >
+        <Text style={{ fontSize: 22 }}>£</Text>
+      </TouchableOpacity>
+
+      <QuickSalesSheet visible={quickSalesOpen} onClose={() => setQuickSalesOpen(false)} />
     </View>
   );
 }
