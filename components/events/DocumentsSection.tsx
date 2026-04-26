@@ -39,7 +39,7 @@ function DocumentRow({ doc, onDelete, deleting }: DocumentRowProps) {
 
   return (
     <View className="flex-row items-center py-2.5 border-b border-stone-50">
-      <Ionicons name={mimeIcon(doc.mime_type) as any} size={20} color="#a8a29e" />
+      <Ionicons name={mimeIcon(doc.mime_type) as React.ComponentProps<typeof Ionicons>["name"]} size={20} color="#a8a29e" />
       <View className="flex-1 mx-3">
         <Text className="text-stone-800 text-sm font-medium" numberOfLines={1}>
           {doc.file_name}

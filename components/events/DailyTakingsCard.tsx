@@ -94,8 +94,8 @@ export function DailyTakingsCard({ eventId, startDate, endDate, readOnly = false
         notes: inp.notes,
       });
       setExpandedDay(null);
-    } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Could not save');
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Could not save');
     } finally {
       setSaving(null);
     }

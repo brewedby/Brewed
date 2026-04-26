@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useDashboard } from '@/lib/queries/dashboard';
@@ -70,31 +70,30 @@ export default function FleetScreen() {
       ) : isError ? (
         <QueryError error={error} onRetry={refetchUnits} message="Couldn't load fleet" />
       ) : (
-        <ScrollView
-          className="flex-1 px-4 pt-4"
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" />
-          }
-        >
-          {units.length === 0 ? (
+        <FlatList
+          data={units}
+          keyExtractor={(item) => item.id}
+          onRefresh={handleRefresh}
+          refreshing={refreshing}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16 }}
+          ListEmptyComponent={
             <EmptyState
               icon="🚐"
               title="No units added yet"
               description="Add your coffee trucks and vans to track where they are."
               action={{ label: 'Add First Unit', onPress: () => router.push('/(tabs)/fleet/new') }}
             />
-          ) : (
-            units.map((unit) => (
-              <UnitCard
-                key={unit.id}
-                unit={unit}
-                currentEvent={unit.currentEvent}
-                onPress={() => router.push(`/(tabs)/fleet/${unit.id}`)}
-              />
-            ))
+          }
+          ListFooterComponent={<View style={{ height: 32 }} />}
+          renderItem={({ item: unit }) => (
+            <UnitCard
+              unit={unit}
+              currentEvent={unit.currentEvent}
+              onPress={() => router.push(`/(tabs)/fleet/${unit.id}`)}
+            />
           )}
-          <View style={{ height: 32 }} />
-        </ScrollView>
+        />
       )}
     </View>
   );

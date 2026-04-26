@@ -7,7 +7,7 @@ export async function registerForPushNotifications(_userId: string): Promise<str
 }
 
 export function addNotificationResponseListener(
-  _handler: (response: any) => void,
+  _handler: (response: unknown) => void,
 ): { remove: () => void } | null {
   return null;
 }

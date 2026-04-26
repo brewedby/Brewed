@@ -47,13 +47,13 @@ export function useHistoricalEventSplits() {
       if (error) throw error;
 
       return (data ?? [])
-        .filter((e: any) => {
+        .filter((e) => {
           const f = e.event_financials;
           return f && (f.standard_rated_sales + f.zero_rated_sales) > 0;
         })
-        .map((e: any) => ({
-          standard_rated_sales: e.event_financials.standard_rated_sales,
-          zero_rated_sales: e.event_financials.zero_rated_sales,
+        .map((e) => ({
+          standard_rated_sales: e.event_financials?.standard_rated_sales ?? 0,
+          zero_rated_sales: e.event_financials?.zero_rated_sales ?? 0,
           avg_temp_c: null,
           month: parseInt(e.date.split('-')[1], 10),
         }));

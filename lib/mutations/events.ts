@@ -115,7 +115,7 @@ const EVENT_ROW_FIELDS = [
 function pickEventRowFields(data: EventFormValues): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const key of EVENT_ROW_FIELDS) {
-    if (key in data) out[key] = (data as any)[key];
+    if (key in data) out[key] = data[key];
   }
   return out;
 }
@@ -126,12 +126,12 @@ export function useUpdateEvent() {
     onMutate: async ({ id, data }: { id: string; data: EventFormValues }) => {
       await qc.cancelQueries({ queryKey: ['events'] });
       const patch = pickEventRowFields(data);
-      const snapshots = qc.getQueriesData<any>({ queryKey: ['events'] });
+      const snapshots = qc.getQueriesData<unknown>({ queryKey: ['events'] });
       snapshots.forEach(([key, value]) => {
         if (Array.isArray(value)) {
-          qc.setQueryData(key, value.map((e: any) => (e?.id === id ? { ...e, ...patch } : e)));
-        } else if (value && typeof value === 'object' && value.id === id) {
-          qc.setQueryData(key, { ...value, ...patch });
+          qc.setQueryData(key, value.map((e: Record<string, unknown>) => (e?.id === id ? { ...e, ...patch } : e)));
+        } else if (value && typeof value === 'object' && 'id' in value && (value as Record<string, unknown>).id === id) {
+          qc.setQueryData(key, { ...(value as Record<string, unknown>), ...patch });
         }
       });
       return { snapshots };

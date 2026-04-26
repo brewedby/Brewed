@@ -20,9 +20,9 @@ export function useDashboard(year?: number) {
       const allUnits = unitsRes.data ?? [];
 
       // Normalise: events↔units is many-to-many via event_units
-      const allEvents = allEventsRaw.map((e: any) => ({
+      const allEvents = allEventsRaw.map((e) => ({
         ...e,
-        units: (e.event_units ?? []).map((eu: any) => eu.units).filter(Boolean),
+        units: (e.event_units ?? []).map((eu) => eu.units).filter(Boolean),
       }));
 
       const ytdEvents = allEvents.filter((e) => e.date.startsWith(`${targetYear}`));
@@ -57,7 +57,7 @@ export function useDashboard(year?: number) {
         .map((e) => ({
           ...e,
           calculations: e.event_financials ? calcEventFinancials(e.event_financials) : EMPTY_CALCULATIONS,
-        })) as any) as EventWithFinancials[];
+        })) as unknown) as EventWithFinancials[];
 
       // Monthly revenue
       const monthlyMap = new Map<number, MonthlyRevenue>();
@@ -88,13 +88,13 @@ export function useDashboard(year?: number) {
           .filter((e) =>
             e.status === 'accepted' &&
             e.date >= today &&
-            (e.units as any[]).some((u: any) => u?.id === unit.id),
+            (e.units as { id: string }[]).some((u) => u?.id === unit.id),
           )
           .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null;
         return {
           ...unit,
           currentEvent: unitEvent
-            ? ({ ...unitEvent, calculations: unitEvent.event_financials ? calcEventFinancials(unitEvent.event_financials) : EMPTY_CALCULATIONS } as any as EventWithFinancials)
+            ? ({ ...unitEvent, calculations: unitEvent.event_financials ? calcEventFinancials(unitEvent.event_financials) : EMPTY_CALCULATIONS } as unknown as EventWithFinancials)
             : null,
         };
       });

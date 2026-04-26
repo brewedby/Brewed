@@ -29,7 +29,7 @@ export function useEvents(filters?: EventFilters) {
 
       let mapped = (data ?? []).map((event) => ({
         ...event,
-        units: (event.event_units ?? []).map((eu: any) => eu.units).filter(Boolean),
+        units: (event.event_units ?? []).map((eu) => eu.units).filter(Boolean),
         calculations: event.event_financials
           ? calcEventFinancials(event.event_financials)
           : EMPTY_CALCULATIONS,
@@ -37,7 +37,7 @@ export function useEvents(filters?: EventFilters) {
 
       // events↔units is many-to-many via event_units; filter client-side after mapping
       if (filters?.unitId) {
-        mapped = mapped.filter((e) => e.units.some((u: any) => u.id === filters.unitId));
+        mapped = mapped.filter((e) => e.units.some((u) => u.id === filters.unitId));
       }
 
       return mapped;
@@ -60,7 +60,7 @@ export function useEvent(id: string) {
       const staffing = data.staffing_entries ?? [];
       return {
         ...data,
-        units: (data.event_units ?? []).map((eu: any) => eu.units).filter(Boolean),
+        units: (data.event_units ?? []).map((eu) => eu.units).filter(Boolean),
         calculations: data.event_financials
           ? calcEventFinancials(data.event_financials, staffing)
           : EMPTY_CALCULATIONS,

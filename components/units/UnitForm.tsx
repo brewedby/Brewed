@@ -231,8 +231,8 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
       await onSubmit(data);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       router.back();
-    } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Failed to save unit');
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save unit');
     } finally {
       setLoading(false);
     }

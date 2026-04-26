@@ -31,8 +31,8 @@ export default function CompanyDetailScreen() {
     try {
       await deleteCompany.mutateAsync(id);
       router.back();
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Something went wrong');
     }
   }
 

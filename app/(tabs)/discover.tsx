@@ -131,6 +131,8 @@ function EventCard({
           {!isApplied && (
             <TouchableOpacity
               onPress={() => { if (event.url) Linking.openURL(event.url); }}
+              accessibilityRole="link"
+              accessibilityLabel={`View and apply to ${event.title}`}
               style={{ flex: 1, borderWidth: 1, borderColor: '#e2e8f0', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }}
             >
               <Text style={{ color: '#475569', fontWeight: '600', fontSize: 13 }}>View & Apply ↗</Text>
@@ -138,6 +140,8 @@ function EventCard({
           )}
           <TouchableOpacity
             onPress={() => onToggleApplied(event.id)}
+            accessibilityRole="button"
+            accessibilityLabel={isApplied ? `Undo applied for ${event.title}` : `Mark ${event.title} as applied`}
             style={{ flex: isApplied ? undefined : 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
               paddingVertical: 10, paddingHorizontal: isApplied ? 14 : 0, borderRadius: 12,
               backgroundColor: isApplied ? '#f1f5f9' : '#dcfce7',
@@ -152,6 +156,8 @@ function EventCard({
             <TouchableOpacity
               onPress={() => onAdd(event)}
               disabled={adding}
+              accessibilityRole="button"
+              accessibilityLabel={`Track ${event.title} in my events`}
               style={{ flex: 1, backgroundColor: '#f59e0b', paddingVertical: 10, borderRadius: 12, alignItems: 'center' }}
             >
               {adding ? (
@@ -220,6 +226,8 @@ function CompanyCard({ company }: { company: DiscoveredEvent }) {
           {company.contactPhone && (
             <TouchableOpacity
               onPress={() => Linking.openURL(`tel:${company.contactPhone}`)}
+              accessibilityRole="link"
+              accessibilityLabel={`Call ${company.contactPhone}`}
               className="bg-blue-50 px-2.5 py-1 rounded-full"
             >
               <Text className="text-blue-600 text-xs font-medium">📞 {company.contactPhone}</Text>
@@ -228,6 +236,8 @@ function CompanyCard({ company }: { company: DiscoveredEvent }) {
           {company.contactEmail && (
             <TouchableOpacity
               onPress={() => Linking.openURL(`mailto:${company.contactEmail}`)}
+              accessibilityRole="link"
+              accessibilityLabel={`Email ${company.contactEmail}`}
               className="bg-blue-50 px-2.5 py-1 rounded-full"
             >
               <Text className="text-blue-600 text-xs font-medium">✉️ {company.contactEmail}</Text>
@@ -239,6 +249,8 @@ function CompanyCard({ company }: { company: DiscoveredEvent }) {
           <VerifiedBadge lastVerifiedAt={company.lastVerifiedAt} />
           <TouchableOpacity
             onPress={() => { if (company.url) Linking.openURL(company.url); }}
+            accessibilityRole="link"
+            accessibilityLabel={`Apply to ${company.title}`}
             className="bg-emerald-500 px-4 py-2.5 rounded-xl"
           >
             <Text className="text-white font-semibold text-sm">Apply Now ↗</Text>
@@ -456,6 +468,8 @@ export default function DiscoverScreen() {
           <TouchableOpacity
             onPress={handleSync}
             disabled={syncing}
+            accessibilityRole="button"
+            accessibilityLabel="Refresh directory"
             style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f5f5f4', borderWidth: 1, borderColor: '#e7e5e4' }}
           >
             {syncing ? (
@@ -470,6 +484,9 @@ export default function DiscoverScreen() {
         <View style={{ flexDirection: 'row', backgroundColor: '#f1f5f9', borderRadius: 12, padding: 4, marginBottom: 12 }}>
           <TouchableOpacity
             onPress={() => startTransition(() => { setActiveTab('apply'); setCategory('All'); })}
+            accessibilityRole="tab"
+            accessibilityLabel="Who to Apply To tab"
+            accessibilityState={{ selected: activeTab === 'apply' }}
             style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: activeTab === 'apply' ? '#ffffff' : 'transparent' }}
           >
             <Text style={{ fontSize: 14, fontWeight: '600', color: activeTab === 'apply' ? '#0f172a' : '#94a3b8' }}>
@@ -481,6 +498,9 @@ export default function DiscoverScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => startTransition(() => { setActiveTab('events'); setCategory('All'); })}
+            accessibilityRole="tab"
+            accessibilityLabel="Events and Festivals tab"
+            accessibilityState={{ selected: activeTab === 'events' }}
             style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: activeTab === 'events' ? '#ffffff' : 'transparent' }}
           >
             <Text style={{ fontSize: 14, fontWeight: '600', color: activeTab === 'events' ? '#0f172a' : '#94a3b8' }}>
@@ -502,9 +522,10 @@ export default function DiscoverScreen() {
             value={searchText}
             onChangeText={setSearchText}
             returnKeyType="search"
+            accessibilityLabel={activeTab === 'apply' ? 'Search concessions companies' : 'Search festivals and markets'}
           />
           {searchText.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchText('')}>
+            <TouchableOpacity onPress={() => setSearchText('')} accessibilityRole="button" accessibilityLabel="Clear search">
               <Text className="text-slate-400 text-lg">×</Text>
             </TouchableOpacity>
           )}
@@ -517,6 +538,9 @@ export default function DiscoverScreen() {
               <TouchableOpacity
                 key={r}
                 onPress={() => setRegion(r)}
+                accessibilityRole="radio"
+                accessibilityLabel={`Region: ${r}`}
+                accessibilityState={{ checked: region === r }}
                 style={{
                   paddingHorizontal: 12,
                   paddingVertical: 6,
@@ -541,6 +565,9 @@ export default function DiscoverScreen() {
               <TouchableOpacity
                 key={c}
                 onPress={() => setCategory(c)}
+                accessibilityRole="radio"
+                accessibilityLabel={`Category: ${c}`}
+                accessibilityState={{ checked: active }}
                 style={{
                   paddingHorizontal: 12,
                   paddingVertical: 6,
@@ -572,7 +599,7 @@ export default function DiscoverScreen() {
           <Text className="text-slate-400 text-xs text-center mb-4">
             Run the Migration 003 SQL in your Supabase dashboard, then tap Retry.
           </Text>
-          <TouchableOpacity onPress={() => refetch()} className="mt-2 bg-amber-500 px-6 py-3 rounded-xl">
+          <TouchableOpacity onPress={() => refetch()} accessibilityRole="button" accessibilityLabel="Retry loading directory" className="mt-2 bg-amber-500 px-6 py-3 rounded-xl">
             <Text className="text-white font-semibold text-sm">Retry</Text>
           </TouchableOpacity>
         </View>

@@ -8,6 +8,10 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "owner": "REPLACE_WITH_YOUR_EXPO_USERNAME",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -15,7 +19,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.brewedbyboon.app"
+      "bundleIdentifier": "com.brewedbyboon.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Brewed needs access to your photo library to attach images to event documents.",
+        "NSCameraUsageDescription": "Brewed uses the camera to photograph event documents and receipts.",
+        "NSDocumentsFolderUsageDescription": "Brewed accesses Files to attach documents such as insurance certificates to events."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +35,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.brewedbyboon.app"
+      "package": "com.brewedbyboon.app",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -41,7 +53,18 @@
           "color": "#f59e0b",
           "defaultChannel": "default"
         }
+      ],
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID_AFTER_eas_init"
+      }
+    }
   }
 }

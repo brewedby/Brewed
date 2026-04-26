@@ -28,8 +28,8 @@ export function CompanyForm({ defaultValues, onSubmit, submitLabel = 'Save Compa
       await onSubmit(data);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       router.back();
-    } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Failed to save company');
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save company');
     } finally {
       setLoading(false);
     }

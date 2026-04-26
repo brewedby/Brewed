@@ -14,8 +14,8 @@ export function useCompanies() {
         .order('name');
       if (error) throw error;
 
-      const mapped = (companies ?? []).map((company: any) => {
-        const companyEvents = (company.events ?? []) as any[];
+      const mapped = (companies ?? []).map((company) => {
+        const companyEvents = company.events ?? [];
         const acceptedEvents = companyEvents.filter((e) => e.status === 'accepted');
         const totalRevenue = companyEvents.reduce(
           (sum, e) => sum + (e.event_financials?.gross_sales ?? 0),

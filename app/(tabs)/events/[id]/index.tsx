@@ -183,8 +183,8 @@ export default function EventDetailScreen() {
         },
       });
       router.replace(`/(tabs)/events/${newEvent.id}/edit`);
-    } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Could not duplicate event');
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Could not duplicate event');
     } finally {
       setDuplicating(false);
     }
