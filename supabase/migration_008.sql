@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS public.product_catalog (
   user_id       UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name          TEXT NOT NULL,
   sku           TEXT,                          -- optional POS barcode / SKU for exact matching
-  unit_cost     NUMERIC(10,4) NOT NULL DEFAULT 0, -- cost TO MAKE one unit (not selling price)
+  selling_price NUMERIC(10,4) NOT NULL DEFAULT 0, -- customer-facing selling price
+  unit_cost     NUMERIC(10,4) NOT NULL DEFAULT 0, -- cost TO MAKE one unit (COGS)
   unit          TEXT NOT NULL DEFAULT 'item', -- 'cup', 'kg', 'item', 'serving', 'portion'
   category      TEXT NOT NULL DEFAULT 'other', -- 'hot_drinks','cold_drinks','food','other'
   is_active     BOOLEAN NOT NULL DEFAULT true,

@@ -3,9 +3,11 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityInd
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { useProfile, useUpdateProfile } from '@/lib/queries/profile';
 import type { Metric } from '@/lib/queries/profile';
+import { ProductCatalogScreen } from '@/components/cogs/ProductCatalogScreen';
 import { BUSINESS_TYPES } from '@/constants';
 const CURRENCIES = [
   { code: 'GBP', symbol: '£', label: 'GBP (£)' },
@@ -35,6 +37,7 @@ export default function SettingsScreen() {
   const [newUnit, setNewUnit] = useState('');
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showCatalog, setShowCatalog] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -110,6 +113,26 @@ export default function SettingsScreen() {
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" colors={['#f59e0b']} />}
       >
+
+        {/* ── Menu & COGS ── */}
+        <Text className="text-xs font-bold text-stone-400 uppercase tracking-wide mb-2">Menu & COGS</Text>
+        <View className="bg-white rounded-2xl border border-stone-100 mb-4 overflow-hidden">
+          <TouchableOpacity
+            onPress={() => setShowCatalog(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Open menu and COGS catalog"
+            style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 }}
+          >
+            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#fef3c7', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="pricetag-outline" size={18} color="#92400e" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#1c1917' }}>Menu & Product Costs</Text>
+              <Text style={{ fontSize: 12, color: '#a8a29e', marginTop: 1 }}>Set selling prices and COGS for each item</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#a8a29e" />
+          </TouchableOpacity>
+        </View>
 
         {/* ── Business Profile ── */}
         <Text className="text-xs font-bold text-stone-400 uppercase tracking-wide mb-2">Business Profile</Text>
@@ -281,6 +304,8 @@ export default function SettingsScreen() {
         {/* App version */}
         <Text className="text-stone-300 text-xs text-center mb-8">Version {APP_VERSION}</Text>
       </ScrollView>
+
+      <ProductCatalogScreen visible={showCatalog} onClose={() => setShowCatalog(false)} />
     </View>
   );
 }

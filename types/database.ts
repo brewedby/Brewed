@@ -574,6 +574,154 @@ export interface Database {
           }
         ];
       };
+      product_catalog: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          sku: string | null;
+          selling_price: number;
+          unit_cost: number;
+          unit: string;
+          category: string;
+          is_active: boolean;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          sku?: string | null;
+          selling_price?: number;
+          unit_cost?: number;
+          unit?: string;
+          category?: string;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          sku?: string | null;
+          selling_price?: number;
+          unit_cost?: number;
+          unit?: string;
+          category?: string;
+          is_active?: boolean;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      sales_reports: {
+        Row: {
+          id: string;
+          event_id: string;
+          user_id: string;
+          file_name: string;
+          file_size: number | null;
+          mime_type: string | null;
+          storage_path: string | null;
+          status: string;
+          error_message: string | null;
+          total_line_items: number;
+          matched_line_items: number;
+          total_revenue_from_file: number;
+          calculated_cogs: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          user_id: string;
+          file_name: string;
+          file_size?: number | null;
+          mime_type?: string | null;
+          storage_path?: string | null;
+          status?: string;
+          error_message?: string | null;
+          total_line_items?: number;
+          matched_line_items?: number;
+          total_revenue_from_file?: number;
+          calculated_cogs?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          status?: string;
+          error_message?: string | null;
+          total_line_items?: number;
+          matched_line_items?: number;
+          total_revenue_from_file?: number;
+          calculated_cogs?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sales_reports_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      sales_line_items: {
+        Row: {
+          id: string;
+          sales_report_id: string;
+          event_id: string;
+          product_name: string;
+          product_catalog_id: string | null;
+          match_confidence: number | null;
+          quantity: number;
+          unit_price: number | null;
+          line_total: number | null;
+          unit_cost_snapshot: number | null;
+          cogs_calculated: number | null;
+          is_matched: boolean;
+          is_manually_assigned: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          sales_report_id: string;
+          event_id: string;
+          product_name: string;
+          product_catalog_id?: string | null;
+          match_confidence?: number | null;
+          quantity: number;
+          unit_price?: number | null;
+          line_total?: number | null;
+          unit_cost_snapshot?: number | null;
+          cogs_calculated?: number | null;
+          is_matched?: boolean;
+          is_manually_assigned?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_catalog_id?: string | null;
+          match_confidence?: number | null;
+          unit_cost_snapshot?: number | null;
+          cogs_calculated?: number | null;
+          is_matched?: boolean;
+          is_manually_assigned?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sales_line_items_report_id_fkey";
+            columns: ["sales_report_id"];
+            isOneToOne: false;
+            referencedRelation: "sales_reports";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

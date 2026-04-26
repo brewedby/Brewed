@@ -22,13 +22,14 @@ export function useCreateProduct() {
     }): Promise<ProductCatalogItem> => {
       const { data: created, error } = await catalogTable()
         .insert({
-          user_id:   userId,
-          name:      data.name,
-          sku:       data.sku || null,
-          unit_cost: data.unit_cost,
-          unit:      data.unit,
-          category:  data.category,
-          is_active: data.is_active,
+          user_id:       userId,
+          name:          data.name,
+          sku:           data.sku || null,
+          selling_price: data.selling_price,
+          unit_cost:     data.unit_cost,
+          unit:          data.unit,
+          category:      data.category,
+          is_active:     data.is_active,
         })
         .select()
         .single();
@@ -51,12 +52,13 @@ export function useUpdateProduct() {
     }) => {
       const { error } = await catalogTable()
         .update({
-          name:      data.name,
-          sku:       data.sku || null,
-          unit_cost: data.unit_cost,
-          unit:      data.unit,
-          category:  data.category,
-          is_active: data.is_active,
+          name:          data.name,
+          sku:           data.sku || null,
+          selling_price: data.selling_price,
+          unit_cost:     data.unit_cost,
+          unit:          data.unit,
+          category:      data.category,
+          is_active:     data.is_active,
         })
         .eq('id', id);
       if (error) throw error;

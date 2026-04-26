@@ -23,12 +23,13 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting }: Product
   } = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema) as never,
     defaultValues: {
-      name:      initial?.name      ?? '',
-      sku:       initial?.sku       ?? '',
-      unit_cost: initial?.unit_cost ?? 0,
-      unit:      initial?.unit      ?? 'cup',
-      category:  initial?.category  ?? 'hot_drinks',
-      is_active: initial?.is_active ?? true,
+      name:          initial?.name          ?? '',
+      sku:           initial?.sku           ?? '',
+      selling_price: initial?.selling_price ?? 0,
+      unit_cost:     initial?.unit_cost     ?? 0,
+      unit:          initial?.unit          ?? 'cup',
+      category:      initial?.category      ?? 'hot_drinks',
+      is_active:     initial?.is_active     ?? true,
     },
   });
 
@@ -55,28 +56,58 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting }: Product
         />
         {errors.name && <Text style={styles.error}>{errors.name.message}</Text>}
 
-        <Text style={styles.sectionTitle}>Cost per unit (£) *</Text>
-        <Text style={styles.hint}>What it costs YOU to make one unit — not the selling price</Text>
-        <Controller
-          control={control}
-          name="unit_cost"
-          render={({ field }) => (
-            <View style={styles.currencyRow}>
-              <Text style={styles.currencySymbol}>£</Text>
-              <TextInput
-                value={field.value === 0 ? '' : String(field.value)}
-                onChangeText={field.onChange}
-                onBlur={field.onBlur}
-                style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                keyboardType="decimal-pad"
-                placeholder="0.65"
-                placeholderTextColor="#a8a29e"
-                accessibilityLabel="Unit cost in pounds"
-              />
-            </View>
-          )}
-        />
-        {errors.unit_cost && <Text style={styles.error}>{errors.unit_cost.message}</Text>}
+        {/* Two-column: Selling Price | COGS */}
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sectionTitle}>Selling price (£) *</Text>
+            <Text style={styles.hint}>What you charge the customer</Text>
+            <Controller
+              control={control}
+              name="selling_price"
+              render={({ field }) => (
+                <View style={styles.currencyRow}>
+                  <Text style={styles.currencySymbol}>£</Text>
+                  <TextInput
+                    value={field.value === 0 ? '' : String(field.value)}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                    keyboardType="decimal-pad"
+                    placeholder="3.50"
+                    placeholderTextColor="#a8a29e"
+                    accessibilityLabel="Selling price in pounds"
+                  />
+                </View>
+              )}
+            />
+            {errors.selling_price && <Text style={styles.error}>{errors.selling_price.message}</Text>}
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sectionTitle}>Cost to make (£) *</Text>
+            <Text style={styles.hint}>Your actual cost per unit</Text>
+            <Controller
+              control={control}
+              name="unit_cost"
+              render={({ field }) => (
+                <View style={styles.currencyRow}>
+                  <Text style={styles.currencySymbol}>£</Text>
+                  <TextInput
+                    value={field.value === 0 ? '' : String(field.value)}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                    keyboardType="decimal-pad"
+                    placeholder="0.65"
+                    placeholderTextColor="#a8a29e"
+                    accessibilityLabel="Unit cost in pounds"
+                  />
+                </View>
+              )}
+            />
+            {errors.unit_cost && <Text style={styles.error}>{errors.unit_cost.message}</Text>}
+          </View>
+        </View>
 
         <Text style={styles.sectionTitle}>Unit *</Text>
         <Controller

@@ -1,18 +1,7 @@
-/**
- * ProductCatalogScreen — Full-screen product legend + COGS editor.
- *
- * Presented as a React Native Modal from the Dashboard "Product Catalog" button
- * OR from a Settings row. This keeps the routing simple: no extra tab needed.
- *
- * INTEGRATION POINTS (during implementation):
- *   1. Dashboard: add a header button that sets showProductCatalog=true
- *   2. Settings: add a row "Product Catalog (COGS)" → same boolean state
- *   3. CogsSection: "Manage Products" link opens this screen
- */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Modal, View, Text, FlatList, TouchableOpacity,
-  Alert, ActivityIndicator, TextInput, Platform,
+  Alert, ActivityIndicator, TextInput, SectionList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,6 +19,12 @@ interface Props {
   onClose: () => void;
 }
 
+function marginColor(pct: number): string {
+  if (pct >= 60) return '#15803d';
+  if (pct >= 40) return '#b45309';
+  return '#dc2626';
+}
+
 export function ProductCatalogScreen({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -38,17 +33,25 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
 
-  const [view, setView]               = useState<ScreenView>('list');
-  const [editing, setEditing]         = useState<ProductCatalogItem | null>(null);
-  const [search, setSearch]           = useState('');
-  const [filterCategory, setFilter]   = useState<string>('all');
+  const [view, setView]     = useState<ScreenView>('list');
+  const [editing, setEditing] = useState<ProductCatalogItem | null>(null);
+  const [search, setSearch]   = useState('');
 
-  const filtered = products.filter((p) => {
-    const matchesSearch   = p.name.toLowerCase().includes(search.toLowerCase())
-                         || (p.sku?.toLowerCase() ?? '').includes(search.toLowerCase());
-    const matchesCategory = filterCategory === 'all' || p.category === filterCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filtered = useMemo(() =>
+    products.filter((p) =>
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.sku?.toLowerCase() ?? '').includes(search.toLowerCase())
+    ),
+    [products, search],
+  );
+
+  // Group by category for the menu layout
+  const sections = useMemo(() => {
+    return PRODUCT_CATEGORIES.map((cat) => ({
+      category: cat,
+      data: filtered.filter((p) => p.category === cat.value),
+    })).filter((s) => s.data.length > 0);
+  }, [filtered]);
 
   async function handleAdd(values: ProductFormValues) {
     if (!user) return;
@@ -66,61 +69,114 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
   function confirmDelete(product: ProductCatalogItem) {
     Alert.alert(
       'Remove Product',
-      `Remove "${product.name}" from your catalog? Existing COGS calculations using this product won't change.`,
+      `Remove "${product.name}" from your menu? Existing COGS calculations won't change.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => deleteProduct.mutate(product.id),
-        },
+        { text: 'Remove', style: 'destructive', onPress: () => deleteProduct.mutate(product.id) },
       ],
     );
   }
 
-  const totalCatalogCost = products.reduce((sum, p) => sum + p.unit_cost, 0);
+  const totalProducts = products.length;
+  const activeProducts = products.filter((p) => p.is_active).length;
+  const avgMargin = useMemo(() => {
+    const withPrice = products.filter((p) => p.selling_price > 0);
+    if (withPrice.length === 0) return null;
+    const avg = withPrice.reduce((sum, p) => sum + ((p.selling_price - p.unit_cost) / p.selling_price) * 100, 0) / withPrice.length;
+    return avg;
+  }, [products]);
 
-  function renderItem({ item }: { item: ProductCatalogItem }) {
-    const cat = PRODUCT_CATEGORIES.find((c) => c.value === item.category);
+  function renderProduct({ item }: { item: ProductCatalogItem }) {
+    const grossMargin = item.selling_price > 0
+      ? ((item.selling_price - item.unit_cost) / item.selling_price) * 100
+      : null;
     return (
-      <View style={styles.productRow}>
-        <View style={styles.productEmoji}>
-          <Text style={{ fontSize: 18 }}>{cat?.emoji ?? '📦'}</Text>
-        </View>
+      <View style={styles.menuRow}>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={styles.productName}>{item.name}</Text>
+            <Text style={styles.menuProductName}>{item.name}</Text>
             {!item.is_active && (
               <View style={styles.inactiveBadge}>
                 <Text style={styles.inactiveBadgeText}>inactive</Text>
               </View>
             )}
           </View>
-          <Text style={styles.productMeta}>
-            {cat?.label ?? item.category} · per {item.unit}
-            {item.sku ? ` · SKU: ${item.sku}` : ''}
-          </Text>
+          {item.sku ? <Text style={styles.skuText}>SKU: {item.sku}</Text> : null}
         </View>
-        <Text style={styles.productCost}>£{item.unit_cost.toFixed(2)}</Text>
-        <TouchableOpacity
-          onPress={() => { setEditing(item); setView('edit'); }}
-          accessibilityRole="button"
-          accessibilityLabel={`Edit ${item.name}`}
-          style={{ padding: 8 }}
-        >
-          <Ionicons name="pencil-outline" size={16} color="#78716c" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => confirmDelete(item)}
-          accessibilityRole="button"
-          accessibilityLabel={`Remove ${item.name}`}
-          style={{ padding: 8 }}
-        >
-          <Ionicons name="trash-outline" size={16} color="#dc2626" />
-        </TouchableOpacity>
+
+        {/* Price | COGS | Margin */}
+        <View style={styles.menuNumbers}>
+          <View style={styles.menuNumberCol}>
+            <Text style={styles.menuNumberLabel}>Price</Text>
+            <Text style={styles.menuPrice}>£{item.selling_price.toFixed(2)}</Text>
+          </View>
+          <View style={[styles.menuNumberCol, styles.menuNumberColMiddle]}>
+            <Text style={styles.menuNumberLabel}>COGS</Text>
+            <Text style={styles.menuCogs}>£{item.unit_cost.toFixed(2)}</Text>
+          </View>
+          <View style={styles.menuNumberCol}>
+            <Text style={styles.menuNumberLabel}>Margin</Text>
+            {grossMargin !== null ? (
+              <Text style={[styles.menuMargin, { color: marginColor(grossMargin) }]}>
+                {grossMargin.toFixed(0)}%
+              </Text>
+            ) : (
+              <Text style={styles.menuMarginNone}>—</Text>
+            )}
+          </View>
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 0 }}>
+          <TouchableOpacity
+            onPress={() => { setEditing(item); setView('edit'); }}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${item.name}`}
+            style={styles.actionBtn}
+          >
+            <Ionicons name="pencil-outline" size={16} color="#78716c" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => confirmDelete(item)}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${item.name}`}
+            style={styles.actionBtn}
+          >
+            <Ionicons name="trash-outline" size={16} color="#dc2626" />
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
+
+  function renderSectionHeader({ section }: { section: { category: typeof PRODUCT_CATEGORIES[number]; data: ProductCatalogItem[] } }) {
+    return (
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionHeaderText}>
+          {section.category.emoji} {section.category.label}
+        </Text>
+        <Text style={styles.sectionCount}>{section.data.length}</Text>
+      </View>
+    );
+  }
+
+  // Column header for the menu table
+  const menuColumnHeader = (
+    <View style={styles.columnHeader}>
+      <Text style={[styles.columnHeaderText, { flex: 1 }]}>Product</Text>
+      <View style={styles.menuNumbers}>
+        <View style={styles.menuNumberCol}>
+          <Text style={styles.columnHeaderText}>Price</Text>
+        </View>
+        <View style={[styles.menuNumberCol, styles.menuNumberColMiddle]}>
+          <Text style={styles.columnHeaderText}>COGS</Text>
+        </View>
+        <View style={styles.menuNumberCol}>
+          <Text style={styles.columnHeaderText}>Margin</Text>
+        </View>
+      </View>
+      <View style={{ width: 72 }} />
+    </View>
+  );
 
   return (
     <Modal
@@ -135,11 +191,14 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
         <View style={styles.header}>
           {view === 'list' ? (
             <>
-              <Text style={styles.title}>Product Catalog</Text>
+              <View>
+                <Text style={styles.title}>Menu & COGS</Text>
+                <Text style={styles.titleSub}>Price, cost & margin per product</Text>
+              </View>
               <TouchableOpacity
                 onPress={onClose}
                 accessibilityRole="button"
-                accessibilityLabel="Close product catalog"
+                accessibilityLabel="Close product menu"
                 style={styles.closeButton}
               >
                 <Ionicons name="close" size={22} color="#1c1917" />
@@ -150,7 +209,7 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
               <TouchableOpacity
                 onPress={() => { setView('list'); setEditing(null); }}
                 accessibilityRole="button"
-                accessibilityLabel="Back to product list"
+                accessibilityLabel="Back to menu"
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
               >
                 <Ionicons name="chevron-back" size={18} color="#92400e" />
@@ -167,22 +226,20 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
             {/* Summary strip */}
             <View style={styles.summaryStrip}>
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>{products.length}</Text>
+                <Text style={styles.summaryValue}>{totalProducts}</Text>
                 <Text style={styles.summaryLabel}>Products</Text>
               </View>
+              <View style={styles.summaryDivider} />
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>
-                  {products.filter((p) => p.is_active).length}
-                </Text>
+                <Text style={styles.summaryValue}>{activeProducts}</Text>
                 <Text style={styles.summaryLabel}>Active</Text>
               </View>
+              <View style={styles.summaryDivider} />
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>
-                  {products.length > 0
-                    ? `£${(totalCatalogCost / products.length).toFixed(2)}`
-                    : '—'}
+                <Text style={[styles.summaryValue, avgMargin !== null ? { color: marginColor(avgMargin) } : {}]}>
+                  {avgMargin !== null ? `${avgMargin.toFixed(0)}%` : '—'}
                 </Text>
-                <Text style={styles.summaryLabel}>Avg COGS</Text>
+                <Text style={styles.summaryLabel}>Avg Margin</Text>
               </View>
             </View>
 
@@ -192,7 +249,7 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
               <TextInput
                 value={search}
                 onChangeText={setSearch}
-                placeholder="Search products..."
+                placeholder="Search menu..."
                 placeholderTextColor="#a8a29e"
                 style={styles.searchInput}
                 accessibilityLabel="Search products"
@@ -204,56 +261,33 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
               )}
             </View>
 
-            {/* Category filter pills */}
-            <View style={styles.filterRow}>
-              {[{ value: 'all', label: 'All', emoji: '🔎' }, ...PRODUCT_CATEGORIES].map((cat) => (
-                <TouchableOpacity
-                  key={cat.value}
-                  onPress={() => setFilter(cat.value)}
-                  accessibilityRole="radio"
-                  accessibilityLabel={`Filter by ${cat.label}`}
-                  accessibilityState={{ checked: filterCategory === cat.value }}
-                  style={[styles.filterPill, filterCategory === cat.value && styles.filterPillActive]}
-                >
-                  <Text style={[styles.filterPillText, filterCategory === cat.value && { color: '#fff' }]}>
-                    {cat.emoji} {cat.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Product list */}
+            {/* Menu list */}
             {isLoading ? (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                 <ActivityIndicator color="#92400e" />
               </View>
+            ) : sections.length === 0 ? (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+                <Text style={{ fontSize: 40, marginBottom: 12 }}>🏷️</Text>
+                <Text style={{ fontWeight: '600', color: '#1c1917', fontSize: 16, marginBottom: 6 }}>
+                  {search ? 'No matches' : 'Menu is empty'}
+                </Text>
+                <Text style={{ color: '#a8a29e', textAlign: 'center', fontSize: 13, lineHeight: 20 }}>
+                  {search
+                    ? 'Try a different search term.'
+                    : 'Add your menu items with their selling price and cost. Brewed uses these to calculate COGS automatically from your sales reports.'}
+                </Text>
+              </View>
             ) : (
-              <FlatList
-                data={filtered}
+              <SectionList
+                sections={sections}
                 keyExtractor={(item) => item.id}
-                renderItem={renderItem}
+                renderItem={renderProduct}
+                renderSectionHeader={renderSectionHeader}
                 style={{ flex: 1 }}
                 contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
-                ListEmptyComponent={
-                  <View style={{ alignItems: 'center', paddingTop: 60 }}>
-                    <Text style={{ fontSize: 40, marginBottom: 12 }}>🏷️</Text>
-                    <Text style={{ fontWeight: '600', color: '#1c1917', fontSize: 16, marginBottom: 6 }}>
-                      {search ? 'No matches' : 'No products yet'}
-                    </Text>
-                    <Text style={{ color: '#a8a29e', textAlign: 'center', fontSize: 13, lineHeight: 20 }}>
-                      {search
-                        ? 'Try a different search or clear the filter.'
-                        : 'Add your menu items with their cost to make.\nBreweduses these to calculate COGS automatically.'}
-                    </Text>
-                  </View>
-                }
-                ListHeaderComponent={
-                  filtered.length > 0 ? (
-                    <Text style={styles.listCountLabel}>
-                      {filtered.length} product{filtered.length !== 1 ? 's' : ''}
-                    </Text>
-                  ) : null
-                }
+                ListHeaderComponent={menuColumnHeader}
+                stickySectionHeadersEnabled={false}
               />
             )}
 
@@ -262,11 +296,11 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
               <TouchableOpacity
                 onPress={() => setView('add')}
                 accessibilityRole="button"
-                accessibilityLabel="Add new product to catalog"
+                accessibilityLabel="Add new product to menu"
                 style={styles.addButton}
               >
                 <Ionicons name="add" size={20} color="#fff" />
-                <Text style={styles.addButtonText}>Add Product</Text>
+                <Text style={styles.addButtonText}>Add Menu Item</Text>
               </TouchableOpacity>
             </View>
           </>
@@ -294,24 +328,27 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
 }
 
 const styles = {
-  container:   { flex: 1, backgroundColor: '#fafaf9' },
+  container: { flex: 1, backgroundColor: '#fafaf9' },
   header: {
     flexDirection: 'row' as const, alignItems: 'center' as const,
     justifyContent: 'space-between' as const,
     paddingHorizontal: 20, paddingVertical: 14,
     backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f5f5f4',
   },
-  title:       { fontSize: 18, fontWeight: '700' as const, color: '#1c1917' },
+  title:      { fontSize: 18, fontWeight: '700' as const, color: '#1c1917' },
+  titleSub:   { fontSize: 11, color: '#a8a29e', marginTop: 1 },
   closeButton: { padding: 4 },
 
   summaryStrip: {
     flexDirection: 'row' as const, backgroundColor: '#fff',
-    paddingVertical: 12, paddingHorizontal: 20, gap: 0,
+    paddingVertical: 12, paddingHorizontal: 20,
     borderBottomWidth: 1, borderBottomColor: '#f5f5f4',
+    alignItems: 'center' as const,
   },
-  summaryItem:  { flex: 1, alignItems: 'center' as const },
-  summaryValue: { fontSize: 18, fontWeight: '700' as const, color: '#92400e' },
-  summaryLabel: { fontSize: 11, color: '#a8a29e', marginTop: 2 },
+  summaryItem:    { flex: 1, alignItems: 'center' as const },
+  summaryValue:   { fontSize: 18, fontWeight: '700' as const, color: '#92400e' },
+  summaryLabel:   { fontSize: 11, color: '#a8a29e', marginTop: 2 },
+  summaryDivider: { width: 1, height: 32, backgroundColor: '#f5f5f4' },
 
   searchRow: {
     flexDirection: 'row' as const, alignItems: 'center' as const,
@@ -321,34 +358,52 @@ const styles = {
   },
   searchInput: { flex: 1, fontSize: 14, color: '#1c1917' },
 
-  filterRow: {
-    flexDirection: 'row' as const, paddingHorizontal: 16, gap: 8,
-    marginTop: 10, marginBottom: 4, flexWrap: 'wrap' as const,
+  columnHeader: {
+    flexDirection: 'row' as const, alignItems: 'center' as const,
+    paddingHorizontal: 2, paddingTop: 14, paddingBottom: 4,
   },
-  filterPill: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-    borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#fff',
+  columnHeaderText: {
+    fontSize: 10, fontWeight: '700' as const, color: '#a8a29e',
+    textTransform: 'uppercase' as const, letterSpacing: 0.5, textAlign: 'center' as const,
   },
-  filterPillActive: { backgroundColor: '#1c1917', borderColor: '#1c1917' },
-  filterPillText:   { fontSize: 12, color: '#57534e', fontWeight: '500' as const },
 
-  listCountLabel: { fontSize: 12, color: '#a8a29e', marginTop: 12, marginBottom: 4 },
+  sectionHeader: {
+    flexDirection: 'row' as const, alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    paddingTop: 16, paddingBottom: 6, paddingHorizontal: 2,
+  },
+  sectionHeaderText: { fontSize: 13, fontWeight: '700' as const, color: '#1c1917' },
+  sectionCount:      { fontSize: 12, color: '#a8a29e', fontWeight: '500' as const },
 
-  productRow: {
+  menuRow: {
     flexDirection: 'row' as const, alignItems: 'center' as const,
     backgroundColor: '#fff', borderRadius: 14, padding: 12,
-    marginBottom: 8, borderWidth: 1, borderColor: '#f5f5f4',
-    gap: 10,
+    marginBottom: 6, borderWidth: 1, borderColor: '#f5f5f4',
+    gap: 6,
   },
-  productEmoji: {
-    width: 36, height: 36, borderRadius: 10, backgroundColor: '#fef3c7',
-    alignItems: 'center' as const, justifyContent: 'center' as const,
+  menuProductName: { fontSize: 14, fontWeight: '600' as const, color: '#1c1917' },
+  skuText:         { fontSize: 10, color: '#a8a29e', marginTop: 1 },
+
+  menuNumbers: {
+    flexDirection: 'row' as const, alignItems: 'center' as const,
   },
-  productName: { fontSize: 14, fontWeight: '600' as const, color: '#1c1917' },
-  productMeta: { fontSize: 11, color: '#a8a29e', marginTop: 1 },
-  productCost: { fontSize: 15, fontWeight: '700' as const, color: '#92400e', minWidth: 52, textAlign: 'right' as const },
-  inactiveBadge: { backgroundColor: '#f5f5f4', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+  menuNumberCol: {
+    width: 52, alignItems: 'center' as const,
+  },
+  menuNumberColMiddle: {
+    borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#f5f5f4',
+    marginHorizontal: 2,
+  },
+  menuNumberLabel: { fontSize: 9, color: '#a8a29e', fontWeight: '600' as const, textTransform: 'uppercase' as const, marginBottom: 2 },
+  menuPrice:       { fontSize: 14, fontWeight: '700' as const, color: '#1c1917' },
+  menuCogs:        { fontSize: 14, fontWeight: '600' as const, color: '#b45309' },
+  menuMargin:      { fontSize: 14, fontWeight: '700' as const },
+  menuMarginNone:  { fontSize: 14, color: '#a8a29e' },
+
+  inactiveBadge:     { backgroundColor: '#f5f5f4', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
   inactiveBadgeText: { fontSize: 10, color: '#78716c' },
+
+  actionBtn: { padding: 8 },
 
   addButtonContainer: {
     position: 'absolute' as const, bottom: 0, left: 0, right: 0,

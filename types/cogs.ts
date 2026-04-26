@@ -13,6 +13,7 @@ export interface ProductCatalogItem {
   name: string;
   sku: string | null;
   unit_cost: number;
+  selling_price: number;
   unit: string;
   category: ProductCategory;
   is_active: boolean;

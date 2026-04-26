@@ -13,6 +13,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { QueryError } from '@/components/shared/QueryError';
 import { useAuth } from '@/lib/auth';
 import { useProfile } from '@/lib/queries/profile';
+import { ProductCatalogScreen } from '@/components/cogs/ProductCatalogScreen';
 import { UNIT_STATUS_COLORS } from '@/constants';
 import type { UnitWithStatus } from '@/types';
 
@@ -71,6 +72,7 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showFees, setShowFees] = useState(false);
   const [quickSalesOpen, setQuickSalesOpen] = useState(false);
+  const [showCatalog, setShowCatalog] = useState(false);
   const { data: stats, isLoading, isError, error, refetch } = useDashboard(year);
 
   const insights = useMemo<{ icon: string; text: string; color: string }[]>(() => {
@@ -132,21 +134,39 @@ export default function DashboardScreen() {
             </View>
           </View>
 
-          {/* Year selector pill */}
-          <TouchableOpacity
-            onPress={() => setYearPickerOpen(true)}
-            style={{
-              flexDirection: 'row', alignItems: 'center', gap: 5,
-              backgroundColor: '#fef3c7', borderRadius: 20,
-              paddingHorizontal: 12, paddingVertical: 6,
-              borderWidth: 1, borderColor: '#fcd34d',
-            }}
-            accessibilityLabel={`Currently showing ${year}. Tap to change year.`}
-            accessibilityRole="button"
-          >
-            <Text style={{ color: '#92400e', fontWeight: '600', fontSize: 13 }}>{year}</Text>
-            <Ionicons name="chevron-down" size={13} color="#92400e" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {/* Menu / Product Catalog button */}
+            <TouchableOpacity
+              onPress={() => setShowCatalog(true)}
+              accessibilityLabel="Open menu and COGS"
+              accessibilityRole="button"
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 4,
+                backgroundColor: '#fef3c7', borderRadius: 20,
+                paddingHorizontal: 10, paddingVertical: 6,
+                borderWidth: 1, borderColor: '#fcd34d',
+              }}
+            >
+              <Ionicons name="pricetag-outline" size={13} color="#92400e" />
+              <Text style={{ color: '#92400e', fontWeight: '600', fontSize: 13 }}>Menu</Text>
+            </TouchableOpacity>
+
+            {/* Year selector pill */}
+            <TouchableOpacity
+              onPress={() => setYearPickerOpen(true)}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 5,
+                backgroundColor: '#fef3c7', borderRadius: 20,
+                paddingHorizontal: 12, paddingVertical: 6,
+                borderWidth: 1, borderColor: '#fcd34d',
+              }}
+              accessibilityLabel={`Currently showing ${year}. Tap to change year.`}
+              accessibilityRole="button"
+            >
+              <Text style={{ color: '#92400e', fontWeight: '600', fontSize: 13 }}>{year}</Text>
+              <Ionicons name="chevron-down" size={13} color="#92400e" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -364,6 +384,8 @@ export default function DashboardScreen() {
       </TouchableOpacity>
 
       <QuickSalesSheet visible={quickSalesOpen} onClose={() => setQuickSalesOpen(false)} />
+
+      <ProductCatalogScreen visible={showCatalog} onClose={() => setShowCatalog(false)} />
     </View>
   );
 }

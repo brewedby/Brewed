@@ -14,6 +14,7 @@ import { DrinkSplitInsightCard } from '@/components/events/DrinkSplitInsightCard
 import { StaffingList } from '@/components/events/StaffingList';
 import { InfrastructureList } from '@/components/events/InfrastructureList';
 import { DocumentsSection } from '@/components/events/DocumentsSection';
+import { CogsSection } from '@/components/cogs/CogsSection';
 import { EventStatusBadge } from '@/components/shared/EventStatusBadge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { formatDateRange, formatDate, formatCurrency, toISODateString } from '@/lib/formatters';
@@ -436,6 +437,14 @@ export default function EventDetailScreen() {
         {/* Documents */}
         <View className="mb-4">
           <DocumentsSection eventId={event.id} />
+        </View>
+
+        {/* COGS from Sales Report */}
+        <View className="mb-4">
+          <CogsSection
+            eventId={event.id}
+            existingCogs={event.event_financials?.cost_of_goods ?? 0}
+          />
         </View>
 
         {/* Details */}
