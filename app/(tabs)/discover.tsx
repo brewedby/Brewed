@@ -522,6 +522,7 @@ export default function DiscoverScreen() {
             value={searchText}
             onChangeText={setSearchText}
             returnKeyType="search"
+            clearButtonMode="while-editing"
             accessibilityLabel={activeTab === 'apply' ? 'Search concessions companies' : 'Search festivals and markets'}
           />
           {searchText.length > 0 && (
@@ -606,6 +607,8 @@ export default function DiscoverScreen() {
       ) : (
         <ScrollView
           className="flex-1 px-4 pt-4"
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" />}
         >
           <Text className="text-slate-400 text-xs mb-3">{currentCount} {activeTab === 'apply' ? 'companies' : 'events'} found</Text>

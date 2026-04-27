@@ -74,7 +74,7 @@ export default function OnboardingScreen() {
         }}
       />
 
-      <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 88, paddingBottom: 48 }}>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 88, paddingBottom: 48 }} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
         <View className="items-center mb-10">
           <View
             style={{

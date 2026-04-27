@@ -253,6 +253,9 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
                 placeholderTextColor="#a8a29e"
                 style={styles.searchInput}
                 accessibilityLabel="Search products"
+                returnKeyType="search"
+                clearButtonMode="while-editing"
+                onSubmitEditing={() => {}}
               />
               {search.length > 0 && (
                 <TouchableOpacity onPress={() => setSearch('')} accessibilityLabel="Clear search">
@@ -288,6 +291,8 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
                 contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 }}
                 ListHeaderComponent={menuColumnHeader}
                 stickySectionHeadersEnabled={false}
+                keyboardDismissMode="on-drag"
+                keyboardShouldPersistTaps="handled"
               />
             )}
 
