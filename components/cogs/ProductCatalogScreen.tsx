@@ -82,13 +82,18 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
   const avgMargin = useMemo(() => {
     const withPrice = products.filter((p) => p.selling_price > 0);
     if (withPrice.length === 0) return null;
-    const avg = withPrice.reduce((sum, p) => sum + ((p.selling_price - p.unit_cost) / p.selling_price) * 100, 0) / withPrice.length;
+    const avg = withPrice.reduce((sum, p) => {
+      const netPrice = p.category === 'hot_drinks' ? p.selling_price / 1.2 : p.selling_price;
+      return sum + ((netPrice - p.unit_cost) / netPrice) * 100;
+    }, 0) / withPrice.length;
     return avg;
   }, [products]);
 
   function renderProduct({ item }: { item: ProductCatalogItem }) {
+    const isVatable = item.category === 'hot_drinks';
+    const netPrice = isVatable ? item.selling_price / 1.2 : item.selling_price;
     const grossMargin = item.selling_price > 0
-      ? ((item.selling_price - item.unit_cost) / item.selling_price) * 100
+      ? ((netPrice - item.unit_cost) / netPrice) * 100
       : null;
     return (
       <View style={styles.menuRow}>
@@ -109,6 +114,7 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
           <View style={styles.menuNumberCol}>
             <Text style={styles.menuNumberLabel}>Price</Text>
             <Text style={styles.menuPrice}>£{item.selling_price.toFixed(2)}</Text>
+            {isVatable && <Text style={{ fontSize: 8, color: '#a8a29e', textAlign: 'center' }}>inc. VAT</Text>}
           </View>
           <View style={[styles.menuNumberCol, styles.menuNumberColMiddle]}>
             <Text style={styles.menuNumberLabel}>COGS</Text>
@@ -123,6 +129,7 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
             ) : (
               <Text style={styles.menuMarginNone}>—</Text>
             )}
+            {isVatable && <Text style={{ fontSize: 8, color: '#a8a29e', textAlign: 'center' }}>ex-VAT</Text>}
           </View>
         </View>
 
