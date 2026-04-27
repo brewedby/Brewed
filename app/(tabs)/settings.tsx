@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
 import { useProfile, useUpdateProfile } from '@/lib/queries/profile';
 import type { Metric } from '@/lib/queries/profile';
@@ -25,6 +26,7 @@ const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { user, signOut } = useAuth();
   const { data: profile, refetch } = useProfile(user?.id);
   const updateProfile = useUpdateProfile();
@@ -114,21 +116,53 @@ export default function SettingsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" colors={['#f59e0b']} />}
       >
 
-        {/* ── Menu & COGS ── */}
-        <Text className="text-xs font-bold text-stone-400 uppercase tracking-wide mb-2">Menu & COGS</Text>
+        {/* ── Quick Access ── */}
+        <Text className="text-xs font-bold text-stone-400 uppercase tracking-wide mb-2">Quick Access</Text>
         <View className="bg-white rounded-2xl border border-stone-100 mb-4 overflow-hidden">
           <TouchableOpacity
             onPress={() => setShowCatalog(true)}
             accessibilityRole="button"
             accessibilityLabel="Open menu and COGS catalog"
-            style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 }}
+            style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12, borderBottomWidth: 1, borderBottomColor: '#f5f5f4' }}
           >
             <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#fef3c7', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="pricetag-outline" size={18} color="#92400e" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 15, fontWeight: '600', color: '#1c1917' }}>Menu & Product Costs</Text>
-              <Text style={{ fontSize: 12, color: '#a8a29e', marginTop: 1 }}>Set selling prices and COGS for each item</Text>
+              <Text style={{ fontSize: 12, color: '#a8a29e', marginTop: 1 }}>Selling prices and COGS per item</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#a8a29e" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/fleet')}
+            accessibilityRole="button"
+            accessibilityLabel="Manage your fleet"
+            style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12, borderBottomWidth: 1, borderBottomColor: '#f5f5f4' }}
+          >
+            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#f0fdf4', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="car-outline" size={18} color="#15803d" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#1c1917' }}>Your Fleet</Text>
+              <Text style={{ fontSize: 12, color: '#a8a29e', marginTop: 1 }}>MOT, tax, service dates & unit status</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#a8a29e" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/reports')}
+            accessibilityRole="button"
+            accessibilityLabel="View annual reports"
+            style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 }}
+          >
+            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="bar-chart-outline" size={18} color="#1d4ed8" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#1c1917' }}>Reports</Text>
+              <Text style={{ fontSize: 12, color: '#a8a29e', marginTop: 1 }}>Annual P&L, top events, export CSV</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#a8a29e" />
           </TouchableOpacity>

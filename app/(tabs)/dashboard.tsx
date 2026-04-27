@@ -282,8 +282,12 @@ export default function DashboardScreen() {
               <View>
                 <View className="flex-row items-center justify-between mb-3">
                   <Text className="font-bold text-stone-900">Your Fleet</Text>
-                  <TouchableOpacity onPress={() => router.push('/(tabs)/fleet')}>
-                    <Text className="text-amber-600 text-sm">Manage →</Text>
+                  <TouchableOpacity
+                    onPress={() => router.push('/(tabs)/fleet')}
+                    accessibilityRole="button"
+                    accessibilityLabel="Manage fleet"
+                  >
+                    <Text className="text-amber-600 text-sm font-medium">Manage →</Text>
                   </TouchableOpacity>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
@@ -329,11 +333,13 @@ export default function DashboardScreen() {
             {/* Reports quick access */}
             <TouchableOpacity
               onPress={() => router.push('/(tabs)/reports')}
-              className="bg-white rounded-2xl p-4 border border-slate-100 flex-row items-center justify-between"
+              accessibilityRole="button"
+              accessibilityLabel="View reports"
+              className="bg-white rounded-2xl p-4 border border-stone-100 flex-row items-center justify-between"
             >
               <View className="flex-1 mr-3">
-                <Text className="font-bold text-slate-900 text-sm">📈 Reports</Text>
-                <Text className="text-slate-400 text-xs mt-0.5">Annual P&L, top events, export CSV</Text>
+                <Text className="font-bold text-stone-900 text-sm">📈 Reports</Text>
+                <Text className="text-stone-400 text-xs mt-0.5">Annual P&L, top events, export CSV</Text>
               </View>
               <Text className="text-amber-600 font-medium text-sm">View →</Text>
             </TouchableOpacity>
@@ -343,8 +349,12 @@ export default function DashboardScreen() {
               <View>
                 <View className="flex-row items-center justify-between mb-3">
                   <Text className="font-bold text-stone-900">Upcoming Accepted</Text>
-                  <TouchableOpacity onPress={() => router.push('/(tabs)/events')}>
-                    <Text className="text-amber-600 text-sm">View all</Text>
+                  <TouchableOpacity
+                    onPress={() => router.push('/(tabs)/events')}
+                    accessibilityRole="button"
+                    accessibilityLabel="View all events"
+                  >
+                    <Text className="text-amber-600 text-sm font-medium">View all →</Text>
                   </TouchableOpacity>
                 </View>
                 {stats.upcomingEvents.map((event) => (

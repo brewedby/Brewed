@@ -3,13 +3,15 @@ import {
   View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView,
   Platform, ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 
 export default function SignInScreen() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const passwordRef = useRef<TextInput>(null);
 
@@ -23,54 +25,65 @@ export default function SignInScreen() {
     if (error) Alert.alert('Sign in failed', error.message);
   }
 
+  async function handleForgotPassword() {
+    if (!email.trim()) {
+      Alert.alert('Enter your email', 'Type your email address above, then tap Forgot password.');
+      return;
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      Alert.alert('Check your email', `We've sent a password reset link to ${email.trim()}.`);
+    }
+  }
+
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-stone-950"
+      style={{ flex: 1, backgroundColor: '#0c0a09' }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-        <View className="flex-1 justify-center px-6 py-12">
-          <View className="items-center mb-10">
-            <View
-              style={{
-                width: 84,
-                height: 84,
-                borderRadius: 24,
-                backgroundColor: '#78350f',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 18,
-                elevation: 6,
-                shadowColor: '#b45309',
-                shadowOpacity: 0.45,
-                shadowRadius: 14,
-                shadowOffset: { width: 0, height: 6 },
-              }}
-            >
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 10,
-                  width: 56,
-                  height: 56,
-                  borderRadius: 28,
-                  borderWidth: 2,
-                  borderColor: 'rgba(251, 191, 36, 0.25)',
-                }}
-              />
-              <Ionicons name="cafe" size={44} color="#fbbf24" />
+        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 48 }}>
+
+          {/* Logo */}
+          <View style={{ alignItems: 'center', marginBottom: 44 }}>
+            <View style={{
+              width: 80, height: 80, borderRadius: 22,
+              backgroundColor: '#78350f',
+              alignItems: 'center', justifyContent: 'center',
+              marginBottom: 20,
+              shadowColor: '#b45309', shadowOpacity: 0.5,
+              shadowRadius: 20, shadowOffset: { width: 0, height: 8 },
+              elevation: 8,
+            }}>
+              <Ionicons name="cafe" size={40} color="#fbbf24" />
             </View>
-            <Text className="text-3xl font-bold text-white">Brewed by Boon</Text>
-            <Text className="text-stone-400 mt-1">Coffee Truck Management</Text>
+            <Text style={{ fontSize: 28, fontWeight: '800', color: '#ffffff', letterSpacing: -0.5 }}>
+              Brewed by Boon
+            </Text>
+            <Text style={{ color: '#78716c', marginTop: 6, fontSize: 15 }}>
+              Coffee Truck Management
+            </Text>
           </View>
 
-          <View className="gap-4">
+          {/* Form */}
+          <View style={{ gap: 16 }}>
+
+            {/* Email */}
             <View>
-              <Text className="text-stone-300 mb-1.5 font-medium">Email</Text>
+              <Text style={{ color: '#d6d3d1', marginBottom: 8, fontWeight: '600', fontSize: 14 }}>
+                Email
+              </Text>
               <TextInput
-                className="bg-stone-800 text-white px-4 py-3.5 rounded-xl border border-stone-700"
+                style={{
+                  backgroundColor: '#1c1917', color: '#ffffff',
+                  paddingHorizontal: 16, paddingVertical: 14,
+                  borderRadius: 14, borderWidth: 1, borderColor: '#292524',
+                  fontSize: 15,
+                }}
                 placeholder="you@example.com"
-                placeholderTextColor="#78716c"
+                placeholderTextColor="#57534e"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
@@ -79,44 +92,82 @@ export default function SignInScreen() {
                 returnKeyType="next"
                 onSubmitEditing={() => passwordRef.current?.focus()}
                 blurOnSubmit={false}
+                accessibilityLabel="Email address"
               />
             </View>
 
+            {/* Password */}
             <View>
-              <Text className="text-stone-300 mb-1.5 font-medium">Password</Text>
-              <TextInput
-                ref={passwordRef}
-                className="bg-stone-800 text-white px-4 py-3.5 rounded-xl border border-stone-700"
-                placeholder="••••••••"
-                placeholderTextColor="#78716c"
-                secureTextEntry
-                autoComplete="password"
-                value={password}
-                onChangeText={setPassword}
-                returnKeyType="done"
-                onSubmitEditing={handleSignIn}
-              />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={{ color: '#d6d3d1', fontWeight: '600', fontSize: 14 }}>Password</Text>
+                <TouchableOpacity
+                  onPress={handleForgotPassword}
+                  accessibilityRole="button"
+                  accessibilityLabel="Forgot password"
+                >
+                  <Text style={{ color: '#f59e0b', fontSize: 13, fontWeight: '500' }}>Forgot password?</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ position: 'relative' }}>
+                <TextInput
+                  ref={passwordRef}
+                  style={{
+                    backgroundColor: '#1c1917', color: '#ffffff',
+                    paddingHorizontal: 16, paddingVertical: 14, paddingRight: 48,
+                    borderRadius: 14, borderWidth: 1, borderColor: '#292524',
+                    fontSize: 15,
+                  }}
+                  placeholder="••••••••"
+                  placeholderTextColor="#57534e"
+                  secureTextEntry={!showPassword}
+                  autoComplete="password"
+                  value={password}
+                  onChangeText={setPassword}
+                  returnKeyType="done"
+                  onSubmitEditing={handleSignIn}
+                  accessibilityLabel="Password"
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword((v) => !v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                  style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#78716c"
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
 
+            {/* Sign In button */}
             <TouchableOpacity
-              className="bg-amber-700 py-4 rounded-xl items-center mt-2"
-              style={{ opacity: canSubmit ? 1 : 0.6 }}
+              style={{
+                backgroundColor: '#b45309',
+                paddingVertical: 16, borderRadius: 14,
+                alignItems: 'center', marginTop: 4,
+                opacity: canSubmit ? 1 : 0.5,
+              }}
               onPress={handleSignIn}
               disabled={!canSubmit}
               accessibilityRole="button"
+              accessibilityLabel="Sign in"
               accessibilityState={{ disabled: !canSubmit }}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text className="text-white font-semibold text-base">Sign In</Text>
+                <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 16 }}>Sign In</Text>
               )}
             </TouchableOpacity>
 
-            <View className="flex-row justify-center mt-4">
-              <Text className="text-stone-400">Don't have an account? </Text>
+            {/* Sign up link */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 8 }}>
+              <Text style={{ color: '#78716c', fontSize: 14 }}>Don't have an account? </Text>
               <Link href="/(auth)/sign-up">
-                <Text className="text-amber-500 font-medium">Sign up</Text>
+                <Text style={{ color: '#f59e0b', fontWeight: '600', fontSize: 14 }}>Sign up</Text>
               </Link>
             </View>
           </View>

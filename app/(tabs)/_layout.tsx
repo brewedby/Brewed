@@ -19,13 +19,11 @@ function TabIcon({
 }
 
 const ICONS: Record<string, { filled: IoniconName; outline: IoniconName }> = {
-  dashboard: { filled: 'bar-chart', outline: 'bar-chart-outline' },
-  events: { filled: 'calendar-number', outline: 'calendar-number-outline' },
-  calendar: { filled: 'calendar', outline: 'calendar-outline' },
-  fleet: { filled: 'car', outline: 'car-outline' },
-  companies: { filled: 'business', outline: 'business-outline' },
-  discover: { filled: 'compass', outline: 'compass-outline' },
-  settings: { filled: 'settings', outline: 'settings-outline' },
+  dashboard: { filled: 'bar-chart',       outline: 'bar-chart-outline' },
+  events:    { filled: 'calendar-number', outline: 'calendar-number-outline' },
+  companies: { filled: 'business',        outline: 'business-outline' },
+  discover:  { filled: 'compass',         outline: 'compass-outline' },
+  settings:  { filled: 'settings',        outline: 'settings-outline' },
 };
 
 const TAB_LISTENERS = {
@@ -36,7 +34,7 @@ const TAB_LISTENERS = {
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const bottomPadding = insets.bottom > 0 ? insets.bottom : 6;
+  const bottomPadding = insets.bottom > 0 ? insets.bottom : 8;
   return (
     <Tabs
       screenOptions={{
@@ -46,7 +44,7 @@ export default function TabLayout() {
           borderTopColor: '#292524',
           paddingTop: 6,
           paddingBottom: bottomPadding,
-          height: 54 + bottomPadding,
+          height: 56 + bottomPadding,
         },
         tabBarActiveTintColor: '#f59e0b',
         tabBarInactiveTintColor: '#78716c',
@@ -55,13 +53,15 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen name="dashboard" listeners={TAB_LISTENERS} options={{ title: 'Dashboard', tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.dashboard} focused={focused} color={color} /> }} />
-      <Tabs.Screen name="events" listeners={TAB_LISTENERS} options={{ title: 'Events', tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.events} focused={focused} color={color} /> }} />
-      <Tabs.Screen name="calendar" listeners={TAB_LISTENERS} options={{ title: 'Calendar', tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.calendar} focused={focused} color={color} /> }} />
-      <Tabs.Screen name="fleet" listeners={TAB_LISTENERS} options={{ title: 'Fleet', tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.fleet} focused={focused} color={color} /> }} />
+      <Tabs.Screen name="events"    listeners={TAB_LISTENERS} options={{ title: 'Events',    tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.events}    focused={focused} color={color} /> }} />
       <Tabs.Screen name="companies" listeners={TAB_LISTENERS} options={{ title: 'Companies', tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.companies} focused={focused} color={color} /> }} />
-      <Tabs.Screen name="discover" listeners={TAB_LISTENERS} options={{ title: 'Discover', tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.discover} focused={focused} color={color} /> }} />
-      <Tabs.Screen name="settings" listeners={TAB_LISTENERS} options={{ title: 'Settings', tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.settings} focused={focused} color={color} /> }} />
-      <Tabs.Screen name="reports" options={{ href: null }} />
+      <Tabs.Screen name="discover"  listeners={TAB_LISTENERS} options={{ title: 'Discover',  tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.discover}  focused={focused} color={color} /> }} />
+      <Tabs.Screen name="settings"  listeners={TAB_LISTENERS} options={{ title: 'Settings',  tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.settings}  focused={focused} color={color} /> }} />
+
+      {/* Hidden screens — still navigable via router.push */}
+      <Tabs.Screen name="calendar" options={{ href: null }} />
+      <Tabs.Screen name="fleet"    options={{ href: null }} />
+      <Tabs.Screen name="reports"  options={{ href: null }} />
     </Tabs>
   );
 }

@@ -229,14 +229,28 @@ export default function EventsScreen() {
       <View className="px-4 pt-2 pb-3 bg-white border-b border-stone-100">
         <View className="flex-row items-center justify-between mb-3">
           <Text className="text-2xl font-bold text-stone-900">Events</Text>
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/events/new')}
-            accessibilityRole="button"
-            accessibilityLabel="Add new event"
-            className="bg-amber-700 px-4 py-2 rounded-xl"
-          >
-            <Text className="text-white font-semibold text-sm">+ New</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/calendar')}
+              accessibilityRole="button"
+              accessibilityLabel="Open calendar view"
+              style={{
+                width: 36, height: 36, borderRadius: 10,
+                backgroundColor: '#f5f5f4',
+                alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="calendar-outline" size={18} color="#57534e" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/events/new')}
+              accessibilityRole="button"
+              accessibilityLabel="Add new event"
+              style={{ backgroundColor: '#b45309', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 }}
+            >
+              <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 14 }}>+ New</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Search */}

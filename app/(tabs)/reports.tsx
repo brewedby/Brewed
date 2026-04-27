@@ -65,7 +65,16 @@ export default function ReportsScreen() {
     <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
       <View className="bg-white px-4 pt-2 pb-3 border-b border-stone-100">
         <View className="flex-row items-center justify-between mb-3">
-          <Text className="text-2xl font-bold text-stone-900">Reports</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
+              <Text style={{ color: '#f59e0b', fontWeight: '600', fontSize: 14 }}>‹ Back</Text>
+            </TouchableOpacity>
+            <Text className="text-2xl font-bold text-stone-900">Reports</Text>
+          </View>
           <TouchableOpacity
             onPress={handleExport}
             accessibilityRole="button"
@@ -111,7 +120,7 @@ export default function ReportsScreen() {
               { label: 'Events', value: String(data.totalEvents), color: 'text-stone-900' },
               { label: 'Avg Margin', value: formatPercent(data.avgMargin), color: data.avgMargin >= 0 ? 'text-green-700' : 'text-red-600' },
             ].map((s) => (
-              <View key={s.label} className="bg-white rounded-xl p-3 border border-stone-100 min-w-[45%] flex-1">
+              <View key={s.label} className="bg-white rounded-xl p-3 border border-stone-100 min-w-[45%] flex-1 shadow-none">
                 <Text className={`text-lg font-bold ${s.color}`}>{s.value}</Text>
                 <Text className="text-stone-400 text-xs mt-0.5">{s.label}</Text>
               </View>
