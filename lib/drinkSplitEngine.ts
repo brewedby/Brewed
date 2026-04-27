@@ -34,12 +34,11 @@ function getTempBracketLabel(bracket: string): string {
   return labels[bracket] ?? bracket;
 }
 
-// Weight decays 10% per 90-day period, floored at 20%
+// Continuous recency decay: 10% per 90 days of age, floored at 20%
 function recencyWeight(dateStr: string | undefined): number {
   if (!dateStr) return 1;
   const ageDays = (Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24);
-  const periods = Math.floor(ageDays / 90);
-  return Math.max(0.2, 1 - periods * 0.1);
+  return Math.max(0.2, 1 - (ageDays / 90) * 0.1);
 }
 
 function weightedAvgOf(points: DataPoint[]): number {
@@ -147,6 +146,8 @@ export function predictDrinkSplit(
 }
 
 // Leave-one-out accuracy: predicts each saved day using all other data, compares to actual.
+// Returns null if any bracket being tested has fewer than 2 data points (insufficient
+// for a meaningful in-bracket prediction once the held-out day is removed).
 export function computePredictionAccuracy(
   historicalDays: DailyTakings[],
   historicalEventFinancials: EventFinancialSummary[],
@@ -154,10 +155,24 @@ export function computePredictionAccuracy(
   const validDays = historicalDays.filter(
     (d) => d.avg_temp_c !== null && d.total_takings > 0 && (d.hot_drinks_sales + d.iced_drinks_sales) > 0,
   );
-  if (validDays.length < 3) return null;
+  if (validDays.length === 0) return null;
+
+  // Count points per bracket from BOTH sources (daily_takings + event financials)
+  const bracketCounts: Record<string, number> = { cold: 0, cool: 0, warm: 0, hot: 0 };
+  validDays.forEach((d) => { bracketCounts[getTempBracket(d.avg_temp_c!)]++; });
+  historicalEventFinancials
+    .filter((f) => (f.standard_rated_sales + f.zero_rated_sales) > 0)
+    .forEach((f) => {
+      const tempC = f.avg_temp_c ?? UK_MONTHLY_AVG_TEMP[f.month - 1];
+      bracketCounts[getTempBracket(tempC)]++;
+    });
+
+  // Only test days whose bracket has >= 2 points (so leave-one-out still has 1+ point left)
+  const testableDays = validDays.filter((d) => bracketCounts[getTempBracket(d.avg_temp_c!)] >= 2);
+  if (testableDays.length === 0) return null;
 
   const errors: number[] = [];
-  for (const day of validDays) {
+  for (const day of testableDays) {
     const otherDays = historicalDays.filter((d) => d.id !== day.id);
     const pred = predictDrinkSplit(day.avg_temp_c!, otherDays, historicalEventFinancials);
     const actualHotPct = (day.hot_drinks_sales / (day.hot_drinks_sales + day.iced_drinks_sales)) * 100;
