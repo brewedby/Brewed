@@ -166,7 +166,10 @@ export default function EventsScreen() {
   }, [eventsRaw, searchQuery]);
 
   const upcoming = useMemo(() => events.filter((e) => (e.end_date ?? e.date) >= today), [events, today]);
-  const completed = useMemo(() => events.filter((e) => (e.end_date ?? e.date) < today), [events, today]);
+  const completed = useMemo(
+    () => [...events.filter((e) => (e.end_date ?? e.date) < today)].sort((a, b) => b.date.localeCompare(a.date)),
+    [events, today],
+  );
 
   const companyMap = useMemo(() => {
     const m = new Map<string, CompanyWithStats>();

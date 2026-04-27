@@ -32,6 +32,7 @@ export function useProductCatalogByCategory() {
   const byCategory: Record<ProductCategory, ProductCatalogItem[]> = {
     hot_drinks:  products.filter((p) => p.category === 'hot_drinks'),
     cold_drinks: products.filter((p) => p.category === 'cold_drinks'),
+    specials:    products.filter((p) => p.category === 'specials'),
     food:        products.filter((p) => p.category === 'food'),
     other:       products.filter((p) => p.category === 'other'),
   };

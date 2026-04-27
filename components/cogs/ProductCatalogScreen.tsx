@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth';
 import { useProductCatalog } from '@/lib/queries/productCatalog';
 import { useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/lib/mutations/productCatalog';
 import { ProductForm } from './ProductForm';
-import { PRODUCT_CATEGORIES, type ProductCatalogItem } from '@/types/cogs';
+import { PRODUCT_CATEGORIES, VATABLE_CATEGORIES, type ProductCatalogItem } from '@/types/cogs';
 import type { ProductFormValues } from '@/lib/validations/product.schema';
 
 type ScreenView = 'list' | 'add' | 'edit';

@@ -5,6 +5,7 @@ export interface EventFinancialSummary {
   zero_rated_sales: number;
   avg_temp_c: number | null;
   month: number;
+  date?: string; // ISO date — used for recency weighting
 }
 
 // UK average daily high temperatures (°C) by month, Jan–Dec
@@ -13,9 +14,10 @@ const UK_MONTHLY_AVG_TEMP = [5, 6, 8, 11, 14, 17, 19, 19, 16, 12, 8, 5];
 interface DataPoint {
   tempC: number;
   hotPct: number;
+  date?: string;
 }
 
-function getTempBracket(tempC: number): string {
+function getTempBracket(tempC: number): 'cold' | 'cool' | 'warm' | 'hot' {
   if (tempC < 12) return 'cold';
   if (tempC < 18) return 'cool';
   if (tempC < 23) return 'warm';
@@ -32,8 +34,19 @@ function getTempBracketLabel(bracket: string): string {
   return labels[bracket] ?? bracket;
 }
 
-function avgOf(points: DataPoint[]): number {
-  return points.reduce((s, p) => s + p.hotPct, 0) / points.length;
+// Weight decays 10% per 90-day period, floored at 20%
+function recencyWeight(dateStr: string | undefined): number {
+  if (!dateStr) return 1;
+  const ageDays = (Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24);
+  const periods = Math.floor(ageDays / 90);
+  return Math.max(0.2, 1 - periods * 0.1);
+}
+
+function weightedAvgOf(points: DataPoint[]): number {
+  if (points.length === 0) return 0;
+  const totalW = points.reduce((s, p) => s + recencyWeight(p.date), 0);
+  if (totalW === 0) return points.reduce((s, p) => s + p.hotPct, 0) / points.length;
+  return points.reduce((s, p) => s + p.hotPct * recencyWeight(p.date), 0) / totalW;
 }
 
 export function predictDrinkSplit(
@@ -48,37 +61,43 @@ export function predictDrinkSplit(
     (d) => d.avg_temp_c !== null && d.total_takings > 0 && (d.hot_drinks_sales + d.iced_drinks_sales) > 0,
   );
 
-  // ── event_financials rows (infer temp from month if null) ─────────────
+  // ── event_financials + COGS CSV rows (infer temp from month if null) ──
   const eventPoints: DataPoint[] = historicalEventFinancials
     .filter((f) => (f.standard_rated_sales + f.zero_rated_sales) > 0)
     .map((f) => ({
-      tempC: f.avg_temp_c ?? UK_MONTHLY_AVG_TEMP[f.month - 1],
+      tempC:  f.avg_temp_c ?? UK_MONTHLY_AVG_TEMP[f.month - 1],
       hotPct: (f.standard_rated_sales / (f.standard_rated_sales + f.zero_rated_sales)) * 100,
+      date:   f.date,
     }));
 
-  // daily_takings are duplicated (2× weight) because they have real weather data
+  // daily_takings duplicated (2× weight) because they have real weather data;
+  // recency weighting applied within weightedAvgOf
   const dailyPoints: DataPoint[] = validDays.flatMap((d) => {
-    const hotPct = (d.hot_drinks_sales / (d.hot_drinks_sales + d.iced_drinks_sales)) * 100;
-    const point = { tempC: d.avg_temp_c!, hotPct };
+    const point: DataPoint = {
+      tempC:  d.avg_temp_c!,
+      hotPct: (d.hot_drinks_sales / (d.hot_drinks_sales + d.iced_drinks_sales)) * 100,
+      date:   d.day_date,
+    };
     return [point, point];
   });
 
   const allPoints = [...dailyPoints, ...eventPoints];
 
-  // unique source counts for labels & thresholds (not doubled)
-  const realWeatherDaysInBracket = validDays.filter(
-    (d) => getTempBracket(d.avg_temp_c!) === targetBracket,
-  ).length;
-  const eventPointsInBracket = eventPoints.filter(
-    (p) => getTempBracket(p.tempC) === targetBracket,
-  ).length;
+  // ── Bracket breakdown (unique source counts, not doubled) ─────────────
+  const bracketBreakdown = { cold: 0, cool: 0, warm: 0, hot: 0 };
+  validDays.forEach((d) => { bracketBreakdown[getTempBracket(d.avg_temp_c!)]++; });
+  eventPoints.forEach((p) => { bracketBreakdown[getTempBracket(p.tempC)]++; });
+
+  const totalDataPoints = validDays.length + eventPoints.length;
+
+  const realWeatherDaysInBracket = validDays.filter((d) => getTempBracket(d.avg_temp_c!) === targetBracket).length;
+  const eventPointsInBracket    = eventPoints.filter((p) => getTempBracket(p.tempC) === targetBracket).length;
   const uniqueInBracket = realWeatherDaysInBracket + eventPointsInBracket;
 
-  // weighted points for the target bracket (daily = 2 entries, event = 1)
   const bracketPoints = allPoints.filter((p) => getTempBracket(p.tempC) === targetBracket);
 
   if (uniqueInBracket >= 3) {
-    const avg = avgOf(bracketPoints);
+    const avg = weightedAvgOf(bracketPoints);
     return {
       hotPct: Math.round(avg),
       icedPct: Math.round(100 - avg),
@@ -87,11 +106,13 @@ export function predictDrinkSplit(
       basedOnRealWeatherDays: realWeatherDaysInBracket,
       basedOnHistoricalEvents: eventPointsInBracket,
       tempBracket: getTempBracketLabel(targetBracket),
+      totalDataPoints,
+      bracketBreakdown,
     };
   }
 
   if (bracketPoints.length > 0 && allPoints.length > 0) {
-    const blended = avgOf(bracketPoints) * 0.7 + avgOf(allPoints) * 0.3;
+    const blended = weightedAvgOf(bracketPoints) * 0.7 + weightedAvgOf(allPoints) * 0.3;
     return {
       hotPct: Math.round(blended),
       icedPct: Math.round(100 - blended),
@@ -100,6 +121,8 @@ export function predictDrinkSplit(
       basedOnRealWeatherDays: realWeatherDaysInBracket,
       basedOnHistoricalEvents: eventPointsInBracket,
       tempBracket: getTempBracketLabel(targetBracket),
+      totalDataPoints,
+      bracketBreakdown,
     };
   }
 
@@ -118,6 +141,33 @@ export function predictDrinkSplit(
     basedOnRealWeatherDays: 0,
     basedOnHistoricalEvents: 0,
     tempBracket: getTempBracketLabel(targetBracket),
+    totalDataPoints,
+    bracketBreakdown,
+  };
+}
+
+// Leave-one-out accuracy: predicts each saved day using all other data, compares to actual.
+export function computePredictionAccuracy(
+  historicalDays: DailyTakings[],
+  historicalEventFinancials: EventFinancialSummary[],
+): { avgErrorPct: number; sampleCount: number } | null {
+  const validDays = historicalDays.filter(
+    (d) => d.avg_temp_c !== null && d.total_takings > 0 && (d.hot_drinks_sales + d.iced_drinks_sales) > 0,
+  );
+  if (validDays.length < 3) return null;
+
+  const errors: number[] = [];
+  for (const day of validDays) {
+    const otherDays = historicalDays.filter((d) => d.id !== day.id);
+    const pred = predictDrinkSplit(day.avg_temp_c!, otherDays, historicalEventFinancials);
+    const actualHotPct = (day.hot_drinks_sales / (day.hot_drinks_sales + day.iced_drinks_sales)) * 100;
+    errors.push(Math.abs(pred.hotPct - actualHotPct));
+  }
+
+  if (errors.length === 0) return null;
+  return {
+    avgErrorPct: errors.reduce((a, b) => a + b, 0) / errors.length,
+    sampleCount: errors.length,
   };
 }
 

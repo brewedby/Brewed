@@ -4,7 +4,7 @@
 // During implementation, add the table rows to types/database.ts and
 // update these to use Tables['product_catalog']['Row'] etc.
 
-export type ProductCategory = 'hot_drinks' | 'cold_drinks' | 'food' | 'other';
+export type ProductCategory = 'hot_drinks' | 'cold_drinks' | 'specials' | 'food' | 'other';
 export type SalesReportStatus = 'pending' | 'parsed' | 'error';
 
 export interface ProductCatalogItem {
@@ -97,8 +97,12 @@ export interface ReconciliationSummary {
 export const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; emoji: string }[] = [
   { value: 'hot_drinks',  label: 'Hot Drinks',  emoji: '☕' },
   { value: 'cold_drinks', label: 'Cold Drinks',  emoji: '🥤' },
+  { value: 'specials',    label: 'Specials',     emoji: '⭐' },
   { value: 'food',        label: 'Food',         emoji: '🍞' },
   { value: 'other',       label: 'Other',        emoji: '📦' },
 ];
+
+// Categories where the selling price includes 20% VAT (hot food/drinks)
+export const VATABLE_CATEGORIES: ProductCategory[] = ['hot_drinks', 'specials'];
 
 export const UNIT_OPTIONS = ['cup', 'item', 'portion', 'serving', 'kg', 'litre', 'slice', 'pack'];

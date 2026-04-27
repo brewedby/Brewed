@@ -204,6 +204,8 @@ export interface DrinkSplitPrediction {
   basedOnRealWeatherDays: number;
   basedOnHistoricalEvents: number;
   tempBracket: string;
+  totalDataPoints: number;
+  bracketBreakdown: { cold: number; cool: number; warm: number; hot: number };
 }
 
 export interface CompanyFormValues {
