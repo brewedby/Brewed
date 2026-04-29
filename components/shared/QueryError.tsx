@@ -9,7 +9,14 @@ interface Props {
 
 export function QueryError({ error, onRetry, message }: Props) {
   if (!error) return null;
-  const errMessage = error instanceof Error ? error.message : String(error);
+  const errMessage =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error !== null && 'message' in error
+        ? String((error as { message: unknown }).message)
+        : typeof error === 'string'
+          ? error
+          : 'An unexpected error occurred';
   return (
     <View className="flex-1 items-center justify-center px-6 py-12">
       <Text className="text-4xl mb-4">⚠️</Text>

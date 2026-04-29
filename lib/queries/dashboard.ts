@@ -15,6 +15,7 @@ export function useDashboard(year?: number) {
         supabase.from('units').select('*').order('name'),
       ]);
       if (eventsRes.error) throw eventsRes.error;
+      if (unitsRes.error) throw unitsRes.error;
 
       const allEventsRaw = eventsRes.data ?? [];
       const allUnits = unitsRes.data ?? [];

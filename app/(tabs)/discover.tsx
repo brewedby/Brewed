@@ -594,11 +594,8 @@ export default function DiscoverScreen() {
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-4xl mb-3">⚠️</Text>
           <Text className="font-semibold text-slate-700 text-center mb-2">Could not load directory</Text>
-          <Text className="text-slate-400 text-xs text-center mb-1">
-            {error instanceof Error ? error.message : 'Database error'}
-          </Text>
           <Text className="text-slate-400 text-xs text-center mb-4">
-            Run the Migration 003 SQL in your Supabase dashboard, then tap Retry.
+            {error instanceof Error ? error.message : 'Could not connect to the directory. Check your connection and try again.'}
           </Text>
           <TouchableOpacity onPress={() => refetch()} accessibilityRole="button" accessibilityLabel="Retry loading directory" className="mt-2 bg-amber-500 px-6 py-3 rounded-xl">
             <Text className="text-white font-semibold text-sm">Retry</Text>
