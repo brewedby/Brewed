@@ -15,11 +15,9 @@
       "distribution": "internal",
       "ios": {
         "simulator": false
-      },
-      "channel": "preview"
+      }
     },
     "production": {
-      "channel": "production",
       "autoIncrement": true,
       "ios": {
         "buildConfiguration": "Release"
