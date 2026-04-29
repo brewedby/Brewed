@@ -11,7 +11,7 @@
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "owner": "REPLACE_WITH_YOUR_EXPO_USERNAME",
+    "owner": "brewedbyboon_account",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
