@@ -62,9 +62,7 @@
       ]
     ],
     "extra": {
-      "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID_AFTER_eas_init"
-      }
+      "eas": {}
     }
   }
 }
