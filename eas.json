@@ -9,10 +9,6 @@
       "distribution": "internal",
       "ios": {
         "simulator": true
-      },
-      "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "REPLACE_WITH_DEV_SUPABASE_URL",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "REPLACE_WITH_DEV_ANON_KEY"
       }
     },
     "preview": {
