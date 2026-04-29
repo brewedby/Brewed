@@ -28,6 +28,7 @@
     "production": {
       "ios": {
         "appleId": "sip@brewedbyboon.com",
+        "ascAppId": "6764655317",
         "appleTeamId": "TN2433BJWJ"
       }
     }
