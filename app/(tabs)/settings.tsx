@@ -179,7 +179,7 @@ export default function SettingsScreen() {
               onChangeText={setBusinessName}
               placeholder="e.g. Brewed by Boon"
               accessibilityLabel="Business name"
-              className="border border-stone-200 rounded-xl px-3 py-2.5 text-stone-900"
+              className="border border-stone-200 rounded-xl px-3 py-2.5 text-base text-stone-900"
             />
           </View>
 
@@ -286,7 +286,7 @@ export default function SettingsScreen() {
                 accessibilityLabel="New metric name"
                 style={{
                   flex: 1, borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10,
-                  paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, color: '#1c1917',
+                  paddingHorizontal: 10, paddingVertical: 8, fontSize: 16, color: '#1c1917',
                 }}
               />
               <TextInput
@@ -297,7 +297,7 @@ export default function SettingsScreen() {
                 accessibilityLabel="New metric unit"
                 style={{
                   width: 64, borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10,
-                  paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, color: '#1c1917',
+                  paddingHorizontal: 10, paddingVertical: 8, fontSize: 16, color: '#1c1917',
                 }}
               />
               <TouchableOpacity

@@ -71,7 +71,7 @@ export function WheelColumn({ items, initialIndex, onChange }: WheelColumnProps)
       >
         {items.map((item, index) => (
           <TouchableOpacity
-            key={index}
+            key={`${index}-${String(item)}`}
             style={{
               height: WHEEL_ITEM_HEIGHT,
               justifyContent: 'center',

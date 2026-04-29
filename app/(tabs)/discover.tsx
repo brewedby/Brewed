@@ -291,7 +291,12 @@ export default function DiscoverScreen() {
   useEffect(() => {
     if (!appliedStorageKey) return;
     AsyncStorage.getItem(appliedStorageKey).then((raw) => {
-      if (raw) setAppliedIds(new Set(JSON.parse(raw)));
+      if (!raw) return;
+      try {
+        setAppliedIds(new Set(JSON.parse(raw)));
+      } catch {
+        // corrupt storage — ignore and start fresh
+      }
     });
   }, [appliedStorageKey]);
 
@@ -358,7 +363,7 @@ export default function DiscoverScreen() {
     return [...results].sort((a, b) => {
       if (a.featured && !b.featured) return -1;
       if (!a.featured && b.featured) return 1;
-      return a.title.localeCompare(b.title);
+      return (a.title ?? '').localeCompare(b.title ?? '');
     });
   }, [concessionsCos, category, searchText]);
 

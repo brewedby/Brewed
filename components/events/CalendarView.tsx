@@ -133,11 +133,11 @@ export function CalendarView({
   return (
     <View className="flex-1" {...panResponder.panHandlers}>
       <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-stone-100">
-        <TouchableOpacity onPress={prevMonth} className="w-9 h-9 items-center justify-center rounded-full bg-stone-100">
+        <TouchableOpacity onPress={prevMonth} className="w-11 h-11 items-center justify-center rounded-full bg-stone-100">
           <Text className="text-stone-600 font-bold text-lg">‹</Text>
         </TouchableOpacity>
         <Text className="font-bold text-stone-900 text-base">{MONTHS[month]} {year}</Text>
-        <TouchableOpacity onPress={nextMonth} className="w-9 h-9 items-center justify-center rounded-full bg-stone-100">
+        <TouchableOpacity onPress={nextMonth} className="w-11 h-11 items-center justify-center rounded-full bg-stone-100">
           <Text className="text-stone-600 font-bold text-lg">›</Text>
         </TouchableOpacity>
       </View>

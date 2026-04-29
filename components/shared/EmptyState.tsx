@@ -34,7 +34,8 @@ export function EmptyState({ icon = '📋', title, description, action, secondar
         useNativeDriver: true,
       }),
     ]).start();
-  }, [opacity, iconScale]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Animated.View className="flex-1 items-center justify-center px-8 py-16" style={{ opacity }}>

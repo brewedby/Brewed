@@ -18,7 +18,7 @@ export default function FleetScreen() {
   const { data: dashboardStats, isLoading: dashboardLoading, refetch: refetchDashboard } = useDashboard();
   const { data: rawUnits, isLoading: unitsLoading, isError, error, refetch: refetchUnits } = useUnits();
 
-  const isLoading = dashboardLoading && unitsLoading;
+  const isLoading = dashboardLoading || unitsLoading;
 
   // Prefer dashboard unitStatuses (includes currentEvent), fall back to raw units
   const units: UnitWithStatus[] = dashboardStats?.unitStatuses

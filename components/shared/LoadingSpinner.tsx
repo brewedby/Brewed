@@ -18,7 +18,8 @@ export function LoadingSpinner({ message }: Props) {
     );
     loop.start();
     return () => loop.stop();
-  }, [bob]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <View className="flex-1 items-center justify-center">

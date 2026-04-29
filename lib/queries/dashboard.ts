@@ -67,7 +67,8 @@ export function useDashboard(year?: number) {
       }
       ytdEvents.forEach((e) => {
         const month = parseInt(e.date.split('-')[1], 10);
-        const entry = monthlyMap.get(month)!;
+        const entry = monthlyMap.get(month);
+        if (!entry) return;
         if (e.event_financials) {
           const calc = calcEventFinancials(e.event_financials);
           entry.grossSales += calc.totalNetSales;

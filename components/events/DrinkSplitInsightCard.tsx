@@ -102,7 +102,7 @@ export function DrinkSplitInsightCard({ forecastTempC, expectedTakings }: Props)
       {projection && (
         <View style={{ backgroundColor: '#fafaf9', borderRadius: 10, padding: 10, gap: 3, marginBottom: 10 }}>
           <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569', marginBottom: 2 }}>
-            Projected for {formatCurrency(expectedTakings!)} takings:
+            Projected for {formatCurrency(expectedTakings ?? 0)} takings:
           </Text>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 11, color: '#78716c' }}>Hot drinks (inc VAT)</Text>

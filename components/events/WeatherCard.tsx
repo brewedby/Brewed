@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { differenceInDays, parseISO, eachDayOfInterval, format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -134,6 +134,8 @@ export function WeatherCard({
   const [avgTemp, setAvgTemp] = useState(15);
   const [loading, setLoading] = useState(true);
   const [outOfRange, setOutOfRange] = useState(false);
+  const onTempFetchedRef = useRef(onTempFetched);
+  useEffect(() => { onTempFetchedRef.current = onTempFetched; });
 
   useEffect(() => {
     async function load() {
@@ -207,7 +209,7 @@ export function WeatherCard({
 
         setDays(dual);
         setAvgTemp(avg);
-        onTempFetched?.(avg);
+        onTempFetchedRef.current?.(avg);
       } catch { /* silently fail */ }
       finally { setLoading(false); }
     }

@@ -46,7 +46,8 @@ export function useReports(year: number) {
       }
       allEvents.forEach((e) => {
         const month = parseInt(e.date.split('-')[1], 10);
-        const entry = monthlyMap.get(month)!;
+        const entry = monthlyMap.get(month);
+        if (!entry) return;
         entry.eventCount += 1;
         entry.grossSales += e.event_financials?.gross_sales ?? 0;
         if (e.event_financials) {
