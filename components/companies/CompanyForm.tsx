@@ -37,7 +37,7 @@ export function CompanyForm({ defaultValues, onSubmit, submitLabel = 'Save Compa
 
   return (
     <View className="flex-1 bg-stone-50">
-      <ScrollView className="flex-1 px-4 pt-4" keyboardShouldPersistTaps="handled">
+      <ScrollView className="flex-1 px-4 pt-4" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View className="gap-4">
           <Controller
             control={control} name="name"

@@ -20,7 +20,7 @@ const queryClient = new QueryClient({
 });
 
 function RootLayoutNav() {
-  const { session, loading, user } = useAuth();
+  const { session, loading, user, isRecoveryMode, setIsRecoveryMode } = useAuth();
   const { data: profile, isLoading: profileLoading } = useProfile(user?.id);
   const segments = useSegments();
   const router = useRouter();
@@ -31,11 +31,12 @@ function RootLayoutNav() {
       if (!hash) return;
       const params = Object.fromEntries(new URLSearchParams(hash));
       if (params.type === 'recovery' && params.access_token) {
+        // Set recovery mode BEFORE setSession so the navigation effect won't
+        // redirect away when it sees a session without knowing it's recovery.
+        setIsRecoveryMode(true);
         supabase.auth.setSession({
           access_token: params.access_token,
           refresh_token: params.refresh_token ?? '',
-        }).then(() => {
-          router.replace('/(auth)/reset-password');
         });
       }
     }
@@ -43,13 +44,20 @@ function RootLayoutNav() {
     Linking.getInitialURL().then((url) => { if (url) handleDeepLink(url); });
     const sub = Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
     return () => sub.remove();
-  }, []);
+  }, [setIsRecoveryMode]);
 
   useEffect(() => {
     if (loading) return;
-    if (profileLoading && session) return; // wait for profile
+
+    // Always route to reset-password while recovery token is active
+    if (isRecoveryMode) {
+      router.replace('/(auth)/reset-password');
+      return;
+    }
+
     const inAuthGroup = segments[0] === '(auth)';
     const inOnboarding = segments[0] === 'onboarding';
+
     if (!session && !inAuthGroup) {
       router.replace('/(auth)/sign-in');
     } else if (session && inAuthGroup) {
@@ -61,7 +69,7 @@ function RootLayoutNav() {
     } else if (session && !inAuthGroup && !inOnboarding && !profile?.business_name && profile !== null && !profileLoading) {
       router.replace('/onboarding');
     }
-  }, [session, loading, segments, profile, profileLoading]);
+  }, [session, loading, segments, profile, profileLoading, isRecoveryMode]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

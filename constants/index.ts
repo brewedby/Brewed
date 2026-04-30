@@ -1,5 +1,11 @@
 import type { ApplicationStatus, InfrastructureCategory, UnitStatus } from '@/types';
 
+// UK standard rate VAT divisor (gross ÷ 1.2 = net, i.e. 20% VAT)
+export const VAT_DIVISOR = 1.2;
+
+// Minimum data points before the drink-split prediction engine shows real confidence
+export const MIN_PREDICTION_DATA_POINTS = 5;
+
 export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   pending: 'Pending',
   accepted: 'Accepted',

@@ -240,7 +240,7 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fafaf9' }}>
-      <ScrollView style={{ flex: 1, paddingHorizontal: 16, paddingTop: 16 }} keyboardShouldPersistTaps="handled">
+      <ScrollView style={{ flex: 1, paddingHorizontal: 16, paddingTop: 16 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View style={{ gap: 16 }}>
 
           {/* Name */}

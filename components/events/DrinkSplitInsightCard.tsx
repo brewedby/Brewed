@@ -3,8 +3,7 @@ import { View, Text } from 'react-native';
 import { useAllHistoricalTakings } from '@/lib/queries/dailyTakings';
 import { predictDrinkSplit, projectDayTakings, computePredictionAccuracy } from '@/lib/drinkSplitEngine';
 import { formatCurrency } from '@/lib/formatters';
-
-const MIN_DATA_POINTS = 5;
+import { MIN_PREDICTION_DATA_POINTS as MIN_DATA_POINTS } from '@/constants';
 
 interface Props {
   forecastTempC: number;

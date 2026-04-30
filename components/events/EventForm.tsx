@@ -666,7 +666,7 @@ export function EventForm({
         </ScrollView>
       </View>
 
-      <ScrollView className="flex-1 px-4 pt-5" keyboardShouldPersistTaps="handled">
+      <ScrollView className="flex-1 px-4 pt-5" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
 
         {/* ══════════════════════════════════════════
             DETAILS TAB

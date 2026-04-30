@@ -1,4 +1,5 @@
 import type { DailyTakings, DrinkSplitPrediction } from '@/types';
+import { VAT_DIVISOR } from '@/constants';
 
 export interface EventFinancialSummary {
   standard_rated_sales: number;
@@ -189,7 +190,7 @@ export function computePredictionAccuracy(
 export function projectDayTakings(totalTakings: number, prediction: DrinkSplitPrediction) {
   const hotGross = totalTakings * (prediction.hotPct / 100);
   const icedGross = totalTakings * (prediction.icedPct / 100);
-  const hotNet = hotGross / 1.2;
+  const hotNet = hotGross / VAT_DIVISOR;
   const vatAmount = hotGross - hotNet;
   const netSales = hotNet + icedGross;
   return { hotGross, icedGross, hotNet, vatAmount, netSales };

@@ -1,4 +1,5 @@
-import type { EventFinancials, StaffingEntry, EventCalculations, EMPTY_CALCULATIONS } from '@/types';
+import type { EventFinancials, StaffingEntry, EventCalculations } from '@/types';
+import { VAT_DIVISOR } from '@/constants';
 
 export function calcStaffingTotal(entries: StaffingEntry[]): number {
   return entries.reduce((sum, e) => sum + e.hours_worked * e.hourly_rate, 0);
@@ -31,7 +32,7 @@ export function calcEventFinancials(
   const standardRated = f.standard_rated_sales ?? 0;
   const hasVatBreakdown = zeroRated > 0 || standardRated > 0;
 
-  const standardRatedNet = standardRated / 1.2;
+  const standardRatedNet = standardRated / VAT_DIVISOR;
   const vatCollected = standardRated - standardRatedNet;
   const totalNetSales = hasVatBreakdown ? zeroRated + standardRatedNet : (f.gross_sales ?? 0);
 
