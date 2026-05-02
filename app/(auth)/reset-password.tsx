@@ -4,29 +4,35 @@ import {
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
   ScrollView, TouchableWithoutFeedback, Keyboard,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
+import { useTheme } from '@/lib/themeContext';
+import { TONE } from '@/lib/theme';
 
 const MIN_PASSWORD_LENGTH = 8;
 
 type Strength = { label: string; color: string; bars: number };
 
 function scorePassword(pw: string): Strength {
-  if (pw.length < MIN_PASSWORD_LENGTH) return { label: `Too short (${MIN_PASSWORD_LENGTH}+ chars)`, color: '#ef4444', bars: 0 };
+  if (pw.length < MIN_PASSWORD_LENGTH) return { label: `TOO SHORT (${MIN_PASSWORD_LENGTH}+ CHARS)`, color: TONE.bad, bars: 0 };
   let score = 1;
   if (pw.length >= 12) score++;
   if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
   if (/\d/.test(pw)) score++;
   if (/[^A-Za-z0-9]/.test(pw)) score++;
-  if (score <= 2) return { label: 'Weak',   color: '#ef4444', bars: 1 };
-  if (score <= 3) return { label: 'Fair',   color: '#f59e0b', bars: 2 };
-  if (score <= 4) return { label: 'Good',   color: '#22c55e', bars: 3 };
-  return               { label: 'Strong', color: '#16a34a', bars: 4 };
+  if (score <= 2) return { label: 'WEAK',   color: TONE.bad,     bars: 1 };
+  if (score <= 3) return { label: 'FAIR',   color: TONE.caution, bars: 2 };
+  if (score <= 4) return { label: 'GOOD',   color: TONE.good,    bars: 3 };
+  return               { label: 'STRONG', color: TONE.good,    bars: 4 };
 }
 
 export default function ResetPasswordScreen() {
+  const insets = useSafeAreaInsets();
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -56,7 +62,6 @@ export default function ResetPasswordScreen() {
         [{ text: 'OK' }],
       );
     } else {
-      // Clear recovery mode, sign out the recovery session, then go to sign-in
       setIsRecoveryMode(false);
       await supabase.auth.signOut();
       Alert.alert(
@@ -75,7 +80,7 @@ export default function ResetPasswordScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#0c0a09' }}
+      style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -85,54 +90,55 @@ export default function ResetPasswordScreen() {
           keyboardShouldPersistTaps="handled"
           bounces={false}
         >
-          <View style={{ flex: 1, paddingHorizontal: 28, paddingTop: 64, paddingBottom: 40 }}>
-
-            {/* Back link */}
+          <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>
             <TouchableOpacity
               onPress={handleBack}
               accessibilityRole="button"
               accessibilityLabel="Back to sign in"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 16 }}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 36, alignSelf: 'flex-start' }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
             >
-              <Ionicons name="chevron-back" size={18} color="#78716c" />
-              <Text style={{ color: '#78716c', fontSize: 15 }}>Sign In</Text>
+              <Ionicons name="chevron-back" size={14} color={p.brand} />
+              <Text style={{ color: p.brand, fontSize: 13, fontWeight: '600' }}>Sign in</Text>
             </TouchableOpacity>
+          </View>
 
-            {/* Heading */}
-            <View style={{ marginBottom: 32 }}>
-              <View style={{
-                width: 56, height: 56, borderRadius: 16,
-                backgroundColor: '#78350f',
-                alignItems: 'center', justifyContent: 'center',
-                marginBottom: 20,
-              }}>
-                <Ionicons name="lock-closed" size={26} color="#fbbf24" />
-              </View>
-              <Text style={{ color: '#ffffff', fontSize: 26, fontWeight: '800', letterSpacing: -0.5, marginBottom: 6 }}>
-                Set new password
-              </Text>
-              <Text style={{ color: '#78716c', fontSize: 15, lineHeight: 22 }}>
-                Choose a strong password for your Brewed account.
-              </Text>
-            </View>
+          {/* ── Title ── */}
+          <View style={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 16, borderBottomWidth: 2, borderBottomColor: p.text }}>
+            <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 2, fontWeight: '700' }}>
+              {'NEW KEY'}
+            </Text>
+            <Text style={{
+              fontFamily: tokens.type.display,
+              fontWeight: tokens.type.displayWeight,
+              fontSize: 32, letterSpacing: -0.7, lineHeight: 34,
+              marginTop: 6, color: p.text,
+            }}>
+              Set a new password.
+            </Text>
+            <Text style={{ fontSize: 12, color: p.textMuted, fontStyle: 'italic', marginTop: 8, lineHeight: 18 }}>
+              Choose a strong one. Eight characters minimum, mix of letters and numbers.
+            </Text>
+          </View>
 
+          {/* ── Form ── */}
+          <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16, gap: 18 }}>
             {/* New password */}
-            <View style={{ marginBottom: 8 }}>
-              <Text style={{ color: '#d6d3d1', fontWeight: '600', fontSize: 14, marginBottom: 8 }}>
-                New password
+            <View>
+              <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 6 }}>
+                {'NEW PASSWORD'}
               </Text>
-              <View style={{ position: 'relative' }}>
+              <View style={{
+                flexDirection: 'row', alignItems: 'center', gap: 8,
+                borderBottomWidth: 1,
+                borderBottomColor: password.length > 0 && password.length < MIN_PASSWORD_LENGTH ? TONE.bad : p.text,
+                paddingBottom: 6,
+              }}>
+                <Ionicons name="lock-closed-outline" size={14} color={p.textMuted} />
                 <TextInput
-                  style={{
-                    backgroundColor: '#1c1917', color: '#ffffff',
-                    paddingHorizontal: 16, paddingVertical: 14, paddingRight: 50,
-                    borderRadius: 14, borderWidth: 1,
-                    borderColor: password.length > 0 && password.length < MIN_PASSWORD_LENGTH ? '#ef4444' : '#292524',
-                    fontSize: 16,
-                  }}
-                  placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
-                  placeholderTextColor="#57534e"
+                  style={{ flex: 1, fontSize: 16, color: p.text, padding: 0, fontFamily: tokens.type.mono, letterSpacing: showPassword ? 0 : 4 }}
+                  placeholder={`Min. ${MIN_PASSWORD_LENGTH} characters`}
+                  placeholderTextColor={p.textFaint}
                   secureTextEntry={!showPassword}
                   autoComplete="new-password"
                   textContentType="newPassword"
@@ -147,52 +153,50 @@ export default function ResetPasswordScreen() {
                   onPress={() => setShowPassword((v) => !v)}
                   accessibilityRole="button"
                   accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-                  style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#78716c" />
+                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={14} color={p.textMuted} />
                 </TouchableOpacity>
               </View>
 
               {/* Strength meter */}
               {password.length > 0 && (
-                <View style={{ marginTop: 8 }}>
-                  <View style={{ flexDirection: 'row', gap: 4, marginBottom: 4 }}>
+                <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={{ flexDirection: 'row', gap: 4, flex: 1 }}>
                     {[1, 2, 3, 4].map((bar) => (
                       <View
                         key={bar}
                         style={{
-                          flex: 1, height: 3, borderRadius: 2,
-                          backgroundColor: bar <= strength.bars ? strength.color : '#292524',
+                          flex: 1, height: 3,
+                          backgroundColor: bar <= strength.bars ? strength.color : p.borderStrong,
                         }}
                       />
                     ))}
                   </View>
-                  {strength.label ? (
-                    <Text style={{ color: strength.color, fontSize: 12, fontWeight: '500' }}>
-                      {strength.label}
-                    </Text>
-                  ) : null}
+                  <Text style={{ color: strength.color, fontSize: 9, fontWeight: '700', letterSpacing: 1.5, minWidth: 60 }}>
+                    {strength.label}
+                  </Text>
                 </View>
               )}
             </View>
 
             {/* Confirm password */}
-            <View style={{ marginBottom: 28 }}>
-              <Text style={{ color: '#d6d3d1', fontWeight: '600', fontSize: 14, marginBottom: 8 }}>
-                Confirm password
+            <View>
+              <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 6 }}>
+                {'CONFIRM PASSWORD'}
               </Text>
-              <View style={{ position: 'relative' }}>
+              <View style={{
+                flexDirection: 'row', alignItems: 'center', gap: 8,
+                borderBottomWidth: 1,
+                borderBottomColor: mismatch ? TONE.bad : p.text,
+                paddingBottom: 6,
+              }}>
+                <Ionicons name="lock-closed-outline" size={14} color={p.textMuted} />
                 <TextInput
                   ref={confirmRef}
-                  style={{
-                    backgroundColor: '#1c1917', color: '#ffffff',
-                    paddingHorizontal: 16, paddingVertical: 14, paddingRight: 50,
-                    borderRadius: 14, borderWidth: 1,
-                    borderColor: mismatch ? '#ef4444' : '#292524',
-                    fontSize: 16,
-                  }}
+                  style={{ flex: 1, fontSize: 16, color: p.text, padding: 0, fontFamily: tokens.type.mono, letterSpacing: showConfirm ? 0 : 4 }}
                   placeholder="Repeat your new password"
-                  placeholderTextColor="#57534e"
+                  placeholderTextColor={p.textFaint}
                   secureTextEntry={!showConfirm}
                   autoComplete="new-password"
                   textContentType="newPassword"
@@ -206,13 +210,13 @@ export default function ResetPasswordScreen() {
                   onPress={() => setShowConfirm((v) => !v)}
                   accessibilityRole="button"
                   accessibilityLabel={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
-                  style={{ position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color="#78716c" />
+                  <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={14} color={p.textMuted} />
                 </TouchableOpacity>
               </View>
               {mismatch && (
-                <Text style={{ color: '#ef4444', fontSize: 13, marginTop: 6 }}>
+                <Text style={{ color: TONE.bad, fontSize: 11, marginTop: 4, fontStyle: 'italic' }}>
                   Passwords don't match
                 </Text>
               )}
@@ -220,24 +224,23 @@ export default function ResetPasswordScreen() {
 
             {/* Submit */}
             <TouchableOpacity
-              style={{
-                backgroundColor: '#b45309',
-                paddingVertical: 16, borderRadius: 14,
-                alignItems: 'center',
-                opacity: canSubmit ? 1 : 0.5,
-              }}
               onPress={handleReset}
               disabled={!canSubmit}
               accessibilityRole="button"
               accessibilityLabel="Update password"
               accessibilityState={{ disabled: !canSubmit }}
+              style={{
+                backgroundColor: p.text, paddingVertical: 14,
+                alignItems: 'center', minHeight: 48, marginTop: 4,
+                opacity: canSubmit ? 1 : 0.5,
+              }}
             >
               {loading
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 16 }}>Update password</Text>}
+                ? <ActivityIndicator color={p.bg} />
+                : <Text style={{ color: p.bg, fontWeight: '700', fontSize: 12, letterSpacing: 2 }}>{'UPDATE PASSWORD'}</Text>}
             </TouchableOpacity>
-
           </View>
+          <View style={{ height: 28 + insets.bottom }} />
         </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>

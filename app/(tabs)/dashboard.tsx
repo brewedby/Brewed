@@ -9,7 +9,6 @@ import { QuickSalesSheet } from '@/components/dashboard/QuickSalesSheet';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { QueryError } from '@/components/shared/QueryError';
 import { ProductCatalogScreen } from '@/components/cogs/ProductCatalogScreen';
-import { FarMasthead } from '@/components/far/Masthead';
 import { FarSectionRule } from '@/components/far/SectionRule';
 import { FarStamp } from '@/components/far/Stamp';
 import { FarDivider } from '@/components/far/Divider';
@@ -25,6 +24,23 @@ const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
 const TODAY = new Date();
 const ISSUE_NUMBER = String(TODAY.getMonth() + 1).padStart(2, '0');
 const TODAY_LABEL = TODAY.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+
+// Playful taglines — rotate on each toggle
+const SEAL_TAGLINES_LOCK = [
+  "Sealed. Eyes off the books.",
+  "Books closed. The accountant is asleep.",
+  "Vault locked — even the tax man can't see.",
+  "Ledger shut. Drink your coffee in peace.",
+  "Numbers under the counter. Walk on by.",
+  "Discretion is the better part of margin.",
+];
+const SEAL_TAGLINES_OPEN = [
+  "Books open. Read 'em and weep.",
+  "The numbers, in full daylight.",
+  "Ledger broken open. Brace yourself.",
+  "Seal cracked. The truth, with VAT.",
+  "Receipts unrolled. Brew yourself a strong one.",
+];
 
 function YearPickerModal({ visible, current, onSelect, onClose }: {
   visible: boolean; current: number;
@@ -73,6 +89,38 @@ function YearPickerModal({ visible, current, onSelect, onClose }: {
   );
 }
 
+function Redacted({ width = 120, height = 44, label = '£ ▒▒▒' }: {
+  width?: number; height?: number; label?: string;
+}) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
+  return (
+    <View style={{
+      alignSelf: 'flex-start',
+      minWidth: width, height,
+      backgroundColor: p.text,
+      paddingHorizontal: 10,
+      alignItems: 'center', justifyContent: 'center',
+      transform: [{ rotate: '-1deg' }],
+      shadowColor: p.borderStrong,
+      shadowOffset: { width: 2, height: 2 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+      elevation: 2,
+    }}>
+      <Text style={{
+        color: p.bg,
+        fontFamily: tokens.type.mono,
+        fontSize: Math.min(13, Math.max(10, height * 0.28)),
+        fontWeight: '700',
+        letterSpacing: 2,
+      }}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -86,7 +134,18 @@ export default function DashboardScreen() {
   const [showFees, setShowFees] = useState(false);
   const [quickSalesOpen, setQuickSalesOpen] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
+  const [sealed, setSealed] = useState(false);
+  const [tagIdx, setTagIdx] = useState(0);
   const { data: stats, isLoading, isError, error, refetch } = useDashboard(year);
+
+  const toggleSeal = () => {
+    setSealed((s) => !s);
+    setTagIdx((i) => i + 1);
+  };
+
+  const tagline = sealed
+    ? SEAL_TAGLINES_LOCK[tagIdx % SEAL_TAGLINES_LOCK.length]
+    : SEAL_TAGLINES_OPEN[tagIdx % SEAL_TAGLINES_OPEN.length];
 
   const insights = useMemo<{ text: string; color: string }[]>(() => {
     if (!stats) return [];
@@ -118,53 +177,121 @@ export default function DashboardScreen() {
     setRefreshing(false);
   }
 
-  // Monthly bars — derive max for scaling
   const maxMonthlyGross = useMemo(() => {
     if (!stats) return 0;
     return Math.max(0, ...stats.monthlyRevenue.map((m) => m.grossSales));
   }, [stats]);
 
-  // Display business name (fallback)
   const businessName = profile?.business_name ?? 'My Business';
 
   return (
     <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
-      <FarMasthead
-        eyebrow={`Vol. ${year} · Issue ${ISSUE_NUMBER}`}
-        title="Brewed"
-        sub={`${businessName} · the trader's ledger`}
-        right={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <TouchableOpacity
-              onPress={() => setShowCatalog(true)}
-              accessibilityLabel="Open menu and product costs"
-              accessibilityRole="button"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{ minHeight: 32, justifyContent: 'center' }}
-            >
-              <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 2, fontWeight: '600' }}>
-                MENU
-              </Text>
-            </TouchableOpacity>
-            <View style={{ width: 1, height: 12, backgroundColor: p.border }} />
-            <TouchableOpacity
-              onPress={() => setYearPickerOpen(true)}
-              accessibilityLabel={`Year ${year}. Tap to change.`}
-              accessibilityRole="button"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{
-                flexDirection: 'row', alignItems: 'center', gap: 4,
-                minHeight: 32, justifyContent: 'center',
-              }}
-            >
-              <Text style={{ fontSize: 11, color: p.text, letterSpacing: 1, fontWeight: '600' }}>
-                {TODAY_LABEL.toUpperCase()}
-              </Text>
-              <Ionicons name="chevron-down" size={11} color={p.textMuted} />
-            </TouchableOpacity>
+      {/* ── Custom masthead with seal ── */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8, borderBottomWidth: 2, borderBottomColor: p.text }}>
+        {/* Eyebrow row */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={() => setYearPickerOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`Year ${year}. Tap to change.`}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 32 }}
+          >
+            <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 2, fontWeight: '600' }}>
+              {`VOL. ${year} · ISSUE ${ISSUE_NUMBER}`}
+            </Text>
+            <Ionicons name="chevron-down" size={10} color={p.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowCatalog(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Open menu and product costs"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{ minHeight: 32, justifyContent: 'center' }}
+          >
+            <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1.5 }}>
+              {TODAY_LABEL.toUpperCase()}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Title row + seal */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginTop: 4 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{
+              fontFamily: tokens.type.display,
+              fontWeight: tokens.type.displayWeight,
+              fontSize: 36,
+              letterSpacing: -0.7,
+              lineHeight: 36,
+              color: p.text,
+            }}>
+              Brewed
+            </Text>
+            <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 2 }}>
+              {businessName} · the trader's ledger
+            </Text>
           </View>
-        }
-      />
+
+          {/* Wax-seal toggle */}
+          <TouchableOpacity
+            onPress={toggleSeal}
+            accessibilityRole="button"
+            accessibilityLabel={sealed ? 'Unseal ledger — show financial figures' : 'Seal ledger — hide financial figures'}
+            accessibilityState={{ checked: sealed }}
+            activeOpacity={0.85}
+            style={{
+              width: 56, height: 56, flexShrink: 0,
+              borderWidth: 2, borderColor: p.text,
+              borderRadius: 28,
+              backgroundColor: sealed ? p.text : 'transparent',
+              alignItems: 'center', justifyContent: 'center',
+              transform: [{ rotate: sealed ? '-6deg' : '4deg' }],
+              shadowColor: p.borderStrong,
+              shadowOffset: { width: 2, height: 2 },
+              shadowOpacity: sealed ? 1 : 0,
+              shadowRadius: 0,
+              elevation: sealed ? 2 : 0,
+            }}
+          >
+            <Ionicons
+              name={sealed ? 'lock-closed' : 'eye-outline'}
+              size={16}
+              color={sealed ? p.bg : p.text}
+            />
+            <Text style={{
+              fontSize: 7.5, fontWeight: '700', letterSpacing: 1.2,
+              color: sealed ? p.bg : p.text, marginTop: 1,
+            }}>
+              {sealed ? 'SEALED' : 'OPEN'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Tagline strip */}
+        <View style={{
+          marginTop: 10, paddingTop: 6,
+          borderTopWidth: 1, borderTopColor: p.border,
+          flexDirection: 'row', alignItems: 'center', gap: 6,
+        }}>
+          <View style={{
+            width: 6, height: 6, borderRadius: 3,
+            backgroundColor: sealed ? p.brand : TONE.good,
+          }} />
+          <Text style={{
+            flex: 1, fontSize: 11,
+            color: sealed ? p.brand : p.textMuted,
+            fontStyle: 'italic',
+          }}>
+            {tagline}
+          </Text>
+          <Text style={{
+            fontSize: 9, color: p.textFaint, letterSpacing: 1, fontWeight: '700',
+          }}>
+            {sealed ? 'TAP SEAL TO OPEN' : 'TAP TO SEAL'}
+          </Text>
+        </View>
+      </View>
 
       <YearPickerModal
         visible={yearPickerOpen}
@@ -192,24 +319,34 @@ export default function DashboardScreen() {
               }}>
                 THE BOTTOM LINE
               </Text>
-              <Text style={{
-                fontFamily: tokens.type.display,
-                fontWeight: tokens.type.displayWeight,
-                fontSize: 64,
-                lineHeight: 64,
-                letterSpacing: -1.5,
-                color: (stats?.netProfitYtd ?? 0) >= 0 ? TONE.good : TONE.bad,
-                fontVariant: ['tabular-nums'],
-              }}>
-                {formatCurrencyCompact(stats?.netProfitYtd ?? 0)}
-              </Text>
+              <View style={{ minHeight: 64, justifyContent: 'flex-start' }}>
+                {sealed ? (
+                  <View style={{ marginTop: 4 }}>
+                    <Redacted width={200} height={56} label="£ ▒▒▒,▒▒▒" />
+                  </View>
+                ) : (
+                  <Text style={{
+                    fontFamily: tokens.type.display,
+                    fontWeight: tokens.type.displayWeight,
+                    fontSize: 64,
+                    lineHeight: 64,
+                    letterSpacing: -1.5,
+                    color: (stats?.netProfitYtd ?? 0) >= 0 ? TONE.good : TONE.bad,
+                    fontVariant: ['tabular-nums'],
+                  }}>
+                    {formatCurrencyCompact(stats?.netProfitYtd ?? 0)}
+                  </Text>
+                )}
+              </View>
               <Text style={{
                 fontSize: 12, color: p.textMuted, marginTop: 10,
                 fontStyle: 'italic', lineHeight: 18,
               }}>
-                {(stats?.netProfitYtd ?? 0) >= 0
-                  ? 'Net profit for the year. The season is delivering.'
-                  : 'Net loss for the year. Margin will improve as committed events come in.'}
+                {sealed
+                  ? 'Out of sight. Eyes back on the road.'
+                  : (stats?.netProfitYtd ?? 0) >= 0
+                    ? 'Net profit for the year. The season is delivering.'
+                    : 'Net loss for the year. Margin will improve as committed events come in.'}
               </Text>
             </View>
 
@@ -228,35 +365,56 @@ export default function DashboardScreen() {
 
             {/* Two-column figures */}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14 }}>
-              <KPI label="Gross sales" value={formatCurrencyCompact(stats?.grossSalesYtd ?? 0)} tokens={tokens} />
-              <KPI label="Events traded" value={String(stats?.totalEventsYtd ?? 0)} tokens={tokens} />
-              <KPI label="Avg take" value={formatCurrencyCompact(stats?.avgRevenuePerEvent ?? 0)} tokens={tokens} />
-              <KPI label="Acceptance" value={`${(stats?.acceptanceRate ?? 0).toFixed(0)}%`} tokens={tokens} color={TONE.good} />
+              <KPI
+                label="Gross sales"
+                value={formatCurrencyCompact(stats?.grossSalesYtd ?? 0)}
+                tokens={tokens}
+                redacted={sealed}
+              />
+              <KPI
+                label="Events traded"
+                value={String(stats?.totalEventsYtd ?? 0)}
+                tokens={tokens}
+              />
+              <KPI
+                label="Avg take"
+                value={formatCurrencyCompact(stats?.avgRevenuePerEvent ?? 0)}
+                tokens={tokens}
+                redacted={sealed}
+              />
+              <KPI
+                label="Acceptance"
+                value={`${(stats?.acceptanceRate ?? 0).toFixed(0)}%`}
+                tokens={tokens}
+                color={TONE.good}
+              />
             </View>
 
             {/* Stamp + Committed Fees */}
             {stats && stats.committedFees > 0 && (
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
-                <TouchableOpacity onPress={() => setShowFees((v) => !v)} activeOpacity={0.7}>
+                <TouchableOpacity onPress={() => setShowFees((v) => !v)} activeOpacity={0.7} disabled={sealed}>
                   <FarStamp
                     primary={`${stats.upcomingCommitments.length} events committed`}
-                    secondary={`${formatCurrencyCompact(stats.committedFees)} pitched`}
+                    secondary={sealed ? '£ ▒▒▒ pitched' : `${formatCurrencyCompact(stats.committedFees)} pitched`}
                   />
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setShowFees((v) => !v)}
-                  style={{ flex: 1, paddingVertical: 8 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={showFees ? 'Hide commitment breakdown' : 'Show commitment breakdown'}
-                >
-                  <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic' }}>
-                    {showFees ? 'Hide breakdown' : 'View breakdown →'}
-                  </Text>
-                </TouchableOpacity>
+                {!sealed && (
+                  <TouchableOpacity
+                    onPress={() => setShowFees((v) => !v)}
+                    style={{ flex: 1, paddingVertical: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={showFees ? 'Hide commitment breakdown' : 'Show commitment breakdown'}
+                  >
+                    <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic' }}>
+                      {showFees ? 'Hide breakdown' : 'View breakdown →'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 
-            {showFees && stats && stats.upcomingCommitments.length > 0 && (
+            {!sealed && showFees && stats && stats.upcomingCommitments.length > 0 && (
               <View style={{ paddingTop: 4 }}>
                 {stats.upcomingCommitments.map((c, idx) => (
                   <View
@@ -295,7 +453,7 @@ export default function DashboardScreen() {
 
             <FarSectionRule label="Fleet" />
 
-            {/* Fleet */}
+            {/* Fleet — never financial, always visible */}
             {stats && stats.unitStatuses.length > 0 ? (
               stats.unitStatuses.map((unit, i) => (
                 <FleetRow key={unit.id} unit={unit} tokens={tokens} isLast={i === stats.unitStatuses.length - 1} />
@@ -319,17 +477,17 @@ export default function DashboardScreen() {
 
             <FarSectionRule label="Trading season" />
 
-            {/* Monthly bars */}
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 80 }}>
+            {/* Monthly bars — silhouette only when sealed */}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 80, position: 'relative' }}>
               {(stats?.monthlyRevenue ?? []).map((m, i) => {
                 const heightPct = maxMonthlyGross > 0 ? (m.grossSales / maxMonthlyGross) * 60 : 0;
                 return (
                   <View key={i} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
                     <View style={{
                       width: '70%',
-                      height: Math.max(2, heightPct),
-                      backgroundColor: p.text,
-                      opacity: m.grossSales > 0 ? 1 : 0.15,
+                      height: sealed ? 14 : Math.max(2, heightPct),
+                      backgroundColor: sealed ? p.borderStrong : p.text,
+                      opacity: sealed ? 0.6 : (m.grossSales > 0 ? 1 : 0.15),
                     }} />
                     <Text style={{ fontSize: 8, color: p.textMuted, fontWeight: '600' }}>
                       {MONTHS_SHORT[i][0]}
@@ -337,22 +495,43 @@ export default function DashboardScreen() {
                   </View>
                 );
               })}
+              {sealed && (
+                <View style={{
+                  position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <View style={{
+                    borderWidth: 1.5, borderColor: p.brand, borderStyle: 'dashed',
+                    paddingHorizontal: 10, paddingVertical: 4,
+                    backgroundColor: p.bg,
+                    transform: [{ rotate: '-3deg' }],
+                  }}>
+                    <Text style={{
+                      fontSize: 10, fontWeight: '700', letterSpacing: 2, color: p.brand,
+                    }}>
+                      TRADING CURVE · SEALED
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
 
-            <TouchableOpacity
-              onPress={() => router.push('/(tabs)/reports')}
-              accessibilityRole="button"
-              accessibilityLabel="View reports"
-              style={{ alignSelf: 'flex-end', paddingVertical: 4 }}
-            >
-              <Text style={{ fontSize: 11, color: p.brand, fontWeight: '600', letterSpacing: 0.5 }}>
-                VIEW REPORTS →
-              </Text>
-            </TouchableOpacity>
+            {!sealed && (
+              <TouchableOpacity
+                onPress={() => router.push('/(tabs)/reports')}
+                accessibilityRole="button"
+                accessibilityLabel="View reports"
+                style={{ alignSelf: 'flex-end', paddingVertical: 4 }}
+              >
+                <Text style={{ fontSize: 11, color: p.brand, fontWeight: '600', letterSpacing: 0.5 }}>
+                  VIEW REPORTS →
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <FarSectionRule label="What's coming" />
 
-            {/* Upcoming events */}
+            {/* Upcoming events — names always visible */}
             {stats && stats.upcomingEvents.length > 0 ? (
               stats.upcomingEvents.slice(0, 5).map((event, i) => (
                 <UpcomingRow
@@ -418,27 +597,37 @@ export default function DashboardScreen() {
   );
 }
 
-function KPI({ label, value, tokens, color }: { label: string; value: string; tokens: ReturnType<typeof useTheme>['tokens']; color?: string }) {
+function KPI({ label, value, tokens, color, redacted }: {
+  label: string; value: string;
+  tokens: ReturnType<typeof useTheme>['tokens'];
+  color?: string; redacted?: boolean;
+}) {
   const p = tokens.palette;
   return (
     <View style={{ width: '47%', flexGrow: 1 }}>
       <Text style={{
         fontSize: 9, color: p.textMuted, letterSpacing: 1, fontWeight: '600',
-        marginBottom: 2,
+        marginBottom: 4,
       }}>
         {label.toUpperCase()}
       </Text>
-      <Text style={{
-        fontFamily: tokens.type.display,
-        fontWeight: tokens.type.displayWeight,
-        fontSize: 28,
-        lineHeight: 32,
-        letterSpacing: -0.5,
-        color: color ?? p.text,
-        fontVariant: ['tabular-nums'],
-      }}>
-        {value}
-      </Text>
+      {redacted ? (
+        <View style={{ height: 32, justifyContent: 'flex-start' }}>
+          <Redacted width={100} height={28} label="£ ▒▒▒" />
+        </View>
+      ) : (
+        <Text style={{
+          fontFamily: tokens.type.display,
+          fontWeight: tokens.type.displayWeight,
+          fontSize: 28,
+          lineHeight: 32,
+          letterSpacing: -0.5,
+          color: color ?? p.text,
+          fontVariant: ['tabular-nums'],
+        }}>
+          {value}
+        </Text>
+      )}
     </View>
   );
 }

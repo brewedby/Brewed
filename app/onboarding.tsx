@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { useUpdateProfile } from '@/lib/queries/profile';
+import { useTheme } from '@/lib/themeContext';
 import { BUSINESS_TYPES } from '@/constants';
 
 export default function OnboardingScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const { user } = useAuth();
   const updateProfile = useUpdateProfile();
   const [businessName, setBusinessName] = useState('');
@@ -24,7 +29,7 @@ export default function OnboardingScreen() {
         updates: { business_name: businessName.trim(), business_type: businessType, currency: 'GBP', custom_metrics: [] },
       });
       router.replace('/(tabs)/dashboard');
-    } catch (e: unknown) {
+    } catch {
       Alert.alert('Error', 'Could not save your details. Please try again.');
     } finally {
       setSaving(false);
@@ -32,155 +37,139 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <View className="flex-1 bg-amber-50">
-      {/* Decorative gradient-like background layers */}
-      <View
-        pointerEvents="none"
-        style={{
-          position: 'absolute',
-          top: -120,
-          right: -120,
-          width: 340,
-          height: 340,
-          borderRadius: 170,
-          backgroundColor: '#fed7aa',
-          opacity: 0.6,
-        }}
-      />
-      <View
-        pointerEvents="none"
-        style={{
-          position: 'absolute',
-          top: 80,
-          left: -80,
-          width: 240,
-          height: 240,
-          borderRadius: 120,
-          backgroundColor: '#fef3c7',
-          opacity: 0.8,
-        }}
-      />
-      <View
-        pointerEvents="none"
-        style={{
-          position: 'absolute',
-          bottom: -140,
-          right: -60,
-          width: 280,
-          height: 280,
-          borderRadius: 140,
-          backgroundColor: '#fde68a',
-          opacity: 0.5,
-        }}
-      />
+    <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 28 + insets.bottom }}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* ── Step header ── */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 14 }}>
+          <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 2, fontWeight: '700' }}>
+            {'SETUP · 1 OF 1'}
+          </Text>
+          <View style={{ width: 24 }} />
+        </View>
 
-      <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 88, paddingBottom: 48 }} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
-        <View className="items-center mb-10">
-          <View
-            style={{
-              width: 76,
-              height: 76,
-              borderRadius: 22,
-              backgroundColor: '#78350f',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 18,
-              elevation: 6,
-              shadowColor: '#78350f',
-              shadowOpacity: 0.35,
-              shadowRadius: 14,
-              shadowOffset: { width: 0, height: 6 },
-            }}
-          >
-            <Ionicons name="cafe" size={40} color="#fbbf24" />
+        {/* Progress rule */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 4 }}>
+            <View style={{ flex: 1, height: 3, backgroundColor: p.text }} />
           </View>
-          <Text className="text-3xl font-bold text-stone-900">Welcome!</Text>
-          <Text className="text-stone-600 text-base mt-2 text-center">
-            Let's set up your business profile
+        </View>
+
+        {/* ── Title ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, borderBottomWidth: 2, borderBottomColor: p.text }}>
+          <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 2, fontWeight: '700' }}>
+            {'THE SIGNPOST'}
+          </Text>
+          <Text style={{
+            fontFamily: tokens.type.display,
+            fontWeight: tokens.type.displayWeight,
+            fontSize: 36, letterSpacing: -0.7, lineHeight: 38,
+            marginTop: 6, color: p.text,
+          }}>
+            What do you trade?
+          </Text>
+          <Text style={{ fontSize: 12, color: p.textMuted, fontStyle: 'italic', marginTop: 8, lineHeight: 18 }}>
+            Your stall, your story. We'll set the menu, the COGS and the VAT bands to match.
           </Text>
         </View>
 
-        <View
-          className="bg-white rounded-3xl p-5 border border-stone-100"
-          style={{
-            elevation: 3,
-            shadowColor: '#000',
-            shadowOpacity: 0.06,
-            shadowRadius: 10,
-            shadowOffset: { width: 0, height: 4 },
-          }}
-        >
-          <Text className="text-sm font-semibold text-stone-700 mb-2">Business Name</Text>
-          <TextInput
-            value={businessName}
-            onChangeText={setBusinessName}
-            placeholder="e.g. Brewed by Boon"
-            placeholderTextColor="#a8a29e"
-            className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3.5 text-stone-900 mb-5"
-            autoCapitalize="words"
-            accessibilityLabel="Business name"
-          />
+        {/* ── Form ── */}
+        <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 24, paddingBottom: 16, gap: 22 }}>
+          {/* Business name */}
+          <View>
+            <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 6 }}>
+              {'BUSINESS NAME'}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, borderBottomWidth: 1, borderBottomColor: p.text, paddingBottom: 6 }}>
+              <Ionicons name="business-outline" size={14} color={p.textMuted} />
+              <TextInput
+                value={businessName}
+                onChangeText={setBusinessName}
+                placeholder="e.g. Brewed by Boon"
+                placeholderTextColor={p.textFaint}
+                autoCapitalize="words"
+                accessibilityLabel="Business name"
+                style={{ flex: 1, fontSize: 16, color: p.text, padding: 0, fontFamily: tokens.type.display }}
+              />
+            </View>
+          </View>
 
-          <Text className="text-sm font-semibold text-stone-700 mb-2">Business Type</Text>
-          <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
-            {BUSINESS_TYPES.map((t) => (
-              <TouchableOpacity
-                key={t}
-                onPress={() => setBusinessType(t)}
-                accessibilityRole="radio"
-                accessibilityLabel={t}
-                accessibilityState={{ selected: businessType === t }}
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 9,
-                  borderRadius: 20,
-                  borderWidth: 1,
-                  backgroundColor: businessType === t ? '#78350f' : '#ffffff',
-                  borderColor: businessType === t ? '#78350f' : '#e7e5e4',
-                }}
-              >
-                <Text
-                  style={{
-                    color: businessType === t ? '#ffffff' : '#57534e',
-                    fontWeight: '500',
-                    fontSize: 14,
-                  }}
-                >
-                  {t}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          {/* Trade type */}
+          <View>
+            <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 8 }}>
+              {'TRADE TYPE'}
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {BUSINESS_TYPES.map((t) => {
+                const active = businessType === t;
+                return (
+                  <TouchableOpacity
+                    key={t}
+                    onPress={() => setBusinessType(t)}
+                    accessibilityRole="radio"
+                    accessibilityLabel={t}
+                    accessibilityState={{ selected: active }}
+                    style={{
+                      paddingHorizontal: 14, paddingVertical: 8, minHeight: 36,
+                      borderWidth: 1,
+                      borderRadius: tokens.radius.pill,
+                      backgroundColor: active ? p.text : 'transparent',
+                      borderColor: active ? p.text : p.borderStrong,
+                    }}
+                  >
+                    <Text style={{
+                      fontSize: 12, fontWeight: '600',
+                      color: active ? p.bg : p.text,
+                    }}>
+                      {t}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Tip stamp */}
+          <View style={{ alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1.5, borderColor: p.brand, borderStyle: 'dashed', transform: [{ rotate: '-1.5deg' }], maxWidth: '90%' }}>
+            <Text style={{ fontSize: 10, color: p.brand, letterSpacing: 1.5, fontWeight: '700' }}>
+              {'TIP FROM THE ROUND'}
+            </Text>
+            <Text style={{ fontSize: 12, color: p.text, fontStyle: 'italic', marginTop: 2, lineHeight: 18 }}>
+              "Get the trade type right — it sets your VAT bands."
+            </Text>
           </View>
         </View>
 
-        <TouchableOpacity
-          onPress={handleSave}
-          disabled={saving}
-          accessibilityRole="button"
-          accessibilityLabel="Get started"
-          accessibilityState={{ disabled: saving }}
-          style={{
-            backgroundColor: '#b45309',
-            paddingVertical: 16,
-            borderRadius: 20,
-            alignItems: 'center',
-            marginTop: 24,
-            elevation: 4,
-            shadowColor: '#b45309',
-            shadowOpacity: 0.3,
-            shadowRadius: 10,
-            shadowOffset: { width: 0, height: 4 },
-          }}
-        >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text className="text-white font-bold text-base">Get Started</Text>
-              <Ionicons name="arrow-forward" size={18} color="#ffffff" />
-            </View>
-          )}
-        </TouchableOpacity>
+        {/* ── Bottom action ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: p.border }}>
+          <TouchableOpacity
+            onPress={handleSave}
+            disabled={saving}
+            accessibilityRole="button"
+            accessibilityLabel="Open the ledger"
+            accessibilityState={{ disabled: saving }}
+            style={{
+              backgroundColor: p.text, paddingVertical: 14,
+              alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8,
+              minHeight: 48,
+              opacity: saving ? 0.5 : 1,
+            }}
+          >
+            {saving ? (
+              <ActivityIndicator color={p.bg} />
+            ) : (
+              <>
+                <Text style={{ color: p.bg, fontWeight: '700', fontSize: 12, letterSpacing: 2 }}>
+                  {'OPEN THE LEDGER'}
+                </Text>
+                <Ionicons name="arrow-forward" size={14} color={p.bg} />
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );

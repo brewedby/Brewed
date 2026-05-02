@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Switch, RefreshControl } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
@@ -296,7 +296,7 @@ export default function SettingsScreen() {
               <View
                 key={metric.id}
                 style={{
-                  flexDirection: 'row', alignItems: 'center',
+                  flexDirection: 'row', alignItems: 'center', gap: 12,
                   paddingVertical: 12,
                   borderTopWidth: 1, borderTopColor: p.border,
                   borderBottomWidth: idx === metrics.length - 1 ? 1 : 0,
@@ -307,13 +307,38 @@ export default function SettingsScreen() {
                   <Text style={{ fontFamily: tokens.type.display, fontSize: 16, color: p.text }}>{metric.name}</Text>
                   <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 1 }}>{metric.unit}</Text>
                 </View>
-                <Switch
-                  value={metric.enabled}
-                  onValueChange={(v) => toggleMetric(metric.id, v)}
-                  accessibilityLabel={`${metric.enabled ? 'Disable' : 'Enable'} ${metric.name} metric`}
-                  trackColor={{ false: p.borderStrong, true: p.brand }}
-                  thumbColor="#ffffff"
-                />
+                {/* Hand-stamped ON/OFF segmented control */}
+                <View style={{ flexDirection: 'row', borderWidth: 1, borderColor: p.text }}>
+                  {[
+                    { id: 'on' as const, label: 'ON' },
+                    { id: 'off' as const, label: 'OFF' },
+                  ].map((opt, i) => {
+                    const active = (opt.id === 'on') === metric.enabled;
+                    return (
+                      <TouchableOpacity
+                        key={opt.id}
+                        onPress={() => toggleMetric(metric.id, opt.id === 'on')}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${opt.id === 'on' ? 'Enable' : 'Disable'} ${metric.name}`}
+                        accessibilityState={{ selected: active }}
+                        style={{
+                          paddingHorizontal: 12, paddingVertical: 6, minWidth: 44,
+                          alignItems: 'center', justifyContent: 'center',
+                          borderLeftWidth: i === 0 ? 0 : 1,
+                          borderLeftColor: p.text,
+                          backgroundColor: active ? p.text : 'transparent',
+                        }}
+                      >
+                        <Text style={{
+                          fontSize: 10, fontWeight: '700', letterSpacing: 1.5,
+                          color: active ? p.bg : p.text,
+                        }}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
             ))}
           </View>
