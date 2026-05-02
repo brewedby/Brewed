@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { useTheme } from '@/lib/themeContext';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -34,20 +35,22 @@ const TAB_LISTENERS = {
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const bottomPadding = insets.bottom > 0 ? insets.bottom : 8;
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#1c1917',
-          borderTopColor: '#292524',
+          backgroundColor: p.surface,
+          borderTopColor: p.border,
           paddingTop: 6,
           paddingBottom: bottomPadding,
           height: 56 + bottomPadding,
         },
-        tabBarActiveTintColor: '#f59e0b',
-        tabBarInactiveTintColor: '#78716c',
+        tabBarActiveTintColor: p.brand,
+        tabBarInactiveTintColor: p.textFaint,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
         tabBarItemStyle: { paddingVertical: 2 },
       }}

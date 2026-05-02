@@ -6,8 +6,10 @@ import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useFonts } from 'expo-font';
 import * as Linking from 'expo-linking';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { ThemeProvider, useTheme } from '@/lib/themeContext';
 import { useProfile } from '@/lib/queries/profile';
 import { supabase } from '@/lib/supabase';
 import { useNetworkStatus } from '@/lib/useNetworkStatus';
@@ -86,18 +88,31 @@ function OfflineBannerWrapper() {
   return <OfflineBanner />;
 }
 
+function ThemedStatusBar() {
+  const { isDark } = useTheme();
+  return <StatusBar style={isDark ? 'light' : 'dark'} />;
+}
+
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    'DMSerifDisplay-Regular': require('../assets/fonts/DMSerifDisplay-Regular.ttf'),
+  });
+
+  if (!fontsLoaded) return null;
+
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <View style={{ flex: 1 }}>
-              <OfflineBannerWrapper />
-              <RootLayoutNav />
-            </View>
-            <StatusBar style="dark" />
-          </AuthProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <View style={{ flex: 1 }}>
+                <OfflineBannerWrapper />
+                <RootLayoutNav />
+              </View>
+              <ThemedStatusBar />
+            </AuthProvider>
+          </ThemeProvider>
         </QueryClientProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>
