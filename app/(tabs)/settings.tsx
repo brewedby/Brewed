@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, RefreshControl, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
@@ -8,12 +8,15 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
 import { useProfile, useUpdateProfile } from '@/lib/queries/profile';
 import type { Metric } from '@/lib/queries/profile';
+import { useSubscription } from '@/lib/iap/SubscriptionContext';
 import { ProductCatalogScreen } from '@/components/cogs/ProductCatalogScreen';
 import { FarMasthead } from '@/components/far/Masthead';
-import { FarSectionRule } from '@/components/far/SectionRule';
 import { useTheme } from '@/lib/themeContext';
 import type { ThemeMode } from '@/lib/themeContext';
 import { BUSINESS_TYPES } from '@/constants';
+
+const APPLE_MANAGE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscriptions';
+const SUPPORT_EMAIL = 'support@brewedbyboon.com';
 
 const CURRENCIES = [
   { code: 'GBP', symbol: '£', label: 'GBP' },
@@ -50,6 +53,7 @@ export default function SettingsScreen() {
   const p = tokens.palette;
   const { data: profile, refetch } = useProfile(user?.id);
   const updateProfile = useUpdateProfile();
+  const subscription = useSubscription();
 
   const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState('Coffee');
@@ -195,6 +199,62 @@ export default function SettingsScreen() {
                   <Ionicons name="chevron-forward" size={16} color={p.textFaint} />
                 </TouchableOpacity>
               ))}
+            </View>
+          </View>
+
+          {/* ── Subscription ── */}
+          <View>
+            <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 10 }}>
+              {'SUBSCRIPTION'}
+            </Text>
+            <View style={{ borderWidth: 1, borderColor: p.borderStrong, backgroundColor: p.surface, padding: 14, gap: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={{ fontFamily: tokens.type.display, fontSize: 18, color: p.text }}>Brewed Pro</Text>
+                  <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 2 }}>
+                    {profile?.reviewer_grandfathered
+                      ? 'Reviewer access · always entitled'
+                      : profile?.subscription_status === 'active' || profile?.subscription_status === 'in_grace_period'
+                        ? `${profile.subscription_status === 'in_grace_period' ? 'Grace period · ' : 'Active · '}${profile.subscription_will_renew ? 'renews' : 'expires'} ${profile.subscription_expires_at ? new Date(profile.subscription_expires_at).toLocaleDateString('en-GB') : ''}`
+                        : profile?.subscription_status === 'expired' || profile?.subscription_status === 'in_billing_retry'
+                          ? 'Lapsed — re-subscribe in App Store'
+                          : 'Not subscribed'}
+                  </Text>
+                </View>
+                <View style={{
+                  borderWidth: 1, borderColor: p.text, paddingHorizontal: 8, paddingVertical: 3,
+                  backgroundColor: subscription.isEntitled ? p.text : 'transparent',
+                }}>
+                  <Text style={{
+                    fontSize: 9, fontWeight: '700', letterSpacing: 1.5,
+                    color: subscription.isEntitled ? p.bg : p.text,
+                  }}>
+                    {subscription.isEntitled ? 'ACTIVE' : 'INACTIVE'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity
+                  onPress={() => Linking.openURL(APPLE_MANAGE_SUBSCRIPTIONS_URL)}
+                  accessibilityRole="link"
+                  accessibilityLabel="Manage subscription in App Store"
+                  style={{ flex: 1, borderWidth: 1, borderColor: p.text, paddingVertical: 10, alignItems: 'center', minHeight: 44, justifyContent: 'center' }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.text }}>{'MANAGE ↗'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={subscription.restore}
+                  disabled={subscription.isRestoring}
+                  accessibilityRole="button"
+                  accessibilityLabel="Restore purchases"
+                  style={{ flex: 1, borderWidth: 1, borderColor: p.borderStrong, paddingVertical: 10, alignItems: 'center', minHeight: 44, justifyContent: 'center' }}
+                >
+                  {subscription.isRestoring
+                    ? <ActivityIndicator size="small" color={p.text} />
+                    : <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.text }}>{'RESTORE'}</Text>}
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
 
@@ -363,6 +423,57 @@ export default function SettingsScreen() {
               </Text>
             )}
           </TouchableOpacity>
+
+          {/* ── Privacy & Legal ── */}
+          <View>
+            <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 10 }}>
+              {'PRIVACY & LEGAL'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/(modal)/privacy')}
+              accessibilityRole="button"
+              accessibilityLabel="How your data is handled"
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 14,
+                paddingVertical: 12,
+                borderTopWidth: 1, borderTopColor: p.border,
+              }}
+            >
+              <View style={{ width: 32, height: 32, borderWidth: 1, borderColor: p.text, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="lock-closed-outline" size={16} color={p.text} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: tokens.type.display, fontSize: 16 }}>Privacy summary</Text>
+                <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 1 }}>
+                  How your data is handled — in plain English.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={p.textFaint} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=Brewed%20-%20Support`)}
+              accessibilityRole="link"
+              accessibilityLabel="Contact support"
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 14,
+                paddingVertical: 12,
+                borderTopWidth: 1, borderTopColor: p.border,
+                borderBottomWidth: 1, borderBottomColor: p.border,
+              }}
+            >
+              <View style={{ width: 32, height: 32, borderWidth: 1, borderColor: p.text, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="mail-outline" size={16} color={p.text} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: tokens.type.display, fontSize: 16 }}>Contact support</Text>
+                <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 1 }}>
+                  {SUPPORT_EMAIL}
+                </Text>
+              </View>
+              <Ionicons name="open-outline" size={14} color={p.textFaint} />
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity
             onPress={signOut}

@@ -21,12 +21,16 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.brewedbyboon.app",
       "buildNumber": "1",
+      "entitlements": {
+        "com.apple.developer.in-app-payments": []
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSFaceIDUsageDescription": "Brewed uses Face ID to sign you in securely without typing your password.",
         "NSPhotoLibraryUsageDescription": "Brewed needs access to your photo library to attach images to event documents.",
         "NSCameraUsageDescription": "Brewed uses the camera to photograph event documents and receipts.",
-        "NSDocumentsFolderUsageDescription": "Brewed accesses Files to attach documents such as insurance certificates to events."
+        "NSDocumentsFolderUsageDescription": "Brewed accesses Files to attach documents such as insurance certificates to events.",
+        "SKAdNetworkItems": []
       }
     },
     "android": {
@@ -46,6 +50,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-iap",
       "expo-secure-store",
       [
         "expo-notifications",

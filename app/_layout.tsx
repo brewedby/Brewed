@@ -11,6 +11,7 @@ import * as Linking from 'expo-linking';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ThemeProvider, useTheme } from '@/lib/themeContext';
 import { useProfile } from '@/lib/queries/profile';
+import { SubscriptionProvider, useSubscription } from '@/lib/iap/SubscriptionContext';
 import { supabase } from '@/lib/supabase';
 import { useNetworkStatus } from '@/lib/useNetworkStatus';
 import { OfflineBanner } from '@/components/shared/OfflineBanner';
@@ -24,6 +25,7 @@ const queryClient = new QueryClient({
 function RootLayoutNav() {
   const { session, loading, user, isRecoveryMode, setIsRecoveryMode } = useAuth();
   const { data: profile, isLoading: profileLoading } = useProfile(user?.id);
+  const { isEntitled, isReady: subReady } = useSubscription();
   const segments = useSegments();
   const router = useRouter();
 
@@ -33,8 +35,6 @@ function RootLayoutNav() {
       if (!hash) return;
       const params = Object.fromEntries(new URLSearchParams(hash));
       if (params.type === 'recovery' && params.access_token) {
-        // Set recovery mode BEFORE setSession so the navigation effect won't
-        // redirect away when it sees a session without knowing it's recovery.
         setIsRecoveryMode(true);
         supabase.auth.setSession({
           access_token: params.access_token,
@@ -51,32 +51,67 @@ function RootLayoutNav() {
   useEffect(() => {
     if (loading) return;
 
-    // Always route to reset-password while recovery token is active
+    // Recovery flow takes precedence
     if (isRecoveryMode) {
       router.replace('/(auth)/reset-password');
       return;
     }
 
-    const inAuthGroup = segments[0] === '(auth)';
-    const inOnboarding = segments[0] === 'onboarding';
+    const segs = segments as string[];
+    const inAuthGroup = segs[0] === '(auth)';
+    const inOnboarding = segs[0] === 'onboarding';
+    const inModal = segs[0] === '(modal)';
+    const onPaywall = inModal && segs[1] === 'paywall';
+    const onPrivacy = inModal && segs[1] === 'privacy';
 
     if (!session && !inAuthGroup) {
       router.replace('/(auth)/sign-in');
-    } else if (session && inAuthGroup) {
+      return;
+    }
+
+    if (session && inAuthGroup) {
       if (!profile?.business_name) {
         router.replace('/onboarding');
+      } else if (!isEntitled && subReady) {
+        router.replace('/(modal)/paywall');
       } else {
         router.replace('/(tabs)/dashboard');
       }
-    } else if (session && !inAuthGroup && !inOnboarding && !profile?.business_name && profile !== null && !profileLoading) {
-      router.replace('/onboarding');
+      return;
     }
-  }, [session, loading, segments, profile, profileLoading, isRecoveryMode]);
+
+    // Onboarding gate (must complete profile before paywall)
+    if (session && !inAuthGroup && !inOnboarding && !profile?.business_name && profile !== null && !profileLoading) {
+      router.replace('/onboarding');
+      return;
+    }
+
+    // Subscription gate — keep paywall up unless entitled.
+    // Allow privacy modal so users can read the privacy summary from paywall.
+    if (
+      session &&
+      profile?.business_name &&
+      !isEntitled &&
+      subReady &&
+      !onPaywall &&
+      !onPrivacy &&
+      !inAuthGroup
+    ) {
+      router.replace('/(modal)/paywall');
+      return;
+    }
+
+    // Entitled user landed on paywall (e.g. after restore) → leave it
+    if (session && isEntitled && onPaywall) {
+      router.replace('/(tabs)/dashboard');
+    }
+  }, [session, loading, segments, profile, profileLoading, isRecoveryMode, isEntitled, subReady]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="(modal)" options={{ presentation: 'modal' }} />
       <Stack.Screen name="onboarding" />
     </Stack>
   );
@@ -106,11 +141,13 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
             <AuthProvider>
-              <View style={{ flex: 1 }}>
-                <OfflineBannerWrapper />
-                <RootLayoutNav />
-              </View>
-              <ThemedStatusBar />
+              <SubscriptionProvider>
+                <View style={{ flex: 1 }}>
+                  <OfflineBannerWrapper />
+                  <RootLayoutNav />
+                </View>
+                <ThemedStatusBar />
+              </SubscriptionProvider>
             </AuthProvider>
           </ThemeProvider>
         </QueryClientProvider>

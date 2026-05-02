@@ -26,6 +26,16 @@ export interface Database {
           currency: string | null;
           custom_metrics: Record<string, unknown>[] | null;
           created_at: string;
+          // Subscription fields — read-only from client (server-managed)
+          subscription_status: 'none' | 'active' | 'in_grace_period' | 'in_billing_retry' | 'expired' | 'revoked';
+          subscription_product_id: string | null;
+          subscription_expires_at: string | null;
+          subscription_environment: 'Sandbox' | 'Production' | null;
+          apple_original_transaction_id: string | null;
+          apple_latest_transaction_id: string | null;
+          subscription_validated_at: string | null;
+          subscription_will_renew: boolean;
+          reviewer_grandfathered: boolean;
         };
         Insert: {
           id: string;
@@ -44,6 +54,7 @@ export interface Database {
           currency?: string | null;
           custom_metrics?: Record<string, unknown>[] | null;
           created_at?: string;
+          // Subscription fields not included — guarded by DB trigger
         };
         Relationships: [];
       };
