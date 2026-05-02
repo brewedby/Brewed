@@ -78,9 +78,17 @@ export default function PrivacySummaryScreen() {
         </View>
 
         {/* ── Sections ── */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 24, gap: 24 }}>
-          {SECTIONS.map((s) => (
-            <View key={s.eyebrow}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+          {SECTIONS.map((s, i) => (
+            <View
+              key={s.eyebrow}
+              style={{
+                paddingVertical: 18,
+                borderBottomWidth: i === SECTIONS.length - 1 ? 0 : 1,
+                borderBottomColor: p.border,
+                borderStyle: 'dashed',
+              }}
+            >
               <Text style={{ fontSize: 9, color: p.brand, letterSpacing: 1.8, fontWeight: '700' }}>
                 {s.eyebrow}
               </Text>
@@ -96,6 +104,26 @@ export default function PrivacySummaryScreen() {
               </Text>
             </View>
           ))}
+        </View>
+
+        {/* ── Closing stamp ── */}
+        <View style={{ alignItems: 'center', marginTop: 22 }}>
+          <View style={{
+            borderWidth: 2, borderColor: p.brand,
+            paddingHorizontal: 16, paddingVertical: 8,
+            transform: [{ rotate: '-1.5deg' }],
+            alignItems: 'center',
+          }}>
+            <Text style={{ fontSize: 9, color: p.brand, letterSpacing: 2, fontWeight: '700' }}>
+              {'BREWED · IN TRUST'}
+            </Text>
+            <Text style={{
+              fontFamily: tokens.type.display,
+              fontSize: 14, color: p.brand, marginTop: 1,
+            }}>
+              Your books, your business.
+            </Text>
+          </View>
         </View>
 
         {/* ── Links ── */}

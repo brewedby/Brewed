@@ -49,18 +49,18 @@ const FAR_LIGHT: FarPalette = {
 
 const FAR_DARK: FarPalette = {
   bg: '#1a140d',
-  surface: '#221b12',
-  surfaceAlt: '#2d2418',
-  text: '#f0e6d2',
-  textMuted: '#b89968',
-  textFaint: '#8a6f48',
+  surface: '#2a2218',
+  surfaceAlt: '#332919',
+  text: '#fbf3dc',
+  textMuted: '#c9a874',
+  textFaint: '#9c815a',
   border: '#3d3022',
   borderStrong: '#5c4a32',
-  brand: '#e89941',
+  brand: '#f0a850',
   brandSoft: '#3d2818',
   brandText: '#fbbf24',
-  heroBg: '#221b12',
-  heroText: '#f0e6d2',
+  heroBg: '#2a2218',
+  heroText: '#fbf3dc',
 };
 
 // Display font: DM Serif Display loaded via expo-font (see app/_layout.tsx).
@@ -109,9 +109,44 @@ export const STATUS_DOT: Record<string, string> = {
   withdrawn:  '#a8a29e',
 };
 
-// Tone colours — semantic (good/bad/caution)
+// Tone colours — semantic (good/bad/caution). Light-mode defaults.
 export const TONE = {
   good:    '#15803d',
   bad:     '#dc2626',
   caution: '#d97706',
 } as const;
+
+// Dark-mode-aware status palette. The locked status palette (15803d / dc2626 / d97706 / 1d4ed8)
+// is too dark to read on espresso bg. In dark mode, use the brighter 400-tones; semantic meaning
+// stays identical (red=loss, green=accepted, etc.).
+export type FarStatusPalette = {
+  red: string; green: string; amber: string; blue: string; stone: string;
+  redBg: string; greenBg: string; amberBg: string; blueBg: string;
+};
+
+export function farStatus(dark: boolean): FarStatusPalette {
+  if (dark) {
+    return {
+      red:   '#f87171', // red-400
+      green: '#4ade80', // green-400
+      amber: '#fbbf24', // amber-400
+      blue:  '#60a5fa', // blue-400
+      stone: '#a8a29e',
+      redBg:   'rgba(248,113,113,0.10)',
+      greenBg: 'rgba(74,222,128,0.10)',
+      amberBg: 'rgba(251,191,36,0.10)',
+      blueBg:  'rgba(96,165,250,0.10)',
+    };
+  }
+  return {
+    red:   '#dc2626',
+    green: '#15803d',
+    amber: '#d97706',
+    blue:  '#1d4ed8',
+    stone: '#78716c',
+    redBg:   'rgba(220,38,38,0.06)',
+    greenBg: 'rgba(21,128,61,0.06)',
+    amberBg: 'rgba(217,119,6,0.06)',
+    blueBg:  'rgba(29,78,216,0.06)',
+  };
+}

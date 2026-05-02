@@ -15,7 +15,7 @@ import { FarDivider } from '@/components/far/Divider';
 import { useAuth } from '@/lib/auth';
 import { useProfile } from '@/lib/queries/profile';
 import { useTheme } from '@/lib/themeContext';
-import { TONE } from '@/lib/theme';
+import { TONE, farStatus } from '@/lib/theme';
 import type { UnitWithStatus } from '@/types';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -124,8 +124,9 @@ function Redacted({ width = 120, height = 44, label = '£ ▒▒▒' }: {
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { tokens } = useTheme();
+  const { tokens, isDark } = useTheme();
   const p = tokens.palette;
+  const S = farStatus(isDark);
   const { user } = useAuth();
   const { data: profile } = useProfile(user?.id);
   const [year, setYear] = useState(CURRENT_YEAR);
@@ -160,16 +161,16 @@ export default function DashboardScreen() {
         if (alertedKeys.has(key)) return;
         const days = Math.ceil((new Date(d).getTime() - today.getTime()) / 86400000);
         if (days < 0) {
-          result.push({ text: `${u.name} ${label} expired`, color: TONE.bad });
+          result.push({ text: `${u.name} ${label} expired`, color: S.red });
           alertedKeys.add(key);
         } else if (days <= 30) {
-          result.push({ text: `${u.name} ${label} due in ${days}d`, color: TONE.caution });
+          result.push({ text: `${u.name} ${label} due in ${days}d`, color: S.amber });
           alertedKeys.add(key);
         }
       });
     });
     return result;
-  }, [stats]);
+  }, [stats, S.red, S.amber]);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -276,7 +277,7 @@ export default function DashboardScreen() {
         }}>
           <View style={{
             width: 6, height: 6, borderRadius: 3,
-            backgroundColor: sealed ? p.brand : TONE.good,
+            backgroundColor: sealed ? p.brand : S.green,
           }} />
           <Text style={{
             flex: 1, fontSize: 11,
@@ -331,7 +332,7 @@ export default function DashboardScreen() {
                     fontSize: 64,
                     lineHeight: 64,
                     letterSpacing: -1.5,
-                    color: (stats?.netProfitYtd ?? 0) >= 0 ? TONE.good : TONE.bad,
+                    color: (stats?.netProfitYtd ?? 0) >= 0 ? S.green : S.red,
                     fontVariant: ['tabular-nums'],
                   }}>
                     {formatCurrencyCompact(stats?.netProfitYtd ?? 0)}
@@ -386,7 +387,7 @@ export default function DashboardScreen() {
                 label="Acceptance"
                 value={`${(stats?.acceptanceRate ?? 0).toFixed(0)}%`}
                 tokens={tokens}
-                color={TONE.good}
+                color={S.green}
               />
             </View>
 
@@ -456,7 +457,7 @@ export default function DashboardScreen() {
             {/* Fleet — never financial, always visible */}
             {stats && stats.unitStatuses.length > 0 ? (
               stats.unitStatuses.map((unit, i) => (
-                <FleetRow key={unit.id} unit={unit} tokens={tokens} isLast={i === stats.unitStatuses.length - 1} />
+                <FleetRow key={unit.id} unit={unit} tokens={tokens} S={S} isLast={i === stats.unitStatuses.length - 1} />
               ))
             ) : (
               <Text style={{ fontSize: 12, color: p.textMuted, fontStyle: 'italic' }}>
@@ -632,10 +633,15 @@ function KPI({ label, value, tokens, color, redacted }: {
   );
 }
 
-function FleetRow({ unit, tokens, isLast }: { unit: UnitWithStatus; tokens: ReturnType<typeof useTheme>['tokens']; isLast: boolean }) {
+function FleetRow({ unit, tokens, S, isLast }: {
+  unit: UnitWithStatus;
+  tokens: ReturnType<typeof useTheme>['tokens'];
+  S: ReturnType<typeof farStatus>;
+  isLast: boolean;
+}) {
   const p = tokens.palette;
   const status = unit.status;
-  const statusColor = status === 'active' ? TONE.good : status === 'maintenance' ? TONE.caution : p.textFaint;
+  const statusColor = status === 'active' ? S.green : status === 'maintenance' ? S.amber : p.textFaint;
   const statusLabel = status === 'active' ? 'ACTIVE' : status === 'maintenance' ? 'IN MAINT' : 'RETIRED';
   return (
     <View>

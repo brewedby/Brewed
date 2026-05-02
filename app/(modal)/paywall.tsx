@@ -12,6 +12,7 @@ import { PRODUCT_IDS, SUBSCRIPTION_DETAILS } from '@/lib/iap/products';
 
 const APPLE_EULA_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 const PRIVACY_URL = 'https://brewedbyboon.com/privacy';
+const CURRENT_YEAR = new Date().getFullYear();
 
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
@@ -26,7 +27,6 @@ export default function PaywallScreen() {
 
   const detail = SUBSCRIPTION_DETAILS[PRODUCT_IDS.proMonthly];
 
-  // If user becomes entitled (e.g. via restore), close paywall
   React.useEffect(() => {
     if (isEntitled) router.replace('/(tabs)/dashboard');
   }, [isEntitled, router]);
@@ -37,74 +37,138 @@ export default function PaywallScreen() {
         contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}
         keyboardDismissMode="on-drag"
       >
-        {/* ── Masthead ── */}
-        <View style={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 18, borderBottomWidth: 2, borderBottomColor: p.text, alignItems: 'center' }}>
+        {/* ── Top masthead ── */}
+        <View style={{
+          paddingHorizontal: 24, paddingTop: 28, paddingBottom: 18,
+          borderBottomWidth: 2, borderBottomColor: p.text, alignItems: 'center',
+        }}>
           <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 3, fontWeight: '700' }}>
-            {'BREWED · PRO SUBSCRIPTION'}
+            {`EST. 2024 · VOL. ${CURRENT_YEAR}`}
           </Text>
           <Text style={{
             fontFamily: tokens.type.display,
             fontWeight: tokens.type.displayWeight,
-            fontSize: 44, letterSpacing: -1.2, lineHeight: 46,
-            marginTop: 8, color: p.text, textAlign: 'center',
+            fontSize: 56, letterSpacing: -1.7, lineHeight: 56,
+            marginTop: 6, color: p.text,
           }}>
-            The trader's ledger
+            Brewed
           </Text>
-          <Text style={{ fontSize: 12, color: p.textMuted, fontStyle: 'italic', marginTop: 8, textAlign: 'center' }}>
-            Open the books. Track every event. Keep the round on time.
+          <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 6 }}>
+            The trader's ledger — for the road.
+          </Text>
+        </View>
+
+        {/* ── Hero ── */}
+        <View style={{ paddingHorizontal: 24, paddingTop: 26, paddingBottom: 4 }}>
+          <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 2, fontWeight: '700' }}>
+            {'BREWED PRO · MONTHLY'}
+          </Text>
+          <Text style={{
+            fontFamily: tokens.type.display,
+            fontWeight: tokens.type.displayWeight,
+            fontSize: 32, letterSpacing: -0.7, lineHeight: 34,
+            marginTop: 6, color: p.text,
+          }}>
+            {'Open the books.\nKeep the round on time.'}
           </Text>
         </View>
 
         {/* ── Price stamp ── */}
-        <View style={{ alignItems: 'center', marginTop: 28, marginBottom: 8 }}>
+        <View style={{ alignItems: 'center', marginTop: 26 }}>
           <View style={{
-            borderWidth: 2, borderColor: p.text, paddingHorizontal: 22, paddingVertical: 14,
-            transform: [{ rotate: '-1deg' }],
+            borderWidth: 2, borderColor: p.text,
+            paddingHorizontal: 26, paddingTop: 10, paddingBottom: 12,
+            transform: [{ rotate: '-1.5deg' }],
+            shadowColor: p.borderStrong,
+            shadowOffset: { width: 2, height: 2 },
+            shadowOpacity: 1,
+            shadowRadius: 0,
+            elevation: 2,
+            alignItems: 'center',
           }}>
-            <Text style={{ fontFamily: tokens.type.display, fontSize: 36, color: p.text, letterSpacing: -0.5 }}>
+            <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 2, fontWeight: '700' }}>
+              {'PITCH FEE'}
+            </Text>
+            <Text style={{
+              fontFamily: tokens.type.display,
+              fontWeight: tokens.type.displayWeight,
+              fontSize: 44, letterSpacing: -1, lineHeight: 46,
+              color: p.text, marginTop: 2,
+              fontVariant: ['tabular-nums'],
+            }}>
               {displayPrice}
             </Text>
           </View>
-          <Text style={{ marginTop: 10, fontSize: 11, color: p.textMuted, fontStyle: 'italic' }}>
+          <Text style={{ marginTop: 12, fontSize: 11, color: p.textMuted, fontStyle: 'italic' }}>
             Auto-renews monthly. Cancel anytime in Settings.
           </Text>
         </View>
 
-        {/* ── What you get ── */}
-        <View style={{ paddingHorizontal: 24, marginTop: 24 }}>
-          <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 12 }}>
+        {/* ── Newspaper rule ── */}
+        <View style={{ paddingHorizontal: 24, marginTop: 28, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flex: 1, height: 1, backgroundColor: p.borderStrong }} />
+          <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 2, fontWeight: '700' }}>
             {'WHAT YOU GET'}
           </Text>
-          {detail.features.map((feature) => (
-            <View key={feature} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
-              <Ionicons name="checkmark" size={16} color={p.brand} style={{ marginTop: 2 }} />
-              <Text style={{ flex: 1, fontSize: 14, color: p.text, lineHeight: 20 }}>{feature}</Text>
+          <View style={{ flex: 1, height: 1, backgroundColor: p.borderStrong }} />
+        </View>
+
+        {/* ── Feature list ── */}
+        <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
+          {detail.features.map((feature, i) => (
+            <View
+              key={feature}
+              style={{
+                flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+                paddingVertical: 10,
+                borderBottomWidth: i === detail.features.length - 1 ? 0 : 1,
+                borderBottomColor: p.border,
+                borderStyle: 'dashed',
+              }}
+            >
+              <View style={{
+                width: 14, height: 14, marginTop: 3,
+                borderWidth: 1.5, borderColor: p.text,
+                alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <View style={{ width: 8, height: 8, backgroundColor: p.text }} />
+              </View>
+              <Text style={{ flex: 1, fontSize: 14, color: p.text, lineHeight: 20 }}>
+                {feature}
+              </Text>
             </View>
           ))}
         </View>
 
-        {/* ── Privacy reassurance ── */}
-        <View style={{
-          marginHorizontal: 24, marginTop: 24, padding: 14,
-          borderWidth: 1, borderColor: p.borderStrong, backgroundColor: p.surface,
-        }}>
-          <Text style={{ fontSize: 10, color: p.brand, letterSpacing: 1.5, fontWeight: '700', marginBottom: 6 }}>
-            {'YOUR FINANCIALS, YOUR EYES'}
-          </Text>
-          <Text style={{ fontSize: 12, color: p.text, lineHeight: 18 }}>
-            Sales, costs, margins — never sold, never shared, never used for ads. Apple processes the payment;
-            we don't see your card. Read the full{' '}
-            <Text
-              onPress={() => router.push('/(modal)/privacy')}
-              style={{ color: p.brand, fontWeight: '700' }}
-            >
-              privacy summary
-            </Text>.
-          </Text>
+        {/* ── Privacy reassurance stamp ── */}
+        <View style={{ paddingHorizontal: 24, marginTop: 24 }}>
+          <View style={{
+            borderWidth: 1, borderColor: p.borderStrong,
+            paddingHorizontal: 14, paddingVertical: 14,
+            backgroundColor: p.surface,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Ionicons name="lock-closed-outline" size={12} color={p.brand} />
+              <Text style={{ fontSize: 10, color: p.brand, letterSpacing: 1.5, fontWeight: '700' }}>
+                {'YOUR FINANCIALS, YOUR EYES'}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 12, color: p.text, lineHeight: 18 }}>
+              Sales, costs, margins — never sold, never shared, never used for ads. Apple processes the
+              payment; we don't see your card. Read the full{' '}
+              <Text
+                onPress={() => router.push('/(modal)/privacy')}
+                style={{ color: p.brand, fontWeight: '700' }}
+              >
+                privacy summary
+              </Text>.
+            </Text>
+          </View>
         </View>
 
         {/* ── CTA ── */}
-        <View style={{ paddingHorizontal: 24, marginTop: 28 }}>
+        <View style={{ paddingHorizontal: 24, marginTop: 24 }}>
           <TouchableOpacity
             onPress={() => purchase()}
             disabled={!isReady || isPurchasing}
@@ -120,7 +184,7 @@ export default function PaywallScreen() {
               <ActivityIndicator color={p.bg} />
             ) : (
               <Text style={{ color: p.bg, fontWeight: '700', fontSize: 13, letterSpacing: 2 }}>
-                {Platform.OS === 'ios' ? 'SUBSCRIBE' : 'SUBSCRIPTIONS REQUIRE iOS'}
+                {Platform.OS === 'ios' ? 'OPEN THE LEDGER' : 'SUBSCRIPTIONS REQUIRE iOS'}
               </Text>
             )}
           </TouchableOpacity>
@@ -130,26 +194,30 @@ export default function PaywallScreen() {
             disabled={isRestoring || !isReady}
             accessibilityRole="button"
             accessibilityLabel="Restore previous purchases"
-            style={{ alignItems: 'center', paddingVertical: 14, marginTop: 4 }}
+            style={{
+              alignItems: 'center', justifyContent: 'center',
+              paddingVertical: 12, minHeight: 44, marginTop: 8,
+              borderWidth: 1, borderColor: p.text,
+            }}
           >
             {isRestoring ? (
-              <ActivityIndicator color={p.brand} size="small" />
+              <ActivityIndicator color={p.text} size="small" />
             ) : (
-              <Text style={{ color: p.brand, fontSize: 13, fontWeight: '600', fontStyle: 'italic' }}>
-                Restore purchases
+              <Text style={{ color: p.text, fontSize: 12, fontWeight: '700', letterSpacing: 1.5 }}>
+                {'RESTORE PURCHASES'}
               </Text>
             )}
           </TouchableOpacity>
         </View>
 
         {/* ── Legal small print (App Store mandatory) ── */}
-        <View style={{ paddingHorizontal: 24, marginTop: 12, gap: 8 }}>
+        <View style={{ paddingHorizontal: 24, marginTop: 18, gap: 10 }}>
           <Text style={{ fontSize: 11, color: p.textMuted, lineHeight: 16, fontStyle: 'italic' }}>
             Payment will be charged to your Apple ID at confirmation. Subscription auto-renews unless turned
             off at least 24 hours before the period ends. Manage or cancel any time in your Apple ID Settings;
             unused free trial is forfeited when a subscription is purchased.
           </Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 18, marginTop: 6 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 18, marginTop: 4 }}>
             <TouchableOpacity onPress={() => Linking.openURL(APPLE_EULA_URL)} accessibilityRole="link" accessibilityLabel="Terms of Use">
               <Text style={{ fontSize: 11, color: p.brand, fontWeight: '600' }}>Terms of Use</Text>
             </TouchableOpacity>
@@ -160,15 +228,27 @@ export default function PaywallScreen() {
           </View>
         </View>
 
-        {/* ── Sign out (escape hatch) ── */}
-        <View style={{ alignItems: 'center', marginTop: 32 }}>
+        {/* ── Footer — sign-out escape hatch ── */}
+        <View style={{
+          paddingHorizontal: 24, paddingTop: 22, paddingBottom: 14,
+          marginTop: 28, borderTopWidth: 1, borderTopColor: p.border,
+          alignItems: 'center',
+        }}>
+          <Text style={{ fontSize: 12, color: p.textMuted, fontStyle: 'italic' }}>
+            Not the right time?
+          </Text>
           <TouchableOpacity
             onPress={signOut}
             accessibilityRole="button"
             accessibilityLabel="Sign out"
-            style={{ paddingVertical: 8, paddingHorizontal: 16 }}
+            style={{ paddingVertical: 6, marginTop: 2 }}
           >
-            <Text style={{ fontSize: 12, color: p.textMuted, fontStyle: 'italic' }}>Sign out</Text>
+            <Text style={{
+              color: p.brand, fontFamily: tokens.type.display,
+              fontSize: 16, letterSpacing: 0.3,
+            }}>
+              Sign out for now →
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
