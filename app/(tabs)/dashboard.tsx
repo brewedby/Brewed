@@ -1,43 +1,51 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Modal, FlatList } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Modal, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDashboard } from '@/lib/queries/dashboard';
-import { formatCurrencyCompact, formatCurrency, formatPercent, formatDateRange } from '@/lib/formatters';
-import { RevenueBarChart } from '@/components/dashboard/RevenueBarChart';
-import { StatusPieChart } from '@/components/dashboard/StatusPieChart';
+import { formatCurrencyCompact, formatCurrency, formatDateRange } from '@/lib/formatters';
 import { QuickSalesSheet } from '@/components/dashboard/QuickSalesSheet';
-import { EventCard } from '@/components/events/EventCard';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { QueryError } from '@/components/shared/QueryError';
+import { ProductCatalogScreen } from '@/components/cogs/ProductCatalogScreen';
+import { FarMasthead } from '@/components/far/Masthead';
+import { FarSectionRule } from '@/components/far/SectionRule';
+import { FarStamp } from '@/components/far/Stamp';
+import { FarDivider } from '@/components/far/Divider';
 import { useAuth } from '@/lib/auth';
 import { useProfile } from '@/lib/queries/profile';
-import { ProductCatalogScreen } from '@/components/cogs/ProductCatalogScreen';
-import { UNIT_STATUS_COLORS } from '@/constants';
+import { useTheme } from '@/lib/themeContext';
+import { TONE } from '@/lib/theme';
 import type { UnitWithStatus } from '@/types';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i);
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const TODAY = new Date();
+const ISSUE_NUMBER = String(TODAY.getMonth() + 1).padStart(2, '0');
+const TODAY_LABEL = TODAY.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 
 function YearPickerModal({ visible, current, onSelect, onClose }: {
   visible: boolean; current: number;
   onSelect: (y: number) => void; onClose: () => void;
 }) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity
+      <Pressable
         style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}
-        activeOpacity={1}
         onPress={onClose}
       >
         <View style={{
-          backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden',
-          width: 220,
-          shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 8,
+          backgroundColor: p.surface, borderRadius: 4, overflow: 'hidden',
+          width: 220, borderWidth: 1, borderColor: p.borderStrong,
         }}>
-          <View style={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#f5f5f4' }}>
-            <Text style={{ fontWeight: '700', fontSize: 14, color: '#1c1917' }}>Select Year</Text>
+          <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 10, borderBottomWidth: 2, borderBottomColor: p.text }}>
+            <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 2, fontWeight: '600' }}>
+              SELECT YEAR
+            </Text>
           </View>
           {YEARS.map((y) => (
             <TouchableOpacity
@@ -45,19 +53,22 @@ function YearPickerModal({ visible, current, onSelect, onClose }: {
               onPress={() => { onSelect(y); onClose(); }}
               style={{
                 flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                paddingHorizontal: 20, paddingVertical: 14,
-                backgroundColor: y === current ? '#fef3c7' : '#fff',
-                borderBottomWidth: 1, borderBottomColor: '#fafaf9',
+                paddingHorizontal: 20, paddingVertical: 14, minHeight: 44,
+                backgroundColor: y === current ? p.brandSoft : 'transparent',
               }}
             >
-              <Text style={{ fontSize: 15, fontWeight: y === current ? '700' : '400', color: y === current ? '#b45309' : '#1c1917' }}>
+              <Text style={{
+                fontFamily: tokens.type.display,
+                fontSize: 18,
+                color: y === current ? p.brand : p.text,
+              }}>
                 {y}
               </Text>
-              {y === current && <Ionicons name="checkmark" size={16} color="#b45309" />}
+              {y === current && <Ionicons name="checkmark" size={16} color={p.brand} />}
             </TouchableOpacity>
           ))}
         </View>
-      </TouchableOpacity>
+      </Pressable>
     </Modal>
   );
 }
@@ -65,6 +76,8 @@ function YearPickerModal({ visible, current, onSelect, onClose }: {
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const { user } = useAuth();
   const { data: profile } = useProfile(user?.id);
   const [year, setYear] = useState(CURRENT_YEAR);
@@ -75,19 +88,9 @@ export default function DashboardScreen() {
   const [showCatalog, setShowCatalog] = useState(false);
   const { data: stats, isLoading, isError, error, refetch } = useDashboard(year);
 
-  const insights = useMemo<{ icon: string; text: string; color: string }[]>(() => {
+  const insights = useMemo<{ text: string; color: string }[]>(() => {
     if (!stats) return [];
-    const result: { icon: string; text: string; color: string }[] = [];
-
-    const pendingCount = stats.statusBreakdown.find((s) => s.status === 'pending')?.count ?? 0;
-    if (pendingCount > 0) {
-      result.push({ icon: '📋', text: `${pendingCount} application${pendingCount > 1 ? 's' : ''} awaiting a decision`, color: '#b45309' });
-    }
-
-    const bestMonth = [...stats.monthlyRevenue].sort((a, b) => b.netProfit - a.netProfit)[0];
-    if (bestMonth && bestMonth.netProfit > 0) {
-      result.push({ icon: '🏆', text: `Best month: ${bestMonth.month} (£${bestMonth.netProfit.toFixed(0)} net)`, color: '#15803d' });
-    }
+    const result: { text: string; color: string }[] = [];
 
     const today = new Date();
     const alertedKeys = new Set<string>();
@@ -98,18 +101,14 @@ export default function DashboardScreen() {
         if (alertedKeys.has(key)) return;
         const days = Math.ceil((new Date(d).getTime() - today.getTime()) / 86400000);
         if (days < 0) {
-          result.push({ icon: '🔴', text: `${u.name} ${label} has expired`, color: '#dc2626' });
+          result.push({ text: `${u.name} ${label} expired`, color: TONE.bad });
           alertedKeys.add(key);
         } else if (days <= 30) {
-          result.push({ icon: '🟡', text: `${u.name} ${label} expires in ${days}d`, color: '#d97706' });
+          result.push({ text: `${u.name} ${label} due in ${days}d`, color: TONE.caution });
           alertedKeys.add(key);
         }
       });
     });
-
-    if (stats.upcomingEvents.length === 0 && stats.totalEventsYtd > 0) {
-      result.push({ icon: '📅', text: 'No upcoming accepted events', color: '#64748b' });
-    }
     return result;
   }, [stats]);
 
@@ -119,56 +118,53 @@ export default function DashboardScreen() {
     setRefreshing(false);
   }
 
-  return (
-    <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
-      {/* Header */}
-      <View className="bg-white px-4 pt-2 pb-3 border-b border-stone-100">
-        <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center gap-2">
-            <View className="w-8 h-8 bg-amber-700 rounded-lg items-center justify-center">
-              <Text className="text-base">☕</Text>
-            </View>
-            <View>
-              <Text className="font-bold text-stone-900 text-base">{profile?.business_name ?? 'My Business'}</Text>
-              <Text className="text-stone-400 text-xs">{user?.email}</Text>
-            </View>
-          </View>
+  // Monthly bars — derive max for scaling
+  const maxMonthlyGross = useMemo(() => {
+    if (!stats) return 0;
+    return Math.max(0, ...stats.monthlyRevenue.map((m) => m.grossSales));
+  }, [stats]);
 
+  // Display business name (fallback)
+  const businessName = profile?.business_name ?? 'My Business';
+
+  return (
+    <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+      <FarMasthead
+        eyebrow={`Vol. ${year} · Issue ${ISSUE_NUMBER}`}
+        title="Brewed"
+        sub={`${businessName} · the trader's ledger`}
+        right={
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            {/* Menu / Product Catalog button */}
             <TouchableOpacity
               onPress={() => setShowCatalog(true)}
-              accessibilityLabel="Open menu and COGS"
+              accessibilityLabel="Open menu and product costs"
               accessibilityRole="button"
-              style={{
-                flexDirection: 'row', alignItems: 'center', gap: 4,
-                backgroundColor: '#fef3c7', borderRadius: 20,
-                paddingHorizontal: 10, paddingVertical: 6,
-                borderWidth: 1, borderColor: '#fcd34d',
-              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ minHeight: 32, justifyContent: 'center' }}
             >
-              <Ionicons name="pricetag-outline" size={13} color="#92400e" />
-              <Text style={{ color: '#92400e', fontWeight: '600', fontSize: 13 }}>Menu</Text>
+              <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 2, fontWeight: '600' }}>
+                MENU
+              </Text>
             </TouchableOpacity>
-
-            {/* Year selector pill */}
+            <View style={{ width: 1, height: 12, backgroundColor: p.border }} />
             <TouchableOpacity
               onPress={() => setYearPickerOpen(true)}
-              style={{
-                flexDirection: 'row', alignItems: 'center', gap: 5,
-                backgroundColor: '#fef3c7', borderRadius: 20,
-                paddingHorizontal: 12, paddingVertical: 6,
-                borderWidth: 1, borderColor: '#fcd34d',
-              }}
-              accessibilityLabel={`Currently showing ${year}. Tap to change year.`}
+              accessibilityLabel={`Year ${year}. Tap to change.`}
               accessibilityRole="button"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 4,
+                minHeight: 32, justifyContent: 'center',
+              }}
             >
-              <Text style={{ color: '#92400e', fontWeight: '600', fontSize: 13 }}>{year}</Text>
-              <Ionicons name="chevron-down" size={13} color="#92400e" />
+              <Text style={{ fontSize: 11, color: p.text, letterSpacing: 1, fontWeight: '600' }}>
+                {TODAY_LABEL.toUpperCase()}
+              </Text>
+              <Ionicons name="chevron-down" size={11} color={p.textMuted} />
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        }
+      />
 
       <YearPickerModal
         visible={yearPickerOpen}
@@ -183,184 +179,207 @@ export default function DashboardScreen() {
         <QueryError error={error} onRetry={refetch} message="Couldn't load dashboard" />
       ) : (
         <ScrollView
-          className="flex-1"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" />}
+          style={{ flex: 1 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={p.brand} />}
         >
-          <View className="px-4 pt-4 gap-4">
+          <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24, gap: 18 }}>
 
-            {/* Stats card */}
-            <View style={{ backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
-              <View style={{ backgroundColor: '#92400e', paddingHorizontal: 16, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={{ color: '#fef3c7', fontWeight: '700', fontSize: 13, letterSpacing: 0.2 }}>{year} Performance</Text>
-                {(stats?.grossSalesYtd ?? 0) > 0 && (stats?.netProfitYtd ?? 0) > 0 && (
-                  <View style={{ backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 }}>
-                    <Text style={{ color: '#fde68a', fontSize: 12, fontWeight: '700' }}>
-                      {((stats!.netProfitYtd / stats!.grossSalesYtd) * 100).toFixed(0)}% net margin
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                {[
-                  { icon: '💷', label: 'Gross Sales',  value: formatCurrencyCompact(stats?.grossSalesYtd ?? 0), color: '#b45309' },
-                  { icon: '📈', label: 'Net Profit',   value: formatCurrencyCompact(stats?.netProfitYtd ?? 0),  color: (stats?.netProfitYtd ?? 0) >= 0 ? '#15803d' : '#dc2626' },
-                  { icon: '🎪', label: 'Events',       value: String(stats?.totalEventsYtd ?? 0),               color: '#1c1917' },
-                  { icon: '✅', label: 'Acceptance',   value: `${(stats?.acceptanceRate ?? 0).toFixed(0)}%`,    color: '#15803d' },
-                ].map((s, i) => (
-                  <View key={s.label} style={{ width: '50%', padding: 16, borderTopWidth: i >= 2 ? 1 : 0, borderRightWidth: i % 2 === 0 ? 1 : 0, borderColor: '#f5f5f4' }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 }}>
-                      <Text style={{ fontSize: 12 }}>{s.icon}</Text>
-                      <Text style={{ fontSize: 10, color: '#a8a29e', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 }}>{s.label}</Text>
-                    </View>
-                    <Text style={{ fontSize: 24, fontWeight: '800', color: s.color, letterSpacing: -0.5 }}>{s.value}</Text>
-                  </View>
-                ))}
-              </View>
-              <View style={{ borderTopWidth: 1, borderTopColor: '#f5f5f4', paddingHorizontal: 16, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fafaf9' }}>
-                <Text style={{ fontSize: 12, color: '#a8a29e', fontWeight: '500' }}>Avg revenue / event</Text>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: '#b45309' }}>{formatCurrencyCompact(stats?.avgRevenuePerEvent ?? 0)}</Text>
-              </View>
-              {(stats?.committedFees ?? 0) > 0 && (
-                <View style={{ borderTopWidth: 1, borderTopColor: '#f5f5f4', paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: 12, color: '#b45309' }}>💳 Committed fees</Text>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#92400e' }}>{formatCurrency(stats!.committedFees)}</Text>
-                </View>
-              )}
+            {/* Headline P&L */}
+            <View>
+              <Text style={{
+                fontSize: 10, color: p.textMuted, letterSpacing: 1.5,
+                marginBottom: 4, fontWeight: '600',
+              }}>
+                THE BOTTOM LINE
+              </Text>
+              <Text style={{
+                fontFamily: tokens.type.display,
+                fontWeight: tokens.type.displayWeight,
+                fontSize: 64,
+                lineHeight: 64,
+                letterSpacing: -1.5,
+                color: (stats?.netProfitYtd ?? 0) >= 0 ? TONE.good : TONE.bad,
+                fontVariant: ['tabular-nums'],
+              }}>
+                {formatCurrencyCompact(stats?.netProfitYtd ?? 0)}
+              </Text>
+              <Text style={{
+                fontSize: 12, color: p.textMuted, marginTop: 10,
+                fontStyle: 'italic', lineHeight: 18,
+              }}>
+                {(stats?.netProfitYtd ?? 0) >= 0
+                  ? 'Net profit for the year. The season is delivering.'
+                  : 'Net loss for the year. Margin will improve as committed events come in.'}
+              </Text>
             </View>
 
-            {/* Insights strip */}
+            {/* Insights — small alert lines */}
             {insights.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+              <View style={{ gap: 4 }}>
                 {insights.map((ins, i) => (
-                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#ffffff', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#e7e5e4', maxWidth: 260 }}>
-                    <Text style={{ fontSize: 14 }}>{ins.icon}</Text>
-                    <Text style={{ fontSize: 12, fontWeight: '500', color: ins.color, flexShrink: 1 }}>{ins.text}</Text>
-                  </View>
+                  <Text key={i} style={{ fontSize: 11, color: ins.color, fontStyle: 'italic' }}>
+                    · {ins.text}
+                  </Text>
                 ))}
-              </ScrollView>
+              </View>
             )}
 
-            {/* Committed Fees breakdown — collapsible */}
+            <FarSectionRule label="By the numbers" />
+
+            {/* Two-column figures */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14 }}>
+              <KPI label="Gross sales" value={formatCurrencyCompact(stats?.grossSalesYtd ?? 0)} tokens={tokens} />
+              <KPI label="Events traded" value={String(stats?.totalEventsYtd ?? 0)} tokens={tokens} />
+              <KPI label="Avg take" value={formatCurrencyCompact(stats?.avgRevenuePerEvent ?? 0)} tokens={tokens} />
+              <KPI label="Acceptance" value={`${(stats?.acceptanceRate ?? 0).toFixed(0)}%`} tokens={tokens} color={TONE.good} />
+            </View>
+
+            {/* Stamp + Committed Fees */}
             {stats && stats.committedFees > 0 && (
-              <View className="bg-amber-50 border border-amber-200 rounded-2xl overflow-hidden">
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                <TouchableOpacity onPress={() => setShowFees((v) => !v)} activeOpacity={0.7}>
+                  <FarStamp
+                    primary={`${stats.upcomingCommitments.length} events committed`}
+                    secondary={`${formatCurrencyCompact(stats.committedFees)} pitched`}
+                  />
+                </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setShowFees((v) => !v)}
-                  activeOpacity={0.7}
-                  style={{ padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                  style={{ flex: 1, paddingVertical: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={showFees ? 'Hide commitment breakdown' : 'Show commitment breakdown'}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={{ fontWeight: '700', color: '#78350f', fontSize: 13 }}>💳 Committed Fees</Text>
-                    <View style={{ backgroundColor: '#fde68a', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
-                      <Text style={{ color: '#78350f', fontSize: 11, fontWeight: '700' }}>
-                        {stats.upcomingCommitments.length} event{stats.upcomingCommitments.length !== 1 ? 's' : ''}
+                  <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic' }}>
+                    {showFees ? 'Hide breakdown' : 'View breakdown →'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {showFees && stats && stats.upcomingCommitments.length > 0 && (
+              <View style={{ paddingTop: 4 }}>
+                {stats.upcomingCommitments.map((c, idx) => (
+                  <View
+                    key={c.id}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                      paddingVertical: 8,
+                    }}
+                  >
+                    <View style={{ flex: 1, marginRight: 12 }}>
+                      <Text style={{
+                        fontFamily: tokens.type.display,
+                        fontSize: 15,
+                        color: p.text,
+                      }} numberOfLines={1}>
+                        {c.name}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 1 }}>
+                        {formatDateRange(c.date, c.end_date)}
                       </Text>
                     </View>
+                    <Text style={{
+                      fontFamily: tokens.type.mono,
+                      fontVariant: ['tabular-nums'],
+                      fontSize: 13, fontWeight: '600', color: p.brand,
+                    }}>
+                      {formatCurrency(c.committedFee)}
+                    </Text>
+                    {idx < stats.upcomingCommitments.length - 1 && (
+                      <FarDivider style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }} />
+                    )}
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={{ fontWeight: '700', color: '#92400e', fontSize: 14 }}>{formatCurrency(stats.committedFees)}</Text>
-                    <Ionicons name={showFees ? 'chevron-up' : 'chevron-down'} size={14} color="#b45309" />
-                  </View>
-                </TouchableOpacity>
-                {showFees && (
-                  <View style={{ paddingHorizontal: 14, paddingBottom: 14, borderTopWidth: 1, borderTopColor: '#fde68a' }}>
-                    {stats.upcomingCommitments.map((c, idx) => (
-                      <View key={c.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderTopWidth: idx === 0 ? 0 : 1, borderTopColor: '#fef3c7' }}>
-                        <View style={{ flex: 1, marginRight: 8 }}>
-                          <Text style={{ color: '#78350f', fontSize: 13, fontWeight: '600' }} numberOfLines={1}>{c.name}</Text>
-                          <Text style={{ color: '#b45309', fontSize: 11, marginTop: 1 }}>{formatDateRange(c.date, c.end_date)}</Text>
-                        </View>
-                        <Text style={{ color: '#92400e', fontWeight: '700', fontSize: 13 }}>{formatCurrency(c.committedFee)}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
+                ))}
               </View>
             )}
 
-            {/* Fleet Overview */}
-            {stats && stats.unitStatuses.length > 0 && (
-              <View>
-                <View className="flex-row items-center justify-between mb-3">
-                  <Text className="font-bold text-stone-900">Your Fleet</Text>
-                  <TouchableOpacity
-                    onPress={() => router.push('/(tabs)/fleet')}
-                    accessibilityRole="button"
-                    accessibilityLabel="Manage fleet"
-                  >
-                    <Text className="text-amber-600 text-sm font-medium">Manage →</Text>
-                  </TouchableOpacity>
-                </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-                  {stats.unitStatuses.map((unit: UnitWithStatus) => (
-                    <View key={unit.id} className="bg-white rounded-2xl p-3 border border-slate-100 w-40 overflow-hidden" style={{ borderLeftWidth: 3, borderLeftColor: UNIT_STATUS_COLORS[unit.status].dot }}>
-                      <Text className="font-bold text-slate-900 text-sm" numberOfLines={1}>{unit.name}</Text>
-                      {unit.registration ? <Text className="text-xs text-slate-400 mt-0.5">{unit.registration}</Text> : null}
-                      <View className="mt-1.5">
-                        {unit.currentEvent ? (
-                          <Text className="text-xs text-amber-700" numberOfLines={1}>📍 {unit.currentEvent.name}</Text>
-                        ) : unit.status === 'active' ? (
-                          <Text className="text-xs text-green-600">✅ Free</Text>
-                        ) : unit.status === 'maintenance' ? (
-                          <Text className="text-xs text-amber-600">🔧 Maint.</Text>
-                        ) : null}
-                      </View>
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
+            <FarSectionRule label="Fleet" />
+
+            {/* Fleet */}
+            {stats && stats.unitStatuses.length > 0 ? (
+              stats.unitStatuses.map((unit, i) => (
+                <FleetRow key={unit.id} unit={unit} tokens={tokens} isLast={i === stats.unitStatuses.length - 1} />
+              ))
+            ) : (
+              <Text style={{ fontSize: 12, color: p.textMuted, fontStyle: 'italic' }}>
+                No fleet units yet. Add one in Fleet.
+              </Text>
             )}
 
-            {/* Milk Usage */}
-            {stats && (stats.totalFreshMilkLitres > 0 || stats.totalAltMilkLitres > 0) && (
-              <View className="flex-row gap-3">
-                <View className="flex-1 bg-white rounded-xl p-3 border border-slate-100">
-                  <Text className="text-slate-700 font-semibold text-sm">🥛 {stats.totalFreshMilkLitres.toFixed(1)} L</Text>
-                  <Text className="text-slate-400 text-xs mt-0.5">Fresh Milk YTD</Text>
-                </View>
-                <View className="flex-1 bg-white rounded-xl p-3 border border-slate-100">
-                  <Text className="text-slate-700 font-semibold text-sm">🌱 {stats.totalAltMilkLitres.toFixed(1)} L</Text>
-                  <Text className="text-slate-400 text-xs mt-0.5">Alt Milk YTD</Text>
-                </View>
-              </View>
-            )}
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/fleet')}
+              accessibilityRole="button"
+              accessibilityLabel="Manage fleet"
+              style={{ alignSelf: 'flex-end', paddingVertical: 4 }}
+            >
+              <Text style={{ fontSize: 11, color: p.brand, fontWeight: '600', letterSpacing: 0.5 }}>
+                MANAGE FLEET →
+              </Text>
+            </TouchableOpacity>
 
-            {/* Revenue chart */}
-            {stats && <RevenueBarChart data={stats.monthlyRevenue} />}
+            <FarSectionRule label="Trading season" />
 
-            {/* Status breakdown */}
-            {stats && stats.statusBreakdown.length > 0 && <StatusPieChart data={stats.statusBreakdown} />}
+            {/* Monthly bars */}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 80 }}>
+              {(stats?.monthlyRevenue ?? []).map((m, i) => {
+                const heightPct = maxMonthlyGross > 0 ? (m.grossSales / maxMonthlyGross) * 60 : 0;
+                return (
+                  <View key={i} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+                    <View style={{
+                      width: '70%',
+                      height: Math.max(2, heightPct),
+                      backgroundColor: p.text,
+                      opacity: m.grossSales > 0 ? 1 : 0.15,
+                    }} />
+                    <Text style={{ fontSize: 8, color: p.textMuted, fontWeight: '600' }}>
+                      {MONTHS_SHORT[i][0]}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
 
-            {/* Reports quick access */}
             <TouchableOpacity
               onPress={() => router.push('/(tabs)/reports')}
               accessibilityRole="button"
               accessibilityLabel="View reports"
-              className="bg-white rounded-2xl p-4 border border-stone-100 flex-row items-center justify-between"
+              style={{ alignSelf: 'flex-end', paddingVertical: 4 }}
             >
-              <View className="flex-1 mr-3">
-                <Text className="font-bold text-stone-900 text-sm">📈 Reports</Text>
-                <Text className="text-stone-400 text-xs mt-0.5">Annual P&L, top events, export CSV</Text>
-              </View>
-              <Text className="text-amber-600 font-medium text-sm">View →</Text>
+              <Text style={{ fontSize: 11, color: p.brand, fontWeight: '600', letterSpacing: 0.5 }}>
+                VIEW REPORTS →
+              </Text>
             </TouchableOpacity>
 
+            <FarSectionRule label="What's coming" />
+
             {/* Upcoming events */}
+            {stats && stats.upcomingEvents.length > 0 ? (
+              stats.upcomingEvents.slice(0, 5).map((event, i) => (
+                <UpcomingRow
+                  key={event.id}
+                  event={event}
+                  tokens={tokens}
+                  onPress={() => router.push(`/(tabs)/events/${event.id}`)}
+                  isLast={i === Math.min(stats.upcomingEvents.length, 5) - 1}
+                />
+              ))
+            ) : (
+              <Text style={{ fontSize: 12, color: p.textMuted, fontStyle: 'italic' }}>
+                No upcoming events. Book one to get going.
+              </Text>
+            )}
+
             {stats && stats.upcomingEvents.length > 0 && (
-              <View>
-                <View className="flex-row items-center justify-between mb-3">
-                  <Text className="font-bold text-stone-900">Upcoming Accepted</Text>
-                  <TouchableOpacity
-                    onPress={() => router.push('/(tabs)/events')}
-                    accessibilityRole="button"
-                    accessibilityLabel="View all events"
-                  >
-                    <Text className="text-amber-600 text-sm font-medium">View all →</Text>
-                  </TouchableOpacity>
-                </View>
-                {stats.upcomingEvents.map((event) => (
-                  <EventCard key={event.id} event={event} />
-                ))}
-              </View>
+              <TouchableOpacity
+                onPress={() => router.push('/(tabs)/events')}
+                accessibilityRole="button"
+                accessibilityLabel="View all events"
+                style={{ alignSelf: 'flex-end', paddingVertical: 4 }}
+              >
+                <Text style={{ fontSize: 11, color: p.brand, fontWeight: '600', letterSpacing: 0.5 }}>
+                  ALL EVENTS →
+                </Text>
+              </TouchableOpacity>
             )}
 
             <View style={{ height: 32 }} />
@@ -380,7 +399,7 @@ export default function DashboardScreen() {
           width: 52,
           height: 52,
           borderRadius: 26,
-          backgroundColor: '#b45309',
+          backgroundColor: p.brand,
           alignItems: 'center',
           justifyContent: 'center',
           shadowColor: '#000',
@@ -390,12 +409,121 @@ export default function DashboardScreen() {
           elevation: 6,
         }}
       >
-        <Text style={{ fontSize: 22 }}>£</Text>
+        <Text style={{ fontSize: 22, color: '#fff', fontFamily: tokens.type.display }}>£</Text>
       </TouchableOpacity>
 
       <QuickSalesSheet visible={quickSalesOpen} onClose={() => setQuickSalesOpen(false)} />
-
       <ProductCatalogScreen visible={showCatalog} onClose={() => setShowCatalog(false)} />
+    </View>
+  );
+}
+
+function KPI({ label, value, tokens, color }: { label: string; value: string; tokens: ReturnType<typeof useTheme>['tokens']; color?: string }) {
+  const p = tokens.palette;
+  return (
+    <View style={{ width: '47%', flexGrow: 1 }}>
+      <Text style={{
+        fontSize: 9, color: p.textMuted, letterSpacing: 1, fontWeight: '600',
+        marginBottom: 2,
+      }}>
+        {label.toUpperCase()}
+      </Text>
+      <Text style={{
+        fontFamily: tokens.type.display,
+        fontWeight: tokens.type.displayWeight,
+        fontSize: 28,
+        lineHeight: 32,
+        letterSpacing: -0.5,
+        color: color ?? p.text,
+        fontVariant: ['tabular-nums'],
+      }}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function FleetRow({ unit, tokens, isLast }: { unit: UnitWithStatus; tokens: ReturnType<typeof useTheme>['tokens']; isLast: boolean }) {
+  const p = tokens.palette;
+  const status = unit.status;
+  const statusColor = status === 'active' ? TONE.good : status === 'maintenance' ? TONE.caution : p.textFaint;
+  const statusLabel = status === 'active' ? 'ACTIVE' : status === 'maintenance' ? 'IN MAINT' : 'RETIRED';
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 10 }}>
+        <Ionicons name="bus-outline" size={20} color={p.text} />
+        <View style={{ flex: 1 }}>
+          <Text style={{
+            fontFamily: tokens.type.display,
+            fontWeight: tokens.type.displayWeight,
+            fontSize: 17,
+            color: p.text,
+          }}>
+            {unit.name}
+          </Text>
+          <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic' }} numberOfLines={1}>
+            {unit.registration ? `${unit.registration} — ` : ''}
+            {unit.currentEvent ? `pitched at ${unit.currentEvent.name}` : status === 'active' ? 'available' : 'off the road'}
+          </Text>
+        </View>
+        <View style={{
+          paddingHorizontal: 7, paddingVertical: 2,
+          borderWidth: 1, borderColor: statusColor,
+        }}>
+          <Text style={{ fontSize: 10, color: statusColor, fontWeight: '600', letterSpacing: 0.5 }}>
+            {statusLabel}
+          </Text>
+        </View>
+      </View>
+      {!isLast && <FarDivider />}
+    </View>
+  );
+}
+
+function UpcomingRow({ event, tokens, onPress, isLast }: {
+  event: { id: string; name: string; date: string; end_date: string | null; location: string; concessions_companies?: { name: string } | null };
+  tokens: ReturnType<typeof useTheme>['tokens'];
+  onPress: () => void;
+  isLast: boolean;
+}) {
+  const p = tokens.palette;
+  const startDate = new Date(event.date);
+  const dayNum = startDate.getDate();
+  const monthShort = MONTHS_SHORT[startDate.getMonth()];
+  const orgName = event.concessions_companies?.name;
+  return (
+    <View>
+      <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={{ flexDirection: 'row', gap: 14, paddingBottom: 12 }}>
+        <View style={{ width: 50, alignItems: 'center', flexShrink: 0 }}>
+          <Text style={{
+            fontFamily: tokens.type.display,
+            fontWeight: tokens.type.displayWeight,
+            fontSize: 24,
+            lineHeight: 26,
+            color: p.text,
+          }}>
+            {dayNum}
+          </Text>
+          <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1, marginTop: 2, fontWeight: '600' }}>
+            {monthShort.toUpperCase()}
+          </Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{
+            fontFamily: tokens.type.display,
+            fontWeight: tokens.type.displayWeight,
+            fontSize: 17,
+            letterSpacing: -0.2,
+            color: p.text,
+          }} numberOfLines={1}>
+            {event.name}
+          </Text>
+          <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 2 }} numberOfLines={1}>
+            {event.location}{orgName ? ` — w/ ${orgName}` : ''}
+          </Text>
+        </View>
+      </TouchableOpacity>
+      {!isLast && <FarDivider />}
     </View>
   );
 }
