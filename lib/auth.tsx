@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
+import * as SecureStore from 'expo-secure-store';
 import { supabase } from '@/lib/supabase';
+import { REMEMBER_ME_KEY } from '@/lib/biometrics';
 
 interface AuthContextValue {
   session: Session | null;
@@ -26,10 +28,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    const init = async () => {
+      // If the user unchecked "Keep me signed in", clear session on each cold start
+      const rememberMe = await SecureStore.getItemAsync(REMEMBER_ME_KEY);
+      if (rememberMe === 'false') {
+        await supabase.auth.signOut();
+        setSession(null);
+        setLoading(false);
+        return;
+      }
+      const { data } = await supabase.auth.getSession();
       setSession(data.session);
       setLoading(false);
-    });
+    };
+    init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);

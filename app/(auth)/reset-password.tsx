@@ -67,8 +67,9 @@ export default function ResetPasswordScreen() {
     }
   }
 
-  function handleBack() {
+  async function handleBack() {
     setIsRecoveryMode(false);
+    await supabase.auth.signOut();
     router.replace('/(auth)/sign-in');
   }
 
