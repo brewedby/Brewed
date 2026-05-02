@@ -5,16 +5,25 @@ import { useEvents } from '@/lib/queries/events';
 import { CalendarView } from '@/components/events/CalendarView';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { FarMasthead } from '@/components/far/Masthead';
+import { useTheme } from '@/lib/themeContext';
 
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const [refreshing, setRefreshing] = useState(false);
 
-  // Show all active events (exclude rejected and withdrawn)
   const { data: allEvents = [], isLoading, refetch } = useEvents();
   const events = allEvents.filter(
     (e) => e.status !== 'rejected' && e.status !== 'withdrawn',
   );
+
+  const accepted = events.filter((e) => e.status === 'accepted').length;
+  const pending = events.filter((e) => e.status === 'pending').length;
+  const clashSub = events.length > 0
+    ? `${accepted} accepted, ${pending} pending`
+    : 'Accepted, waitlisted & pending events';
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -23,20 +32,20 @@ export default function CalendarScreen() {
   }
 
   return (
-    <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
-      {/* Header */}
-      <View className="px-4 pt-2 pb-3 bg-white border-b border-stone-100">
-        <Text className="text-2xl font-bold text-stone-900">Calendar</Text>
-        <Text className="text-stone-500 text-xs mt-0.5">Accepted, waitlisted &amp; pending events</Text>
-      </View>
+    <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+      <FarMasthead
+        eyebrow={`The calendar · ${events.length} entr${events.length === 1 ? 'y' : 'ies'}`}
+        title="Calendar"
+        sub={clashSub}
+      />
 
       {isLoading ? (
         <LoadingSpinner message="Loading calendar..." />
       ) : !events || events.length === 0 ? (
         <ScrollView
-          className="flex-1 px-4 pt-8"
+          style={{ flex: 1, paddingHorizontal: 20, paddingTop: 32 }}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" />
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={p.brand} />
           }
         >
           <EmptyState
@@ -49,7 +58,7 @@ export default function CalendarScreen() {
         <CalendarView
           events={events}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" />
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={p.brand} />
           }
         />
       )}

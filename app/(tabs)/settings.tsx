@@ -9,12 +9,18 @@ import { useAuth } from '@/lib/auth';
 import { useProfile, useUpdateProfile } from '@/lib/queries/profile';
 import type { Metric } from '@/lib/queries/profile';
 import { ProductCatalogScreen } from '@/components/cogs/ProductCatalogScreen';
+import { FarMasthead } from '@/components/far/Masthead';
+import { FarSectionRule } from '@/components/far/SectionRule';
+import { useTheme } from '@/lib/themeContext';
+import type { ThemeMode } from '@/lib/themeContext';
 import { BUSINESS_TYPES } from '@/constants';
+
 const CURRENCIES = [
-  { code: 'GBP', symbol: '£', label: 'GBP (£)' },
-  { code: 'EUR', symbol: '€', label: 'EUR (€)' },
-  { code: 'USD', symbol: '$', label: 'USD ($)' },
+  { code: 'GBP', symbol: '£', label: 'GBP' },
+  { code: 'EUR', symbol: '€', label: 'EUR' },
+  { code: 'USD', symbol: '$', label: 'USD' },
 ];
+
 const DEFAULT_METRICS: Metric[] = [
   { id: 'revenue',  name: 'Revenue',      unit: '£',      enabled: true,  builtin: true },
   { id: 'profit',   name: 'Net Profit',   unit: '£',      enabled: true,  builtin: true },
@@ -24,10 +30,24 @@ const DEFAULT_METRICS: Metric[] = [
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
+const THEME_OPTIONS: Array<{ id: ThemeMode; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = [
+  { id: 'auto',  label: 'Auto',  icon: 'phone-portrait-outline' },
+  { id: 'light', label: 'Light', icon: 'sunny-outline' },
+  { id: 'dark',  label: 'Dark',  icon: 'moon-outline' },
+];
+
+const QUICK_ACCESS = [
+  { icon: 'pricetag-outline' as const, label: 'Menu & Product Costs', sub: 'Selling prices and COGS per item', key: 'catalog' },
+  { icon: 'car-outline' as const,      label: 'Your Fleet',           sub: 'MOT, tax, service dates & unit status', key: 'fleet' },
+  { icon: 'bar-chart-outline' as const, label: 'Reports',             sub: 'Annual P&L, top events, export CSV', key: 'reports' },
+];
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const { tokens, themeMode, setThemeMode } = useTheme();
+  const p = tokens.palette;
   const { data: profile, refetch } = useProfile(user?.id);
   const updateProfile = useUpdateProfile();
 
@@ -35,8 +55,6 @@ export default function SettingsScreen() {
   const [businessType, setBusinessType] = useState('Coffee');
   const [currency, setCurrency] = useState('GBP');
   const [metrics, setMetrics] = useState<Metric[]>(DEFAULT_METRICS);
-  const [newName, setNewName] = useState('');
-  const [newUnit, setNewUnit] = useState('');
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
@@ -64,23 +82,6 @@ export default function SettingsScreen() {
     setMetrics((prev) => prev.map((m) => m.id === id ? { ...m, enabled } : m));
   }
 
-  function deleteMetric(id: string) {
-    setMetrics((prev) => prev.filter((m) => m.id !== id));
-  }
-
-  function addMetric() {
-    if (!newName.trim()) return;
-    const metric: Metric = {
-      id: `custom-${Date.now()}`,
-      name: newName.trim(),
-      unit: newUnit.trim() || 'units',
-      enabled: true,
-    };
-    setMetrics((prev) => [...prev, metric]);
-    setNewName('');
-    setNewUnit('');
-  }
-
   async function handleSave() {
     if (!user) return;
     setSaving(true);
@@ -103,241 +104,260 @@ export default function SettingsScreen() {
     }
   }
 
+  function handleQuickAccess(key: string) {
+    if (key === 'catalog') setShowCatalog(true);
+    else if (key === 'fleet') router.push('/(tabs)/fleet');
+    else if (key === 'reports') router.push('/(tabs)/reports');
+  }
+
   return (
-    <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
-      <View className="px-4 pt-2 pb-3 bg-white border-b border-stone-100">
-        <Text className="text-2xl font-bold text-stone-900">Settings</Text>
-        <Text className="text-stone-400 text-xs mt-0.5">{user?.email}</Text>
-      </View>
+    <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+      <FarMasthead eyebrow="The Workshop" title="Settings" sub={user?.email} />
 
       <ScrollView
-        className="flex-1 px-4 pt-4"
+        style={{ flex: 1 }}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" colors={['#f59e0b']} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={p.brand} />}
       >
+        <View style={{ padding: 20, gap: 24 }}>
 
-        {/* ── Quick Access ── */}
-        <Text className="text-xs font-bold text-stone-400 uppercase tracking-wide mb-2">Quick Access</Text>
-        <View className="bg-white rounded-2xl border border-stone-100 mb-4 overflow-hidden">
-          <TouchableOpacity
-            onPress={() => setShowCatalog(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Open menu and COGS catalog"
-            style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12, borderBottomWidth: 1, borderBottomColor: '#f5f5f4' }}
-          >
-            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#fef3c7', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="pricetag-outline" size={18} color="#92400e" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#1c1917' }}>Menu & Product Costs</Text>
-              <Text style={{ fontSize: 12, color: '#a8a29e', marginTop: 1 }}>Selling prices and COGS per item</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="#a8a29e" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/fleet')}
-            accessibilityRole="button"
-            accessibilityLabel="Manage your fleet"
-            style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12, borderBottomWidth: 1, borderBottomColor: '#f5f5f4' }}
-          >
-            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#f0fdf4', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="car-outline" size={18} color="#15803d" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#1c1917' }}>Your Fleet</Text>
-              <Text style={{ fontSize: 12, color: '#a8a29e', marginTop: 1 }}>MOT, tax, service dates & unit status</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="#a8a29e" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/reports')}
-            accessibilityRole="button"
-            accessibilityLabel="View annual reports"
-            style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 }}
-          >
-            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="bar-chart-outline" size={18} color="#1d4ed8" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#1c1917' }}>Reports</Text>
-              <Text style={{ fontSize: 12, color: '#a8a29e', marginTop: 1 }}>Annual P&L, top events, export CSV</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="#a8a29e" />
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Business Profile ── */}
-        <Text className="text-xs font-bold text-stone-400 uppercase tracking-wide mb-2">Business Profile</Text>
-        <View className="bg-white rounded-2xl p-4 border border-stone-100 gap-4 mb-4">
+          {/* ── Appearance ── */}
           <View>
-            <Text className="text-sm font-medium text-stone-700 mb-1.5">Business Name</Text>
-            <TextInput
-              value={businessName}
-              onChangeText={setBusinessName}
-              placeholder="e.g. Brewed by Boon"
-              accessibilityLabel="Business name"
-              className="border border-stone-200 rounded-xl px-3 py-2.5 text-base text-stone-900"
-            />
-          </View>
-
-          <View>
-            <Text className="text-sm font-medium text-stone-700 mb-2">Business Type</Text>
-            <View className="flex-row flex-wrap gap-2" accessibilityRole="radiogroup">
-              {BUSINESS_TYPES.map((t) => (
-                <TouchableOpacity
-                  key={t}
-                  onPress={() => setBusinessType(t)}
-                  accessibilityRole="radio"
-                  accessibilityLabel={t}
-                  accessibilityState={{ selected: businessType === t }}
-                  style={{
-                    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1,
-                    backgroundColor: businessType === t ? '#78350f' : '#ffffff',
-                    borderColor: businessType === t ? '#78350f' : '#e7e5e4',
-                  }}
-                >
-                  <Text style={{ color: businessType === t ? '#ffffff' : '#57534e', fontWeight: '500', fontSize: 13 }}>{t}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <View>
-            <Text className="text-sm font-medium text-stone-700 mb-2">Currency</Text>
-            <View className="flex-row gap-2" accessibilityRole="radiogroup">
-              {CURRENCIES.map((c) => (
-                <TouchableOpacity
-                  key={c.code}
-                  onPress={() => setCurrency(c.code)}
-                  accessibilityRole="radio"
-                  accessibilityLabel={c.label}
-                  accessibilityState={{ selected: currency === c.code }}
-                  style={{
-                    flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 12, borderWidth: 1,
-                    backgroundColor: currency === c.code ? '#78350f' : '#ffffff',
-                    borderColor: currency === c.code ? '#78350f' : '#e7e5e4',
-                  }}
-                >
-                  <Text style={{ fontWeight: '700', fontSize: 16, color: currency === c.code ? '#ffffff' : '#57534e' }}>{c.symbol}</Text>
-                  <Text style={{ fontSize: 11, color: currency === c.code ? '#ffffff' : '#9ca3af' }}>{c.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        {/* ── Metrics ── */}
-        <Text className="text-xs font-bold text-stone-400 uppercase tracking-wide mb-2">Metrics</Text>
-        <View className="bg-white rounded-2xl p-4 border border-stone-100 mb-4">
-          <Text className="text-stone-500 text-xs mb-3">Choose which metrics to track across the app.</Text>
-
-          {metrics.map((metric, idx) => (
-            <View
-              key={metric.id}
-              style={{
-                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                paddingVertical: 10,
-                borderBottomWidth: idx < metrics.length - 1 ? 1 : 0,
-                borderBottomColor: '#f5f5f4',
-              }}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '500', color: '#1c1917' }}>{metric.name}</Text>
-                <Text style={{ fontSize: 11, color: '#a8a29e', marginTop: 1 }}>{metric.unit}</Text>
+            <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 10 }}>
+              {'APPEARANCE'}
+            </Text>
+            <View style={{ borderWidth: 1, borderColor: p.borderStrong, backgroundColor: p.surface, padding: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <Ionicons name="contrast-outline" size={20} color={p.text} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: tokens.type.display, fontSize: 17 }}>Theme</Text>
+                  <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 1 }}>Auto follows your iOS setting.</Text>
+                </View>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                {!metric.builtin && (
-                  <TouchableOpacity
-                    onPress={() =>
-                      Alert.alert('Delete Metric', `Remove "${metric.name}"?`, [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Delete', style: 'destructive', onPress: () => deleteMetric(metric.id) },
-                      ])
-                    }
-                    accessibilityRole="button"
-                    accessibilityLabel={`Delete ${metric.name} metric`}
-                  >
-                    <Text style={{ fontSize: 12, color: '#ef4444' }}>Delete</Text>
-                  </TouchableOpacity>
-                )}
+              <View style={{ flexDirection: 'row', borderWidth: 1, borderColor: p.borderStrong }}>
+                {THEME_OPTIONS.map((opt, i) => {
+                  const active = themeMode === opt.id;
+                  return (
+                    <TouchableOpacity
+                      key={opt.id}
+                      onPress={() => setThemeMode(opt.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Theme: ${opt.label}`}
+                      accessibilityState={{ selected: active }}
+                      style={{
+                        flex: 1, paddingVertical: 10, minHeight: 44,
+                        borderLeftWidth: i === 0 ? 0 : 1,
+                        borderLeftColor: p.borderStrong,
+                        backgroundColor: active ? p.text : 'transparent',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <Ionicons name={opt.icon} size={16} color={active ? p.bg : p.text} />
+                      <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: active ? p.bg : p.text }}>
+                        {opt.label.toUpperCase()}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          {/* ── Quick Access ── */}
+          <View>
+            <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 10 }}>
+              {'QUICK ACCESS'}
+            </Text>
+            <View>
+              {QUICK_ACCESS.map((item, i) => (
+                <TouchableOpacity
+                  key={item.key}
+                  onPress={() => handleQuickAccess(item.key)}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.label}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 14,
+                    paddingVertical: 12,
+                    borderTopWidth: 1, borderTopColor: p.border,
+                    borderBottomWidth: i === QUICK_ACCESS.length - 1 ? 1 : 0,
+                    borderBottomColor: p.border,
+                  }}
+                >
+                  <View style={{ width: 32, height: 32, borderWidth: 1, borderColor: p.text, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name={item.icon} size={16} color={p.text} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: tokens.type.display, fontSize: 16 }}>{item.label}</Text>
+                    <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 1 }}>{item.sub}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={p.textFaint} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* ── Business Profile ── */}
+          <View>
+            <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 10 }}>
+              {'BUSINESS PROFILE'}
+            </Text>
+
+            <View style={{ gap: 16 }}>
+              <View>
+                <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1, fontWeight: '600', marginBottom: 6 }}>
+                  {'BUSINESS NAME'}
+                </Text>
+                <TextInput
+                  value={businessName}
+                  onChangeText={setBusinessName}
+                  placeholder="e.g. Brewed by Boon"
+                  placeholderTextColor={p.textFaint}
+                  accessibilityLabel="Business name"
+                  style={{
+                    borderWidth: 1, borderColor: p.borderStrong, backgroundColor: p.surface,
+                    paddingHorizontal: 12, paddingVertical: 10,
+                    fontFamily: tokens.type.display, fontSize: 18, color: p.text,
+                    minHeight: 44,
+                  }}
+                />
+              </View>
+
+              <View>
+                <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1, fontWeight: '600', marginBottom: 8 }}>
+                  {'BUSINESS TYPE'}
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                  {BUSINESS_TYPES.map((t) => {
+                    const active = businessType === t;
+                    return (
+                      <TouchableOpacity
+                        key={t}
+                        onPress={() => setBusinessType(t)}
+                        accessibilityRole="radio"
+                        accessibilityLabel={t}
+                        accessibilityState={{ selected: active }}
+                        style={{
+                          paddingHorizontal: 10, paddingVertical: 5,
+                          borderWidth: 1,
+                          backgroundColor: active ? p.text : 'transparent',
+                          borderColor: active ? p.text : p.borderStrong,
+                        }}
+                      >
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: active ? p.bg : p.text }}>{t}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              <View>
+                <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1, fontWeight: '600', marginBottom: 6 }}>
+                  {'CURRENCY'}
+                </Text>
+                <View style={{ flexDirection: 'row', borderWidth: 1, borderColor: p.borderStrong }}>
+                  {CURRENCIES.map((c, i) => {
+                    const active = currency === c.code;
+                    return (
+                      <TouchableOpacity
+                        key={c.code}
+                        onPress={() => setCurrency(c.code)}
+                        accessibilityRole="radio"
+                        accessibilityLabel={c.label}
+                        accessibilityState={{ selected: active }}
+                        style={{
+                          flex: 1, paddingVertical: 10, alignItems: 'center',
+                          borderLeftWidth: i === 0 ? 0 : 1,
+                          borderLeftColor: p.borderStrong,
+                          backgroundColor: active ? p.text : 'transparent',
+                          minHeight: 44,
+                        }}
+                      >
+                        <Text style={{ fontFamily: tokens.type.display, fontSize: 18, color: active ? p.bg : p.text }}>{c.symbol}</Text>
+                        <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1, color: active ? p.bg : p.textMuted }}>{c.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* ── Metrics ── */}
+          <View>
+            <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 4 }}>
+              {'METRICS'}
+            </Text>
+            <Text style={{ fontSize: 12, color: p.textMuted, fontStyle: 'italic', marginBottom: 10 }}>
+              Choose which metrics to track across the app.
+            </Text>
+            {metrics.map((metric, idx) => (
+              <View
+                key={metric.id}
+                style={{
+                  flexDirection: 'row', alignItems: 'center',
+                  paddingVertical: 12,
+                  borderTopWidth: 1, borderTopColor: p.border,
+                  borderBottomWidth: idx === metrics.length - 1 ? 1 : 0,
+                  borderBottomColor: p.border,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: tokens.type.display, fontSize: 16, color: p.text }}>{metric.name}</Text>
+                  <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 1 }}>{metric.unit}</Text>
+                </View>
                 <Switch
                   value={metric.enabled}
                   onValueChange={(v) => toggleMetric(metric.id, v)}
                   accessibilityLabel={`${metric.enabled ? 'Disable' : 'Enable'} ${metric.name} metric`}
-                  trackColor={{ false: '#e7e5e4', true: '#78350f' }}
+                  trackColor={{ false: p.borderStrong, true: p.brand }}
                   thumbColor="#ffffff"
                 />
               </View>
-            </View>
-          ))}
-
-          {/* Add custom metric */}
-          <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f5f5f4' }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: '#57534e', marginBottom: 8 }}>Add Custom Metric</Text>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              <TextInput
-                value={newName}
-                onChangeText={setNewName}
-                placeholder="Name (e.g. Coffees Sold)"
-                placeholderTextColor="#a8a29e"
-                accessibilityLabel="New metric name"
-                style={{
-                  flex: 1, borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10,
-                  paddingHorizontal: 10, paddingVertical: 8, fontSize: 16, color: '#1c1917',
-                }}
-              />
-              <TextInput
-                value={newUnit}
-                onChangeText={setNewUnit}
-                placeholder="Unit"
-                placeholderTextColor="#a8a29e"
-                accessibilityLabel="New metric unit"
-                style={{
-                  width: 64, borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10,
-                  paddingHorizontal: 10, paddingVertical: 8, fontSize: 16, color: '#1c1917',
-                }}
-              />
-              <TouchableOpacity
-                onPress={addMetric}
-                accessibilityRole="button"
-                accessibilityLabel="Add custom metric"
-                style={{
-                  backgroundColor: '#1c1917', borderRadius: 10,
-                  paddingHorizontal: 14, justifyContent: 'center',
-                }}
-              >
-                <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 13 }}>Add</Text>
-              </TouchableOpacity>
-            </View>
+            ))}
           </View>
+
+          {/* ── Save ── */}
+          <TouchableOpacity
+            onPress={handleSave}
+            disabled={saving}
+            accessibilityRole="button"
+            accessibilityLabel="Save settings"
+            accessibilityState={{ disabled: saving }}
+            style={{
+              backgroundColor: p.text, paddingVertical: 14,
+              alignItems: 'center', minHeight: 48,
+            }}
+          >
+            {saving ? (
+              <ActivityIndicator color={p.bg} />
+            ) : (
+              <Text style={{ color: p.bg, fontWeight: '700', fontSize: 13, letterSpacing: 1.5 }}>
+                {'SAVE CHANGES'}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={signOut}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
+            style={{
+              borderWidth: 1, borderColor: p.borderStrong,
+              paddingVertical: 14, alignItems: 'center', minHeight: 48,
+            }}
+          >
+            <Text style={{ color: p.textMuted, fontWeight: '600', fontSize: 13, letterSpacing: 1 }}>
+              {'SIGN OUT'}
+            </Text>
+          </TouchableOpacity>
+
+          <Text style={{ color: p.textFaint, fontSize: 11, textAlign: 'center', fontStyle: 'italic' }}>
+            Version {APP_VERSION}
+          </Text>
+          <View style={{ height: 24 }} />
         </View>
-
-        {/* Save */}
-        <TouchableOpacity
-          onPress={handleSave}
-          disabled={saving}
-          accessibilityRole="button"
-          accessibilityLabel="Save settings"
-          accessibilityState={{ disabled: saving }}
-          className="bg-amber-700 py-3.5 rounded-2xl items-center mb-4"
-        >
-          {saving ? <ActivityIndicator color="#fff" /> : <Text className="text-white font-bold text-base">Save Changes</Text>}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={signOut}
-          accessibilityRole="button"
-          accessibilityLabel="Sign out"
-          className="bg-white border border-stone-200 py-3.5 rounded-2xl items-center mb-6"
-        >
-          <Text className="text-stone-600 font-medium">Sign Out</Text>
-        </TouchableOpacity>
-
-        {/* App version */}
-        <Text className="text-stone-300 text-xs text-center mb-8">Version {APP_VERSION}</Text>
       </ScrollView>
 
       <ProductCatalogScreen visible={showCatalog} onClose={() => setShowCatalog(false)} />

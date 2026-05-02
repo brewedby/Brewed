@@ -1,14 +1,17 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, TextInput, FlatList, Modal } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, TextInput, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useEvents } from '@/lib/queries/events';
 import { useCompanies } from '@/lib/queries/companies';
-import { EventCard } from '@/components/events/EventCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { QueryError } from '@/components/shared/QueryError';
+import { FarMasthead } from '@/components/far/Masthead';
+import { FarSectionRule } from '@/components/far/SectionRule';
+import { useTheme } from '@/lib/themeContext';
+import { STATUS_DOT, TONE } from '@/lib/theme';
 import { formatDateRange, toISODateString } from '@/lib/formatters';
 import { STATUSES, STATUS_LABELS } from '@/constants';
 import type { ApplicationStatus, EventWithFinancials, CompanyWithStats } from '@/types';
@@ -16,72 +19,25 @@ import type { ApplicationStatus, EventWithFinancials, CompanyWithStats } from '@
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS_LIST = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i);
 
-function FilterModal<T extends string | number>({
-  visible, title, options, labelOf, selected, onSelect, onClose,
-}: {
-  visible: boolean;
-  title: string;
-  options: T[];
-  labelOf: (v: T) => string;
-  selected: T;
-  onSelect: (v: T) => void;
-  onClose: () => void;
-}) {
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        <View style={{ backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden', width: 240 }}
-              onStartShouldSetResponder={() => true}>
-          <View style={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#f5f5f4' }}>
-            <Text style={{ fontWeight: '700', fontSize: 14, color: '#1c1917' }}>{title}</Text>
-          </View>
-          {options.map((opt) => {
-            const isSelected = opt === selected;
-            return (
-              <TouchableOpacity
-                key={String(opt)}
-                onPress={() => { onSelect(opt); onClose(); }}
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                  paddingVertical: 14, paddingHorizontal: 20,
-                  backgroundColor: isSelected ? '#fef3c7' : '#fff',
-                  borderBottomWidth: 1, borderBottomColor: '#fafaf9' }}
-              >
-                <Text style={{ color: isSelected ? '#b45309' : '#1c1917', fontWeight: isSelected ? '700' : '400', fontSize: 14 }}>
-                  {labelOf(opt)}
-                </Text>
-                {isSelected && <Ionicons name="checkmark" size={16} color="#b45309" />}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </TouchableOpacity>
-    </Modal>
-  );
-}
+const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 function eventsOverlap(a: EventWithFinancials, b: EventWithFinancials): boolean {
   const aEnd = a.end_date ?? a.date;
   const bEnd = b.end_date ?? b.date;
   if (!(a.date <= bEnd && b.date <= aEnd)) return false;
-  // Only flag as conflict when both events share at least one unit
   const aUnitIds = new Set(a.units.map((u) => u.id));
   return b.units.some((u) => aUnitIds.has(u.id));
 }
 
-function OverlapBanner({
-  a, b, companyMap,
-}: {
+function OverlapBanner({ a, b, companyMap }: {
   a: EventWithFinancials;
   b: EventWithFinancials;
   companyMap: Map<string, CompanyWithStats>;
 }) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const compA = a.company_id ? companyMap.get(a.company_id) : null;
   const compB = b.company_id ? companyMap.get(b.company_id) : null;
-
   const hasA = compA != null && compA.avgProfitMargin != null && compA.completedEventCount > 0;
   const hasB = compB != null && compB.avgProfitMargin != null && compB.completedEventCount > 0;
 
@@ -91,58 +47,100 @@ function OverlapBanner({
       ? { event: a, comp: compA! }
       : { event: b, comp: compB! };
     const loser = winner.event === a ? { event: b, comp: compB! } : { event: a, comp: compA! };
-    recommendation = `Prioritise "${winner.event.name}" — ${winner.comp.name} avg ${winner.comp.avgProfitMargin!.toFixed(0)}% margin across ${winner.comp.completedEventCount} event${winner.comp.completedEventCount > 1 ? 's' : ''} vs ${loser.comp.avgProfitMargin!.toFixed(0)}% for ${loser.comp.name}.`;
-  } else if (hasA) {
-    recommendation = `"${a.name}" via ${compA!.name} has ${compA!.completedEventCount} past event${compA!.completedEventCount > 1 ? 's' : ''} (avg ${compA!.avgProfitMargin!.toFixed(0)}% margin). No history for "${b.name}" yet.`;
-  } else if (hasB) {
-    recommendation = `"${b.name}" via ${compB!.name} has ${compB!.completedEventCount} past event${compB!.completedEventCount > 1 ? 's' : ''} (avg ${compB!.avgProfitMargin!.toFixed(0)}% margin). No history for "${a.name}" yet.`;
+    recommendation = `Prioritise "${winner.event.name}" — ${winner.comp.name} avg ${winner.comp.avgProfitMargin!.toFixed(0)}% margin vs ${loser.comp.avgProfitMargin!.toFixed(0)}% for ${loser.comp.name}.`;
   }
 
   return (
-    <View style={{ backgroundColor: '#fff7ed', borderWidth: 1, borderColor: '#fed7aa', borderRadius: 16, padding: 14, marginBottom: 12 }}>
-      <Text style={{ color: '#c2410c', fontWeight: '700', fontSize: 13, marginBottom: 4 }}>⚡ Schedule Conflict</Text>
-      <Text style={{ color: '#ea580c', fontSize: 12, marginBottom: 6 }}>
-        "{a.name}" ({formatDateRange(a.date, a.end_date)}) overlaps with "{b.name}" ({formatDateRange(b.date, b.end_date)}).
+    <View style={{ borderWidth: 2, borderColor: TONE.bad, padding: 12, marginBottom: 12, backgroundColor: 'rgba(220,38,38,0.04)' }}>
+      <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: TONE.bad }}>
+        {'● CLASH · ' + formatDateRange(a.date, a.end_date)}
       </Text>
-      {hasA && (
-        <Text style={{ color: '#9a3412', fontSize: 11, marginTop: 2 }}>
-          • {compA!.name}: Avg {compA!.avgProfitMargin!.toFixed(0)}% margin ({compA!.completedEventCount} event{compA!.completedEventCount > 1 ? 's' : ''})
-        </Text>
-      )}
-      {hasB && (
-        <Text style={{ color: '#9a3412', fontSize: 11, marginTop: 2 }}>
-          • {compB!.name}: Avg {compB!.avgProfitMargin!.toFixed(0)}% margin ({compB!.completedEventCount} event{compB!.completedEventCount > 1 ? 's' : ''})
-        </Text>
-      )}
-      {!hasA && !hasB && (
-        <Text style={{ color: '#9a3412', fontSize: 11, marginTop: 2 }}>No historical data yet to rank these events.</Text>
+      <Text style={{ fontFamily: tokens.type.display, fontSize: 17, marginTop: 6, lineHeight: 22 }}>
+        {a.name} <Text style={{ color: p.textMuted, fontStyle: 'italic', fontSize: 13 }}>vs</Text> {b.name}
+      </Text>
+      {(hasA || hasB) && (
+        <View style={{ marginTop: 6, gap: 2 }}>
+          {hasA && <Text style={{ fontSize: 11, color: p.textMuted }}>• {compA!.name}: {compA!.avgProfitMargin!.toFixed(0)}% avg margin</Text>}
+          {hasB && <Text style={{ fontSize: 11, color: p.textMuted }}>• {compB!.name}: {compB!.avgProfitMargin!.toFixed(0)}% avg margin</Text>}
+        </View>
       )}
       {recommendation ? (
-        <Text style={{ color: '#c2410c', fontSize: 12, fontWeight: '600', marginTop: 6 }}>→ {recommendation}</Text>
+        <Text style={{ fontSize: 12, color: TONE.bad, fontWeight: '600', marginTop: 8 }}>→ {recommendation}</Text>
       ) : null}
     </View>
   );
 }
 
-function SectionHeader({ title, count }: { title: string; count: number }) {
+function FarEventRow({ event }: { event: EventWithFinancials }) {
+  const router = useRouter();
+  const { tokens } = useTheme();
+  const p = tokens.palette;
+
+  const dateStr = event.date;
+  const [, mm, dd] = dateStr.split('-');
+  const dayNum = parseInt(dd, 10);
+  const monthLabel = MONTH_SHORT[parseInt(mm, 10) - 1] ?? '';
+
+  const statusColor = STATUS_DOT[event.status] ?? p.textFaint;
+  const fin = event.event_financials;
+  const net = fin && fin.gross_sales > 0 ? event.calculations.netProfit : null;
+  const org = event.concessions_companies?.name ?? null;
+
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, marginTop: 4 }}>
-      <Text style={{ fontSize: 11, fontWeight: '700', color: '#78716c', textTransform: 'uppercase', letterSpacing: 1 }}>{title}</Text>
-      <Text style={{ fontSize: 11, color: '#a8a29e' }}>{count}</Text>
-    </View>
+    <TouchableOpacity
+      onPress={() => router.push(`/(tabs)/events/${event.id}`)}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${event.name}`}
+      activeOpacity={0.7}
+      style={{ flexDirection: 'row', gap: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: p.border }}
+    >
+      {/* Date column */}
+      <View style={{ width: 44, alignItems: 'center', flexShrink: 0, paddingTop: 2 }}>
+        <Text style={{ fontFamily: tokens.type.display, fontSize: 22, lineHeight: 24, color: p.text }}>{dayNum}</Text>
+        <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1, marginTop: 2 }}>{monthLabel.toUpperCase()}</Text>
+      </View>
+
+      {/* Content */}
+      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+        {/* Status + net */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1, color: statusColor, lineHeight: 14 }}>
+            {'● ' + event.status.toUpperCase()}
+          </Text>
+          {net !== null && (
+            <Text style={{ fontSize: 11, color: net >= 0 ? TONE.good : TONE.bad, fontFamily: tokens.type.mono, fontVariant: ['tabular-nums'], lineHeight: 14 }}>
+              {net >= 0 ? '+' : ''}£{Math.abs(net).toFixed(0)}
+            </Text>
+          )}
+        </View>
+        <Text style={{ fontFamily: tokens.type.display, fontSize: 17, letterSpacing: -0.2, lineHeight: 21, color: p.text }} numberOfLines={2}>
+          {event.name}
+        </Text>
+        <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic' }} numberOfLines={1}>
+          {event.location}{org ? ` — ${org}` : ''}
+        </Text>
+      </View>
+
+      {event.url_changed && (
+        <View style={{ alignSelf: 'flex-start', paddingTop: 2 }}>
+          <Text style={{ fontSize: 9, fontWeight: '700', color: TONE.caution, letterSpacing: 0.5 }}>UPDATED</Text>
+        </View>
+      )}
+    </TouchableOpacity>
   );
 }
 
 export default function EventsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { tokens } = useTheme();
+  const p = tokens.palette;
+
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all');
   const [yearFilter, setYearFilter] = useState<number | undefined>(undefined);
   const [viewFilter, setViewFilter] = useState<'upcoming' | 'completed' | 'all'>('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [statusModalOpen, setStatusModalOpen] = useState(false);
-  const [yearModalOpen, setYearModalOpen] = useState(false);
 
   const { data: eventsRaw, isLoading, isError, error, refetch } = useEvents({ status: statusFilter, year: yearFilter });
   const { data: companies } = useCompanies();
@@ -153,7 +151,6 @@ export default function EventsScreen() {
     setRefreshing(false);
   }
 
-  // Memoise today's ISO date so downstream memos don't churn on every render.
   const today = useMemo(() => toISODateString(new Date()), []);
 
   const events = useMemo(() => {
@@ -190,14 +187,7 @@ export default function EventsScreen() {
     return pairs;
   }, [upcoming]);
 
-  const totalRevenue = events.reduce((s, e) => s + (e.event_financials?.gross_sales ?? 0), 0);
-  const totalNet = events.reduce((s, e) => s + e.calculations.netProfit, 0);
-
-  const YEAR_OPTIONS = [0, ...YEARS_LIST];
-  const yearLabel = (v: number) => v === 0 ? 'All Years' : String(v);
-  const selectedYear = yearFilter ?? 0;
   const STATUS_OPTIONS: (ApplicationStatus | 'all')[] = ['all', ...STATUSES];
-  const statusLabel = (v: ApplicationStatus | 'all') => v === 'all' ? 'All Statuses' : STATUS_LABELS[v];
 
   type RowItem =
     | { kind: 'banner'; id: string; a: EventWithFinancials; b: EventWithFinancials }
@@ -226,137 +216,111 @@ export default function EventsScreen() {
     return items;
   }, [viewFilter, overlappingPairs, upcoming, completed]);
 
+  const VIEW_FILTERS = [
+    { id: 'upcoming' as const, label: 'Upcoming' },
+    { id: 'completed' as const, label: 'Completed' },
+    { id: 'all' as const, label: 'All' },
+  ];
+
+  const NewButton = (
+    <TouchableOpacity
+      onPress={() => router.push('/(tabs)/events/new')}
+      accessibilityRole="button"
+      accessibilityLabel="Add new event"
+      style={{
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        borderWidth: 1, borderColor: p.text,
+        paddingHorizontal: 10, paddingVertical: 4, minHeight: 32,
+      }}
+    >
+      <Ionicons name="add" size={11} color={p.text} />
+      <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1, color: p.text }}>{'NEW'}</Text>
+    </TouchableOpacity>
+  );
+
   return (
-    <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
-      {/* Header */}
-      <View className="px-4 pt-2 pb-3 bg-white border-b border-stone-100">
-        <View className="flex-row items-center justify-between mb-3">
-          <Text className="text-2xl font-bold text-stone-900">Events</Text>
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            <TouchableOpacity
-              onPress={() => router.push('/(tabs)/calendar')}
-              accessibilityRole="button"
-              accessibilityLabel="Open calendar view"
-              style={{
-                width: 36, height: 36, borderRadius: 10,
-                backgroundColor: '#f5f5f4',
-                alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <Ionicons name="calendar-outline" size={18} color="#57534e" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push('/(tabs)/events/new')}
-              accessibilityRole="button"
-              accessibilityLabel="Add new event"
-              style={{ backgroundColor: '#b45309', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 }}
-            >
-              <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 14 }}>+ New</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+    <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+      <FarMasthead
+        eyebrow={`The Calendar · ${events.length} entr${events.length === 1 ? 'y' : 'ies'}`}
+        title="Events"
+        sub="Applications, accepted, traded — by date."
+        right={NewButton}
+      />
 
-        {/* Search */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f5f4', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10, gap: 8 }}>
-          <Text style={{ color: '#a8a29e', fontSize: 14 }}>🔍</Text>
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search events or locations..."
-            placeholderTextColor="#a8a29e"
-            style={{ flex: 1, fontSize: 14, color: '#1c1917', padding: 0 }}
-            clearButtonMode="while-editing"
-            returnKeyType="search"
-          />
-        </View>
-
-        {/* Upcoming / Completed / All tabs */}
-        <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }} accessibilityRole="radiogroup">
-          {(['upcoming', 'completed', 'all'] as const).map((v) => {
-            const labels = { upcoming: 'Upcoming', completed: 'Completed', all: 'All' };
-            const isActive = viewFilter === v;
+      {/* Filter chips */}
+      <View style={{ backgroundColor: p.bg }}>
+        {/* View filter */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ flexDirection: 'row', gap: 6, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 4 }}
+        >
+          {VIEW_FILTERS.map((vf) => {
+            const active = viewFilter === vf.id;
             return (
               <TouchableOpacity
-                key={v}
-                onPress={() => setViewFilter(v)}
+                key={vf.id}
+                onPress={() => setViewFilter(vf.id)}
                 accessibilityRole="radio"
-                accessibilityLabel={`Show ${labels[v].toLowerCase()} events`}
-                accessibilityState={{ selected: isActive }}
+                accessibilityState={{ selected: active }}
                 style={{
-                  flex: 1, paddingVertical: 7, borderRadius: 10, alignItems: 'center',
-                  backgroundColor: isActive ? '#1c1917' : '#f5f5f4',
+                  paddingHorizontal: 10, paddingVertical: 4,
+                  borderWidth: 1,
+                  backgroundColor: active ? p.text : 'transparent',
+                  borderColor: active ? p.text : p.borderStrong,
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#ffffff' : '#57534e' }}>
-                  {labels[v]}
+                <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 0.5, color: active ? p.bg : p.textMuted }}>
+                  {vf.label.toUpperCase()}
                 </Text>
               </TouchableOpacity>
             );
           })}
+          {/* Status filter chips */}
+          {STATUS_OPTIONS.filter((s) => s !== 'all').map((s) => {
+            const active = statusFilter === s;
+            const dotColor = STATUS_DOT[s] ?? p.textFaint;
+            return (
+              <TouchableOpacity
+                key={s}
+                onPress={() => setStatusFilter(active ? 'all' : s)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                style={{
+                  paddingHorizontal: 10, paddingVertical: 4,
+                  borderWidth: 1,
+                  backgroundColor: active ? dotColor : 'transparent',
+                  borderColor: active ? dotColor : p.borderStrong,
+                }}
+              >
+                <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 0.5, color: active ? '#fff' : p.textMuted }}>
+                  {STATUS_LABELS[s].toUpperCase()}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Search */}
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', gap: 8,
+          marginHorizontal: 20, marginBottom: 8,
+          borderWidth: 1, borderColor: p.borderStrong,
+          backgroundColor: p.surface,
+          paddingHorizontal: 12, paddingVertical: 8,
+        }}>
+          <Ionicons name="search-outline" size={14} color={p.textFaint} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search events or locations..."
+            placeholderTextColor={p.textFaint}
+            style={{ flex: 1, fontSize: 14, color: p.text, padding: 0 }}
+            clearButtonMode="while-editing"
+            returnKeyType="search"
+          />
         </View>
-
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-          <TouchableOpacity
-            onPress={() => setStatusModalOpen(true)}
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-              paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12,
-              backgroundColor: statusFilter !== 'all' ? '#fef3c7' : '#f5f5f4',
-              borderWidth: 1, borderColor: statusFilter !== 'all' ? '#fcd34d' : '#e7e5e4' }}
-          >
-            <Text style={{ fontSize: 13, fontWeight: '600',
-              color: statusFilter !== 'all' ? '#92400e' : '#78716c' }}>
-              {statusFilter === 'all' ? 'All Statuses' : STATUS_LABELS[statusFilter]}
-            </Text>
-            <Ionicons name="chevron-down" size={14} color={statusFilter !== 'all' ? '#b45309' : '#a8a29e'} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setYearModalOpen(true)}
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-              paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12,
-              backgroundColor: yearFilter != null ? '#fef3c7' : '#f5f5f4',
-              borderWidth: 1, borderColor: yearFilter != null ? '#fcd34d' : '#e7e5e4' }}
-          >
-            <Text style={{ fontSize: 13, fontWeight: '600',
-              color: yearFilter != null ? '#92400e' : '#78716c' }}>
-              {yearFilter != null ? String(yearFilter) : 'All Years'}
-            </Text>
-            <Ionicons name="chevron-down" size={14} color={yearFilter != null ? '#b45309' : '#a8a29e'} />
-          </TouchableOpacity>
-        </View>
-
-        <FilterModal
-          visible={statusModalOpen}
-          title="Filter by Status"
-          options={STATUS_OPTIONS}
-          labelOf={statusLabel}
-          selected={statusFilter}
-          onSelect={(v) => setStatusFilter(v)}
-          onClose={() => setStatusModalOpen(false)}
-        />
-        <FilterModal
-          visible={yearModalOpen}
-          title="Filter by Year"
-          options={YEAR_OPTIONS}
-          labelOf={yearLabel}
-          selected={selectedYear}
-          onSelect={(v) => setYearFilter(v === 0 ? undefined : v)}
-          onClose={() => setYearModalOpen(false)}
-        />
       </View>
-
-      {/* Summary strip */}
-      {events.length > 0 && (
-        <View className="flex-row bg-white px-4 py-2 border-b border-stone-100 gap-6">
-          <Text className="text-stone-500 text-xs">{events.length} event{events.length !== 1 ? 's' : ''}</Text>
-          {totalRevenue > 0 && (
-            <Text className="text-stone-500 text-xs">Sales: <Text className="text-stone-700 font-medium">£{totalRevenue.toFixed(0)}</Text></Text>
-          )}
-          {totalNet !== 0 && (
-            <Text className="text-stone-500 text-xs">Net: <Text className={`font-medium ${totalNet >= 0 ? 'text-green-600' : 'text-red-500'}`}>£{totalNet.toFixed(0)}</Text></Text>
-          )}
-        </View>
-      )}
 
       {isLoading ? (
         <LoadingSpinner message="Loading events..." />
@@ -364,9 +328,9 @@ export default function EventsScreen() {
         <QueryError error={error} onRetry={refetch} message="Couldn't load events" />
       ) : events.length === 0 ? (
         <ScrollView
-          className="flex-1 px-4 pt-4"
+          style={{ flex: 1, paddingHorizontal: 20, paddingTop: 20 }}
           keyboardDismissMode="on-drag"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" colors={["#f59e0b"]} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={p.brand} />}
         >
           <EmptyState
             icon="🎪"
@@ -378,9 +342,9 @@ export default function EventsScreen() {
         </ScrollView>
       ) : rowItems.length === 0 ? (
         <ScrollView
-          className="flex-1 px-4 pt-4"
+          style={{ flex: 1, paddingHorizontal: 20, paddingTop: 20 }}
           keyboardDismissMode="on-drag"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" colors={["#f59e0b"]} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={p.brand} />}
         >
           {viewFilter === 'upcoming' ? (
             <EmptyState icon="📅" title="No upcoming events" description="All events are in the past." />
@@ -389,24 +353,32 @@ export default function EventsScreen() {
           ) : null}
         </ScrollView>
       ) : (
-        <View className="flex-1 px-4 pt-4">
-          <FlatList
-            data={rowItems}
-            keyExtractor={(item) => item.id}
-            keyboardDismissMode="on-drag"
-            removeClippedSubviews
-            initialNumToRender={8}
-            maxToRenderPerBatch={10}
-            windowSize={5}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" colors={["#f59e0b"]} />}
-            ListFooterComponent={<View style={{ height: 32 }} />}
-            renderItem={({ item }) => {
-              if (item.kind === 'banner') return <OverlapBanner a={item.a} b={item.b} companyMap={companyMap} />;
-              if (item.kind === 'section') return <SectionHeader title={item.title} count={item.count} />;
-              return <EventCard event={item.event} />;
-            }}
-          />
-        </View>
+        <FlatList
+          data={rowItems}
+          keyExtractor={(item) => item.id}
+          keyboardDismissMode="on-drag"
+          removeClippedSubviews
+          initialNumToRender={8}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 20 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={p.brand} />}
+          ListFooterComponent={<View style={{ height: 40 }} />}
+          renderItem={({ item }) => {
+            if (item.kind === 'banner') {
+              return <OverlapBanner a={item.a} b={item.b} companyMap={companyMap} />;
+            }
+            if (item.kind === 'section') {
+              return (
+                <View style={{ paddingTop: 20, paddingBottom: 4 }}>
+                  <FarSectionRule label={`${item.title} (${item.count})`} />
+                </View>
+              );
+            }
+            return <FarEventRow event={item.event} />;
+          }}
+        />
       )}
     </View>
   );

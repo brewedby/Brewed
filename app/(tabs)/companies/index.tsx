@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,7 +7,11 @@ import { useCompanies } from '@/lib/queries/companies';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { QueryError } from '@/components/shared/QueryError';
-import { formatCurrency, formatDate } from '@/lib/formatters';
+import { FarMasthead } from '@/components/far/Masthead';
+import { FarSectionRule } from '@/components/far/SectionRule';
+import { useTheme } from '@/lib/themeContext';
+import { TONE } from '@/lib/theme';
+import { formatDate } from '@/lib/formatters';
 import type { CompanyWithStats } from '@/types';
 
 function companyScore(c: CompanyWithStats): number {
@@ -18,9 +22,18 @@ function companyScore(c: CompanyWithStats): number {
   return marginFactor * revenueFactor * reliabilityFactor;
 }
 
+function marginTone(margin: number | null): string {
+  if (margin == null) return TONE.caution;
+  if (margin >= 20) return TONE.good;
+  if (margin >= 0) return TONE.caution;
+  return TONE.bad;
+}
+
 export default function CompaniesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const { data: companies, isLoading, isError, error, refetch } = useCompanies();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -38,59 +51,84 @@ export default function CompaniesScreen() {
     setRefreshing(false);
   }
 
-  const topPerformers = rankedCompanies.length >= 2 ? (
-    <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#f5f5f4', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 6 }}>
-        <Text style={{ fontSize: 13, fontWeight: '700', color: '#1c1917' }}>Top Performers</Text>
-        <Text style={{ fontSize: 11, color: '#a8a29e', fontWeight: '500' }}>margin · volume · reliability</Text>
+  const count = companies?.length ?? 0;
+
+  const AddButton = (
+    <TouchableOpacity
+      onPress={() => router.push('/(tabs)/companies/new')}
+      accessibilityRole="button"
+      accessibilityLabel="Add new company"
+      style={{
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        borderWidth: 1, borderColor: p.text,
+        paddingHorizontal: 10, paddingVertical: 4, minHeight: 32,
+      }}
+    >
+      <Ionicons name="add" size={11} color={p.text} />
+      <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1, color: p.text }}>{'ADD'}</Text>
+    </TouchableOpacity>
+  );
+
+  const TopPerformers = rankedCompanies.length >= 2 ? (
+    <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+        <Ionicons name="trophy-outline" size={16} color={p.brand} />
+        <Text style={{ fontFamily: tokens.type.display, fontSize: 18 }}>Top performers</Text>
+        <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1 }}>{'MARGIN · VOLUME · RELIABILITY'}</Text>
       </View>
-      {rankedCompanies.map((c, i) => {
-        const medals = ['🥇', '🥈', '🥉'];
-        const isFirst = i === 0;
-        return (
-          <TouchableOpacity
-            key={c.id}
-            onPress={() => router.push(`/(tabs)/companies/${c.id}`)}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={`${medals[i]} ${c.name}, ${(c.avgProfitMargin ?? 0).toFixed(0)}% average margin`}
-            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
-              borderTopWidth: i > 0 ? 1 : 0, borderTopColor: '#fafaf9', gap: 12 }}
-          >
-            <Text style={{ fontSize: 20, width: 28, textAlign: 'center' }}>{medals[i]}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: isFirst ? '700' : '600', color: '#1c1917' }} numberOfLines={1}>{c.name}</Text>
-              <Text style={{ fontSize: 11, color: '#a8a29e', marginTop: 1 }}>
-                {c.completedEventCount} event{c.completedEventCount !== 1 ? 's' : ''} · £{c.totalRevenue >= 1000 ? `${(c.totalRevenue / 1000).toFixed(1)}k` : c.totalRevenue.toFixed(0)} revenue
-              </Text>
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: (c.avgProfitMargin ?? 0) >= 25 ? '#16a34a' : (c.avgProfitMargin ?? 0) >= 10 ? '#b45309' : '#dc2626' }}>
-                {(c.avgProfitMargin ?? 0).toFixed(0)}%
-              </Text>
-              <Text style={{ fontSize: 10, color: '#a8a29e' }}>avg margin</Text>
-            </View>
-          </TouchableOpacity>
-        );
-      })}
+      {rankedCompanies.map((c, i) => (
+        <TouchableOpacity
+          key={c.id}
+          onPress={() => router.push(`/(tabs)/companies/${c.id}`)}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`${c.name}, ${(c.avgProfitMargin ?? 0).toFixed(0)}% average margin`}
+          style={{
+            flexDirection: 'row', alignItems: 'center', gap: 12,
+            paddingVertical: 10,
+            borderBottomWidth: 1, borderBottomColor: p.border,
+          }}
+        >
+          <View style={{
+            width: 28, height: 28,
+            borderRadius: 14,
+            borderWidth: 1.5, borderColor: p.brand,
+            alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Text style={{ fontFamily: tokens.type.display, fontSize: 14, color: p.brand }}>{i + 1}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: tokens.type.display, fontSize: 17, lineHeight: 20 }}>{c.name}</Text>
+            <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 2 }}>
+              {c.completedEventCount} events · £{c.totalRevenue >= 1000 ? `${(c.totalRevenue / 1000).toFixed(1)}k` : c.totalRevenue.toFixed(0)} revenue
+            </Text>
+          </View>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={{ fontFamily: tokens.type.display, fontSize: 22, color: marginTone(c.avgProfitMargin), fontVariant: ['tabular-nums'] }}>
+              {(c.avgProfitMargin ?? 0).toFixed(0)}%
+            </Text>
+            <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1 }}>{'AVG MARGIN'}</Text>
+          </View>
+        </TouchableOpacity>
+      ))}
+      <View style={{ paddingTop: 20, paddingBottom: 4 }}>
+        <FarSectionRule label="All organisers" />
+      </View>
     </View>
-  ) : null;
+  ) : (
+    <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 4 }}>
+      <FarSectionRule label="All organisers" />
+    </View>
+  );
 
   return (
-    <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
-      <View className="px-4 pt-2 pb-3 bg-white border-b border-stone-100">
-        <View className="flex-row items-center justify-between">
-          <Text className="text-2xl font-bold text-stone-900">Companies</Text>
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/companies/new')}
-            accessibilityRole="button"
-            accessibilityLabel="Add new company"
-            className="bg-amber-700 px-4 py-2 rounded-xl"
-          >
-            <Text className="text-white font-semibold text-sm">+ Add Company</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+    <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+      <FarMasthead
+        eyebrow={`The Roster · ${count} on file`}
+        title="Companies"
+        sub="Trading history with every organiser."
+        right={AddButton}
+      />
 
       {isLoading ? (
         <LoadingSpinner message="Loading companies..." />
@@ -103,85 +141,80 @@ export default function CompaniesScreen() {
           onRefresh={handleRefresh}
           refreshing={refreshing}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16 }}
-          ListHeaderComponent={topPerformers}
-          ListFooterComponent={<View style={{ height: 32 }} />}
+          ListHeaderComponent={TopPerformers}
+          ListFooterComponent={<View style={{ height: 40 }} />}
+          contentContainerStyle={{ paddingHorizontal: 20 }}
           ListEmptyComponent={
-            <EmptyState
-              icon="🏢"
-              title="No companies yet"
-              description="Add concessions companies you apply to for events."
-              action={{ label: '+ Add Company', onPress: () => router.push('/(tabs)/companies/new') }}
-            />
+            <View style={{ paddingTop: 20 }}>
+              <EmptyState
+                icon="🏢"
+                title="No companies yet"
+                description="Add concessions companies you apply to for events."
+                action={{ label: '+ Add Company', onPress: () => router.push('/(tabs)/companies/new') }}
+              />
+            </View>
           }
           renderItem={({ item: company }) => (
             <TouchableOpacity
               onPress={() => router.push(`/(tabs)/companies/${company.id}`)}
               accessibilityRole="button"
               accessibilityLabel={`Open company ${company.name}`}
-              className="bg-white rounded-2xl p-4 mb-3 border border-stone-100"
               activeOpacity={0.7}
-              style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }}
+              style={{
+                borderWidth: 1, borderColor: p.borderStrong,
+                backgroundColor: p.surface,
+                padding: 14, marginBottom: 12,
+              }}
             >
-              <View className="flex-row items-start justify-between">
-                <View className="flex-1 mr-3">
-                  <Text className="font-semibold text-stone-900 text-base">{company.name}</Text>
-                  {company.contact_name && (
-                    <View className="flex-row items-center mt-1">
-                      <Ionicons name="person-outline" size={12} color="#78716c" />
-                      <Text className="text-stone-500 text-sm ml-1.5">{company.contact_name}</Text>
-                    </View>
-                  )}
-                  {company.email && (
-                    <View className="flex-row items-center mt-1">
-                      <Ionicons name="mail-outline" size={11} color="#a8a29e" />
-                      <Text className="text-stone-400 text-xs ml-1.5">{company.email}</Text>
-                    </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={{ fontFamily: tokens.type.display, fontSize: 20, letterSpacing: -0.4, lineHeight: 24 }}>
+                    {company.name}
+                  </Text>
+                  {company.lastEventDate && (
+                    <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1, marginTop: 3 }}>
+                      {'LAST EVENT · ' + formatDate(company.lastEventDate).toUpperCase()}
+                    </Text>
                   )}
                 </View>
-                <View className="items-end">
-                  <View className="bg-amber-50 px-2.5 py-1 rounded-full">
-                    <Text className="text-amber-800 text-xs font-medium">{company.totalEvents} events</Text>
-                  </View>
-                  {company.acceptedEvents > 0 && (
-                    <Text className="text-green-600 text-xs mt-1 font-medium">{company.acceptedEvents} accepted</Text>
-                  )}
-                  {company.completedEventCount > 0 ? (
-                    <View style={{
-                      paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12,
-                      backgroundColor: (company.avgProfitMargin ?? 0) >= 25 ? '#dcfce7' : (company.avgProfitMargin ?? 0) >= 10 ? '#fef9c3' : '#fee2e2',
-                      marginTop: 4,
-                    }}>
-                      <Text style={{
-                        fontSize: 11, fontWeight: '600',
-                        color: (company.avgProfitMargin ?? 0) >= 25 ? '#166534' : (company.avgProfitMargin ?? 0) >= 10 ? '#854d0e' : '#991b1b',
-                      }}>
-                        {(company.avgProfitMargin ?? 0).toFixed(0)}% avg margin
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, backgroundColor: '#f5f5f4', marginTop: 4 }}>
-                      <Text style={{ fontSize: 11, fontWeight: '600', color: '#78716c' }}>No data</Text>
-                    </View>
-                  )}
-                  {company.completedEventCount > 0 && <Text className="text-stone-400 text-xs mt-1">Avg across {company.completedEventCount} event{company.completedEventCount !== 1 ? 's' : ''}</Text>}
-                </View>
+                <Ionicons name="chevron-forward" size={18} color={p.textFaint} />
               </View>
 
-              {company.totalRevenue > 0 && (
-                <View className="flex-row mt-3 pt-3 border-t border-stone-100 gap-4">
-                  <View>
-                    <Text className="text-stone-400 text-xs">Total Revenue</Text>
-                    <Text className="font-semibold text-stone-900 text-sm">{formatCurrency(company.totalRevenue)}</Text>
-                  </View>
-                  {company.lastEventDate && (
-                    <View>
-                      <Text className="text-stone-400 text-xs">Last Event</Text>
-                      <Text className="font-semibold text-stone-700 text-sm">{formatDate(company.lastEventDate)}</Text>
-                    </View>
+              <View style={{
+                flexDirection: 'row',
+                paddingTop: 10,
+                borderTopWidth: 1, borderTopColor: p.border,
+              }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1, fontWeight: '600' }}>{'EVENTS'}</Text>
+                  <Text style={{ fontFamily: tokens.type.display, fontSize: 18, marginTop: 2, fontVariant: ['tabular-nums'] }}>
+                    {company.totalEvents}
+                  </Text>
+                  {company.acceptedEvents > 0 && (
+                    <Text style={{ fontSize: 10, color: TONE.good, marginTop: 1 }}>{company.acceptedEvents} accepted</Text>
                   )}
                 </View>
-              )}
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1, fontWeight: '600' }}>{'AVG MARGIN'}</Text>
+                  {company.completedEventCount > 0 ? (
+                    <Text style={{ fontFamily: tokens.type.display, fontSize: 18, marginTop: 2, color: marginTone(company.avgProfitMargin), fontVariant: ['tabular-nums'] }}>
+                      {(company.avgProfitMargin ?? 0).toFixed(0)}%
+                    </Text>
+                  ) : (
+                    <Text style={{ fontSize: 12, color: p.textFaint, fontStyle: 'italic', marginTop: 4 }}>No data</Text>
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1, fontWeight: '600' }}>{'REVENUE'}</Text>
+                  {company.totalRevenue > 0 ? (
+                    <Text style={{ fontFamily: tokens.type.display, fontSize: 18, marginTop: 2, fontVariant: ['tabular-nums'] }}>
+                      £{company.totalRevenue >= 1000 ? `${(company.totalRevenue / 1000).toFixed(1)}k` : company.totalRevenue.toFixed(0)}
+                    </Text>
+                  ) : (
+                    <Text style={{ fontSize: 12, color: p.textFaint, fontStyle: 'italic', marginTop: 4 }}>—</Text>
+                  )}
+                </View>
+              </View>
             </TouchableOpacity>
           )}
         />

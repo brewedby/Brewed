@@ -2,12 +2,16 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Share, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useReports } from '@/lib/queries/reports';
 import { useAuth } from '@/lib/auth';
 import { useProfile } from '@/lib/queries/profile';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
-import { EventStatusBadge } from '@/components/shared/EventStatusBadge';
-import { formatCurrency, formatPercent, formatDate } from '@/lib/formatters';
+import { FarMasthead } from '@/components/far/Masthead';
+import { FarSectionRule } from '@/components/far/SectionRule';
+import { useTheme } from '@/lib/themeContext';
+import { TONE } from '@/lib/theme';
+import { formatDate } from '@/lib/formatters';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2];
@@ -15,6 +19,8 @@ const YEARS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2];
 export default function ReportsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const { user } = useAuth();
   const { data: profile } = useProfile(user?.id);
   const [year, setYear] = useState(CURRENT_YEAR);
@@ -30,10 +36,7 @@ export default function ReportsScreen() {
   async function handleExport() {
     if (!data) return;
     const header = 'Event,Date,End Date,Location,Company,Status,Gross Sales,Cost of Goods,Pitch Fee,Power Fee,Travel,Camping,Equipment,Other,Staffing,Net Profit,Margin%\n';
-
-    // Export all events for the year from companyPerformance + topEvents combined, de-duped
-    const allReportEvents = data.topEvents;
-    const rows = allReportEvents.map((e) => [
+    const rows = data.topEvents.map((e) => [
       `"${e.name.replace(/"/g, '""')}"`,
       e.date,
       e.end_date ?? '',
@@ -52,7 +55,6 @@ export default function ReportsScreen() {
       e.calculations.netProfit.toFixed(2),
       e.calculations.profitMargin.toFixed(1),
     ].join(',')).join('\n');
-
     const csv = header + rows;
     try {
       await Share.share({ message: csv, title: `${profile?.business_name ?? 'My Business'} - ${year} Report` });
@@ -61,150 +63,234 @@ export default function ReportsScreen() {
     }
   }
 
+  const ExportButton = (
+    <TouchableOpacity
+      onPress={handleExport}
+      accessibilityRole="button"
+      accessibilityLabel="Export report as CSV"
+      style={{
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        borderWidth: 1, borderColor: p.text,
+        paddingHorizontal: 10, paddingVertical: 4, minHeight: 32,
+      }}
+    >
+      <Ionicons name="document-outline" size={11} color={p.text} />
+      <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1, color: p.text }}>{'EXPORT'}</Text>
+    </TouchableOpacity>
+  );
+
   return (
-    <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
-      <View className="bg-white px-4 pt-2 pb-3 border-b border-stone-100">
-        <View className="flex-row items-center justify-between mb-3">
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
-            >
-              <Text style={{ color: '#f59e0b', fontWeight: '600', fontSize: 14 }}>‹ Back</Text>
-            </TouchableOpacity>
-            <Text className="text-2xl font-bold text-stone-900">Reports</Text>
-          </View>
-          <TouchableOpacity
-            onPress={handleExport}
-            accessibilityRole="button"
-            accessibilityLabel="Export report as CSV"
-            className="border border-amber-300 px-3 py-1.5 rounded-xl"
-          >
-            <Text className="text-amber-700 font-medium text-sm">Export CSV</Text>
-          </TouchableOpacity>
-        </View>
-        <View className="flex-row gap-2" accessibilityRole="radiogroup">
-          {YEARS.map((y) => (
-            <TouchableOpacity
-              key={y}
-              onPress={() => setYear(y)}
-              accessibilityRole="radio"
-              accessibilityLabel={`Show reports for ${y}`}
-              accessibilityState={{ selected: year === y }}
-              className={`px-4 py-1.5 rounded-full ${year === y ? 'bg-amber-700' : 'bg-stone-100'}`}
-            >
-              <Text className={`text-sm font-medium ${year === y ? 'text-white' : 'text-stone-600'}`}>{y}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+    <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+      <FarMasthead
+        eyebrow="The year in numbers"
+        title="Reports"
+        sub="Yearly P&L, your top events, exportable for the accountant."
+        right={ExportButton}
+      />
 
       {isLoading ? (
         <LoadingSpinner message="Loading report..." />
-      ) : !data || data.totalEvents === 0 ? (
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-5xl mb-3">📊</Text>
-          <Text className="text-stone-600 font-semibold">No data for {year}</Text>
-        </View>
       ) : (
         <ScrollView
-          className="flex-1 px-4 pt-4"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" />}
+          style={{ flex: 1 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={p.brand} />}
         >
-          {/* Annual summary */}
-          <View className="flex-row flex-wrap gap-3 mb-4">
-            {[
-              { label: 'Total Revenue', value: formatCurrency(data.totalGross), color: 'text-amber-700' },
-              { label: 'Total Net Profit', value: formatCurrency(data.totalNet), color: data.totalNet >= 0 ? 'text-green-700' : 'text-red-600' },
-              { label: 'Events', value: String(data.totalEvents), color: 'text-stone-900' },
-              { label: 'Avg Margin', value: formatPercent(data.avgMargin), color: data.avgMargin >= 0 ? 'text-green-700' : 'text-red-600' },
-            ].map((s) => (
-              <View key={s.label} className="bg-white rounded-xl p-3 border border-stone-100 min-w-[45%] flex-1 shadow-none">
-                <Text className={`text-lg font-bold ${s.color}`}>{s.value}</Text>
-                <Text className="text-stone-400 text-xs mt-0.5">{s.label}</Text>
-              </View>
-            ))}
-          </View>
+          <View style={{ padding: 20, gap: 20 }}>
 
-          {/* Monthly breakdown */}
-          <View className="bg-white rounded-2xl border border-stone-100 mb-4 overflow-hidden">
-            <Text className="font-bold text-stone-900 px-4 pt-4 pb-2">Monthly Breakdown</Text>
-            <View className="flex-row px-4 pb-2 border-b border-stone-100">
-              {['Month', 'Events', 'Gross', 'Net', 'Margin'].map((h) => (
-                <Text key={h} className="text-stone-400 text-xs font-medium flex-1 text-right first:text-left">{h}</Text>
-              ))}
-            </View>
-            {data.monthly.filter((m) => m.eventCount > 0).map((m) => (
-              <View key={m.month} className="flex-row px-4 py-2.5 border-b border-stone-50">
-                <Text className="text-stone-700 text-xs font-medium flex-1">{m.monthLabel}</Text>
-                <Text className="text-stone-600 text-xs flex-1 text-right">{m.eventCount}</Text>
-                <Text className="text-stone-700 text-xs flex-1 text-right font-medium">£{m.grossSales.toFixed(0)}</Text>
-                <Text className={`text-xs flex-1 text-right font-medium ${m.netProfit >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                  £{m.netProfit.toFixed(0)}
-                </Text>
-                <Text className={`text-xs flex-1 text-right ${m.profitMargin >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                  {m.profitMargin.toFixed(0)}%
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Top events */}
-          {data.topEvents.length > 0 && (
-            <View className="mb-4">
-              <Text className="font-bold text-stone-900 mb-3">Top Events by Net Profit</Text>
-              {data.topEvents.slice(0, 5).map((event, i) => (
-                <TouchableOpacity
-                  key={event.id}
-                  onPress={() => router.push(`/(tabs)/events/${event.id}`)}
-                  className="bg-white rounded-xl p-3.5 mb-2 border border-stone-100 flex-row items-center"
-                  activeOpacity={0.7}
-                >
-                  <Text className="text-stone-400 text-sm font-bold w-6">{i + 1}</Text>
-                  <View className="flex-1 mx-3">
-                    <Text className="font-medium text-stone-900 text-sm" numberOfLines={1}>{event.name}</Text>
-                    <Text className="text-stone-400 text-xs mt-0.5">{formatDate(event.date)}</Text>
-                  </View>
-                  <View className="items-end">
-                    <Text className={`font-bold text-sm ${event.calculations.netProfit >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                      {formatCurrency(event.calculations.netProfit)}
-                    </Text>
-                    <Text className="text-stone-400 text-xs">{formatCurrency(event.event_financials?.gross_sales ?? 0)} gross</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {/* Company performance */}
-          {data.companyPerformance.length > 0 && (
-            <View className="mb-4">
-              <Text className="font-bold text-stone-900 mb-3">Company Performance</Text>
-              <View className="bg-white rounded-2xl border border-stone-100 overflow-hidden">
-                {data.companyPerformance.map((cp, i) => (
+            {/* Year selector */}
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {YEARS.map((y) => {
+                const active = year === y;
+                return (
                   <TouchableOpacity
-                    key={cp.company.id}
-                    onPress={() => router.push(`/(tabs)/companies/${cp.company.id}`)}
-                    className={`px-4 py-3.5 flex-row items-center ${i < data.companyPerformance.length - 1 ? 'border-b border-stone-50' : ''}`}
+                    key={y}
+                    onPress={() => setYear(y)}
+                    accessibilityRole="radio"
+                    accessibilityLabel={`Show reports for ${y}`}
+                    accessibilityState={{ selected: active }}
+                    style={{
+                      paddingHorizontal: 10, paddingVertical: 4,
+                      borderWidth: 1,
+                      backgroundColor: active ? p.text : 'transparent',
+                      borderColor: active ? p.text : p.borderStrong,
+                    }}
                   >
-                    <View className="flex-1">
-                      <Text className="font-medium text-stone-900 text-sm">{cp.company.name}</Text>
-                      <Text className="text-stone-400 text-xs mt-0.5">
-                        {cp.totalEvents} events · {cp.acceptedEvents} accepted
-                      </Text>
-                    </View>
-                    <View className="items-end">
-                      <Text className="font-semibold text-stone-900 text-sm">{formatCurrency(cp.totalRevenue)}</Text>
-                      <Text className="text-stone-400 text-xs">
-                        {cp.acceptanceRate.toFixed(0)}% acceptance
-                      </Text>
-                    </View>
+                    <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: active ? p.bg : p.textMuted }}>
+                      {String(y)}
+                    </Text>
                   </TouchableOpacity>
-                ))}
-              </View>
+                );
+              })}
             </View>
-          )}
+
+            {!data || data.totalEvents === 0 ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <Text style={{ fontFamily: tokens.type.display, fontSize: 24, color: p.textMuted }}>No data for {year}</Text>
+                <Text style={{ fontSize: 12, color: p.textFaint, fontStyle: 'italic', marginTop: 6 }}>Add events and trading financials to see your report.</Text>
+              </View>
+            ) : (
+              <>
+                {/* Big P&L */}
+                <View>
+                  <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 2, fontWeight: '700' }}>
+                    {'NET P&L ' + year}
+                  </Text>
+                  <Text style={{
+                    fontFamily: tokens.type.display, fontSize: 56, lineHeight: 60,
+                    letterSpacing: -1.5,
+                    color: data.totalNet >= 0 ? TONE.good : TONE.bad,
+                    fontVariant: ['tabular-nums'],
+                  }}>
+                    {data.totalNet < 0 ? '−' : ''}£{Math.abs(data.totalNet).toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                  </Text>
+                  {data.avgMargin !== 0 && (
+                    <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 4 }}>
+                      Avg margin {data.avgMargin.toFixed(0)}% across {data.totalEvents} event{data.totalEvents !== 1 ? 's' : ''}.
+                    </Text>
+                  )}
+                </View>
+
+                <FarSectionRule label="P&L breakdown" />
+
+                {/* P&L rows */}
+                <View style={{ gap: 0 }}>
+                  {[
+                    { l: 'Gross sales',    v: data.totalGross,                              bold: true },
+                    { l: 'Net profit',     v: data.totalNet,                                bold: true, hero: true },
+                  ].map((r, i) => (
+                    <View key={r.l} style={{
+                      flexDirection: 'row', justifyContent: 'space-between',
+                      paddingVertical: r.hero ? 10 : 6,
+                      borderTopWidth: r.hero ? 2 : i > 0 ? 1 : 0,
+                      borderTopColor: r.hero ? p.text : p.border,
+                    }}>
+                      <Text style={{
+                        fontSize: r.bold ? 14 : 12, fontWeight: r.bold ? '600' : '400',
+                        fontFamily: r.hero ? tokens.type.display : tokens.type.text,
+                        color: r.bold ? p.text : p.textMuted,
+                      }}>{r.l}</Text>
+                      <Text style={{
+                        fontFamily: r.hero ? tokens.type.display : tokens.type.mono,
+                        fontSize: r.hero ? 20 : r.bold ? 14 : 13,
+                        fontWeight: r.bold ? '700' : '400',
+                        color: r.v < 0 ? TONE.bad : r.bold ? p.text : p.textMuted,
+                        fontVariant: ['tabular-nums'],
+                      }}>
+                        {r.v < 0 ? '−' : ''}£{Math.abs(r.v).toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Monthly breakdown */}
+                {data.monthly.some((m) => m.eventCount > 0) && (
+                  <>
+                    <FarSectionRule label="Monthly" />
+                    <View style={{ borderWidth: 1, borderColor: p.borderStrong, overflow: 'hidden' }}>
+                      {/* Header */}
+                      <View style={{ flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: p.borderStrong, backgroundColor: p.surfaceAlt }}>
+                        <Text style={{ flex: 1, fontSize: 9, color: p.textMuted, fontWeight: '700', letterSpacing: 1 }}>{'MONTH'}</Text>
+                        <Text style={{ width: 44, fontSize: 9, color: p.textMuted, fontWeight: '700', letterSpacing: 1, textAlign: 'right' }}>{'EVT'}</Text>
+                        <Text style={{ width: 70, fontSize: 9, color: p.textMuted, fontWeight: '700', letterSpacing: 1, textAlign: 'right' }}>{'GROSS'}</Text>
+                        <Text style={{ width: 70, fontSize: 9, color: p.textMuted, fontWeight: '700', letterSpacing: 1, textAlign: 'right' }}>{'NET'}</Text>
+                      </View>
+                      {data.monthly.filter((m) => m.eventCount > 0).map((m, i, arr) => (
+                        <View key={m.month} style={{
+                          flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 10,
+                          borderBottomWidth: i < arr.length - 1 ? 1 : 0,
+                          borderBottomColor: p.border,
+                          backgroundColor: i % 2 === 0 ? 'transparent' : p.surface,
+                        }}>
+                          <Text style={{ flex: 1, fontSize: 12, color: p.text }}>{m.monthLabel}</Text>
+                          <Text style={{ width: 44, fontSize: 12, color: p.textMuted, textAlign: 'right', fontFamily: tokens.type.mono }}>{m.eventCount}</Text>
+                          <Text style={{ width: 70, fontSize: 12, textAlign: 'right', fontFamily: tokens.type.mono, fontVariant: ['tabular-nums'], color: p.text }}>
+                            £{m.grossSales.toFixed(0)}
+                          </Text>
+                          <Text style={{ width: 70, fontSize: 12, textAlign: 'right', fontFamily: tokens.type.mono, fontVariant: ['tabular-nums'], color: m.netProfit >= 0 ? TONE.good : TONE.bad }}>
+                            {m.netProfit < 0 ? '−' : ''}£{Math.abs(m.netProfit).toFixed(0)}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </>
+                )}
+
+                {/* Top events */}
+                {data.topEvents.length > 0 && (
+                  <>
+                    <FarSectionRule label="Top 5 events" />
+                    <View style={{ gap: 12 }}>
+                      {data.topEvents.slice(0, 5).map((event, i) => {
+                        const maxGross = Math.max(...data.topEvents.slice(0, 5).map((e) => e.event_financials?.gross_sales ?? 0));
+                        const gross = event.event_financials?.gross_sales ?? 0;
+                        const barPct = maxGross > 0 ? gross / maxGross : 0;
+                        return (
+                          <TouchableOpacity
+                            key={event.id}
+                            onPress={() => router.push(`/(tabs)/events/${event.id}`)}
+                            activeOpacity={0.7}
+                          >
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                              <Text style={{ fontFamily: tokens.type.display, fontSize: 15, flex: 1, lineHeight: 18 }} numberOfLines={1}>
+                                <Text style={{ color: p.textMuted }}>{i + 1}. </Text>
+                                {event.name}
+                              </Text>
+                              <Text style={{ fontFamily: tokens.type.mono, fontSize: 13, fontVariant: ['tabular-nums'], color: event.calculations.netProfit >= 0 ? TONE.good : TONE.bad }}>
+                                {event.calculations.netProfit >= 0 ? '+' : '−'}£{Math.abs(event.calculations.netProfit).toFixed(0)}
+                              </Text>
+                            </View>
+                            <View style={{ height: 6, marginTop: 4, backgroundColor: p.surfaceAlt, borderWidth: 1, borderColor: p.borderStrong }}>
+                              <View style={{ width: `${barPct * 100}%`, height: '100%', backgroundColor: p.text }} />
+                            </View>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 }}>
+                              <Text style={{ fontSize: 10, color: p.textMuted, fontStyle: 'italic' }}>
+                                {event.concessions_companies?.name ?? ''} · {formatDate(event.date)}
+                              </Text>
+                              <Text style={{ fontSize: 10, color: p.textMuted, fontFamily: tokens.type.mono }}>
+                                gross £{gross.toFixed(0)}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </>
+                )}
+
+                {/* Company performance */}
+                {data.companyPerformance.length > 0 && (
+                  <>
+                    <FarSectionRule label="By company" />
+                    <View style={{ gap: 0 }}>
+                      {data.companyPerformance.map((cp, i) => (
+                        <TouchableOpacity
+                          key={cp.company.id}
+                          onPress={() => router.push(`/(tabs)/companies/${cp.company.id}`)}
+                          activeOpacity={0.7}
+                          style={{
+                            flexDirection: 'row', alignItems: 'center',
+                            paddingVertical: 12,
+                            borderBottomWidth: 1, borderBottomColor: p.border,
+                            borderTopWidth: i === 0 ? 1 : 0, borderTopColor: p.border,
+                          }}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontFamily: tokens.type.display, fontSize: 16 }}>{cp.company.name}</Text>
+                            <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 1 }}>
+                              {cp.totalEvents} events · {cp.acceptedEvents} accepted · {cp.acceptanceRate.toFixed(0)}% acceptance
+                            </Text>
+                          </View>
+                          <Text style={{ fontFamily: tokens.type.mono, fontSize: 14, fontVariant: ['tabular-nums'], color: p.text }}>
+                            £{cp.totalRevenue.toFixed(0)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+              </>
+            )}
+          </View>
 
           <View style={{ height: 40 }} />
         </ScrollView>
