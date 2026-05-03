@@ -1,18 +1,20 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { UnitForm } from '@/components/units/UnitForm';
-import { PageHeader } from '@/components/shared/PageHeader';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { useUnit } from '@/lib/queries/units';
 import { useUpdateUnit } from '@/lib/mutations/units';
+import { useTheme } from '@/lib/themeContext';
 import type { UnitFormValues } from '@/types';
 
 export default function EditUnitScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { tokens } = useTheme();
+  const p = tokens.palette;
 
   const { data: unit, isLoading } = useUnit(id);
   const updateUnit = useUpdateUnit();
@@ -26,9 +28,12 @@ export default function EditUnitScreen() {
   }
 
   return (
-    <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
-      <View className="bg-white border-b border-stone-100">
-        <PageHeader title="Edit Unit" backButton />
+    <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 2, borderBottomColor: p.text }}>
+        <Text style={{ fontFamily: tokens.type.display, fontSize: 24, letterSpacing: -0.5, color: p.text }}>Edit Unit</Text>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 16, right: 8 }}>
+          <Text style={{ fontSize: 13, color: p.brand, fontWeight: '600' }}>Cancel</Text>
+        </TouchableOpacity>
       </View>
       <UnitForm
         defaultValues={{

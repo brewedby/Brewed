@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useTheme } from '@/lib/themeContext';
 import { EventForm } from '@/components/events/EventForm';
 import { useEvent } from '@/lib/queries/events';
 import { useUpdateEvent } from '@/lib/mutations/events';
@@ -14,6 +15,8 @@ export default function EditEventScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const { data: event, isLoading } = useEvent(id);
   const updateEvent = useUpdateEvent();
   const { data: companies = [] } = useCompanies();
@@ -62,11 +65,11 @@ export default function EditEventScreen() {
   };
 
   return (
-    <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
-      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-stone-100">
-        <Text className="text-lg font-bold text-stone-900" numberOfLines={1}>Edit: {event.name}</Text>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text className="text-stone-500">Cancel</Text>
+    <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 2, borderBottomColor: p.text }}>
+        <Text style={{ fontFamily: tokens.type.display, fontSize: 22, letterSpacing: -0.5, color: p.text, flex: 1, marginRight: 12 }} numberOfLines={1}>Edit: {event.name}</Text>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 16, right: 8 }}>
+          <Text style={{ fontSize: 13, color: p.brand, fontWeight: '600' }}>Cancel</Text>
         </TouchableOpacity>
       </View>
       <EventForm
