@@ -466,7 +466,7 @@ export default function DashboardScreen() {
             )}
 
             <TouchableOpacity
-              onPress={() => router.push('/(tabs)/fleet')}
+              onPress={() => router.push('/(modal)/fleet')}
               accessibilityRole="button"
               accessibilityLabel="Manage fleet"
               style={{ alignSelf: 'flex-end', paddingVertical: 4 }}
@@ -519,7 +519,7 @@ export default function DashboardScreen() {
 
             {!sealed && (
               <TouchableOpacity
-                onPress={() => router.push('/(tabs)/reports')}
+                onPress={() => router.push('/(modal)/reports')}
                 accessibilityRole="button"
                 accessibilityLabel="View reports"
                 style={{ alignSelf: 'flex-end', paddingVertical: 4 }}

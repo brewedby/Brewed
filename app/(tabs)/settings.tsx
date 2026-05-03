@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, RefreshControl, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -62,9 +62,13 @@ export default function SettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
+  // Hydrate local form state ONCE from the profile. Refetches must not
+  // overwrite live edits — that was the source of the "lost my settings" bug.
+  const hydratedRef = useRef(false);
 
   useEffect(() => {
-    if (profile) {
+    if (profile && !hydratedRef.current) {
+      hydratedRef.current = true;
       setBusinessName(profile.business_name ?? '');
       setBusinessType(profile.business_type ?? 'Coffee');
       setCurrency(profile.currency ?? 'GBP');
@@ -88,12 +92,17 @@ export default function SettingsScreen() {
 
   async function handleSave() {
     if (!user) return;
+    const trimmedName = businessName.trim();
+    if (!trimmedName) {
+      Alert.alert('Required', 'Business name cannot be empty.');
+      return;
+    }
     setSaving(true);
     try {
       await updateProfile.mutateAsync({
         userId: user.id,
         updates: {
-          business_name: businessName.trim() || null,
+          business_name: trimmedName,
           business_type: businessType,
           currency,
           custom_metrics: metrics,
@@ -101,8 +110,11 @@ export default function SettingsScreen() {
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       Alert.alert('Saved', 'Your settings have been updated.');
-    } catch {
-      Alert.alert('Error', 'Could not save settings. Please try again.');
+    } catch (e) {
+      Alert.alert(
+        'Error',
+        e instanceof Error ? e.message : 'Could not save settings. Please try again.',
+      );
     } finally {
       setSaving(false);
     }
@@ -110,8 +122,8 @@ export default function SettingsScreen() {
 
   function handleQuickAccess(key: string) {
     if (key === 'catalog') setShowCatalog(true);
-    else if (key === 'fleet') router.push('/(tabs)/fleet');
-    else if (key === 'reports') router.push('/(tabs)/reports');
+    else if (key === 'fleet') router.push('/(modal)/fleet');
+    else if (key === 'reports') router.push('/(modal)/reports');
   }
 
   return (

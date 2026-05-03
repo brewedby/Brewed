@@ -10,7 +10,7 @@ import { useAssignProduct, useApplyCogs, useDeleteSalesReport } from '@/lib/muta
 import type {
   SalesReport, SalesLineItemWithProduct, ProductCatalogItem,
 } from '@/types/cogs';
-import { PRODUCT_CATEGORIES } from '@/types/cogs';
+import { getCategoryDefinition } from '@/types/cogs';
 
 interface Props {
   report: SalesReport;
@@ -45,8 +45,12 @@ export function SalesReconciliation({ report, eventId, existingCogs, onCogsAppli
         {
           text: 'Apply',
           onPress: async () => {
-            await applyCogs.mutateAsync({ eventId, calculatedCogs });
-            onCogsApplied();
+            try {
+              await applyCogs.mutateAsync({ eventId, calculatedCogs });
+              onCogsApplied();
+            } catch (e) {
+              Alert.alert('Error', e instanceof Error ? e.message : 'Could not apply COGS. Please try again.');
+            }
           },
         },
       ],
@@ -70,18 +74,22 @@ export function SalesReconciliation({ report, eventId, existingCogs, onCogsAppli
 
   async function handleAssign(product: ProductCatalogItem) {
     if (!assigningItem) return;
-    await assignProduct.mutateAsync({
-      lineItemId: assigningItem.id,
-      product,
-      quantity: assigningItem.quantity,
-      reportId: report.id,
-    });
-    setAssigningItem(null);
+    try {
+      await assignProduct.mutateAsync({
+        lineItemId: assigningItem.id,
+        product,
+        quantity: assigningItem.quantity,
+        reportId: report.id,
+      });
+      setAssigningItem(null);
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Could not assign product. Please try again.');
+    }
   }
 
   function renderLineItem({ item }: { item: SalesLineItemWithProduct }) {
-    const cat = item.product_catalog
-      ? PRODUCT_CATEGORIES.find((c) => c.value === item.product_catalog?.category)
+    const cat = item.product_catalog?.category
+      ? getCategoryDefinition(item.product_catalog.category)
       : null;
 
     return (
@@ -275,7 +283,7 @@ export function SalesReconciliation({ report, eventId, existingCogs, onCogsAppli
             data={catalog.filter((prod) => prod.is_active)}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => {
-              const cat = PRODUCT_CATEGORIES.find((c) => c.value === item.category);
+              const cat = getCategoryDefinition(item.category);
               return (
                 <TouchableOpacity
                   onPress={() => handleAssign(item)}

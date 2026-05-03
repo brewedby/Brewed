@@ -5,6 +5,8 @@ export default function ModalLayout() {
     <Stack screenOptions={{ headerShown: false, presentation: 'modal' }}>
       <Stack.Screen name="paywall" />
       <Stack.Screen name="privacy" />
+      <Stack.Screen name="fleet" />
+      <Stack.Screen name="reports" />
     </Stack>
   );
 }

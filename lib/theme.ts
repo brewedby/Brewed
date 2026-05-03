@@ -64,12 +64,10 @@ const FAR_DARK: FarPalette = {
 };
 
 // Display font: DM Serif Display loaded via expo-font (see app/_layout.tsx).
-// Falls back to system serif if the font hasn't loaded yet.
-const DISPLAY_FONT = Platform.select({
-  ios: 'DMSerifDisplay-Regular, Georgia',
-  android: 'DMSerifDisplay-Regular',
-  default: 'serif',
-}) as string;
+// React Native does NOT support comma-separated font fallbacks — the
+// literal string is treated as the font NAME, so any fallback after a
+// comma silently breaks the font lookup. Use a single registered family.
+const DISPLAY_FONT = 'DMSerifDisplay-Regular';
 
 const TEXT_FONT = Platform.select({
   ios: 'System',

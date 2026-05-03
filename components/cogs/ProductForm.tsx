@@ -7,13 +7,20 @@ import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTheme } from '@/lib/themeContext';
 import { productSchema, type ProductFormValues } from '@/lib/validations/product.schema';
-import { PRODUCT_CATEGORIES, UNIT_OPTIONS, type ProductCatalogItem } from '@/types/cogs';
+import {
+  UNIT_OPTIONS,
+  getCategoriesForTrade,
+  getCategoryDefinition,
+  type ProductCatalogItem,
+} from '@/types/cogs';
 
 interface ProductFormProps {
   initial?: ProductCatalogItem;
   onSubmit: (values: ProductFormValues) => Promise<void>;
   onCancel: () => void;
   submitting: boolean;
+  /** Trade type from profile (e.g. "Coffee", "Burgers"). Drives category list. */
+  tradeType?: string | null;
 }
 
 function defaultTiers(item?: ProductCatalogItem) {
@@ -24,9 +31,21 @@ function defaultTiers(item?: ProductCatalogItem) {
   return [{ label: 'Standard', price: 0 }];
 }
 
-export function ProductForm({ initial, onSubmit, onCancel, submitting }: ProductFormProps) {
+export function ProductForm({ initial, onSubmit, onCancel, submitting, tradeType }: ProductFormProps) {
   const { tokens } = useTheme();
   const p = tokens.palette;
+
+  // Resolve the available categories for this trade type, plus include
+  // the editing item's existing category if it isn't in the default list
+  // (so legacy data is editable without forcing a category change).
+  const tradeCats = getCategoriesForTrade(tradeType);
+  const categories = (() => {
+    if (!initial?.category) return tradeCats;
+    if (tradeCats.find((c) => c.value === initial.category)) return tradeCats;
+    return [...tradeCats, getCategoryDefinition(initial.category)];
+  })();
+
+  const defaultCategory = initial?.category ?? categories[0]?.value ?? 'other';
 
   const {
     control,
@@ -40,7 +59,7 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting }: Product
       price_tiers: defaultTiers(initial),
       unit_cost:   initial?.unit_cost ?? 0,
       unit:        initial?.unit      ?? 'cup',
-      category:    initial?.category  ?? 'hot_drinks',
+      category:    defaultCategory,
       is_active:   initial?.is_active ?? true,
     },
   });
@@ -263,7 +282,7 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting }: Product
           name="category"
           render={({ field }) => (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-              {PRODUCT_CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <TouchableOpacity
                   key={cat.value}
                   onPress={() => field.onChange(cat.value)}

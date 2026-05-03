@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { UnitForm } from '@/components/units/UnitForm';
@@ -23,8 +23,12 @@ export default function EditUnitScreen() {
   if (!unit) return null;
 
   async function handleSubmit(data: UnitFormValues) {
-    await updateUnit.mutateAsync({ id, data });
-    router.back();
+    try {
+      await updateUnit.mutateAsync({ id, data });
+      router.back();
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Could not save changes. Please try again.');
+    }
   }
 
   return (

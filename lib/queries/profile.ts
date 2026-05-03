@@ -80,12 +80,24 @@ export function useUpdateProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ userId, updates }: { userId: string; updates: Partial<EditableProfileFields> }) => {
+      // The profile row is auto-created on signup by an auth trigger, so a
+      // plain UPDATE is safer than UPSERT — it never accidentally inserts a
+      // partial row, and surfaces RLS / column errors instead of no-op-ing.
       // Subscription columns are excluded — the DB trigger blocks client writes anyway.
-      const { error } = await supabase.from('profiles').upsert({ id: userId, ...updates });
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', userId)
+        .select()
+        .single();
       if (error) throw error;
+      return data;
     },
-    onSuccess: (_, { userId }) => {
-      qc.invalidateQueries({ queryKey: ['profile', userId] });
+    onSuccess: async (_, { userId }) => {
+      // Await the refetch so callers using mutateAsync see fresh data
+      // before they navigate away.
+      await qc.invalidateQueries({ queryKey: ['profile', userId] });
+      await qc.refetchQueries({ queryKey: ['profile', userId] });
     },
   });
 }

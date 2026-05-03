@@ -9,8 +9,14 @@ import { useAuth } from '@/lib/auth';
 import { useProductCatalog } from '@/lib/queries/productCatalog';
 import { useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/lib/mutations/productCatalog';
 import { ProductForm } from './ProductForm';
-import { PRODUCT_CATEGORIES, VATABLE_CATEGORIES, type ProductCatalogItem } from '@/types/cogs';
+import {
+  getCategoriesForTrade,
+  getCategoryDefinition,
+  isVatableCategory,
+  type ProductCatalogItem,
+} from '@/types/cogs';
 import type { ProductFormValues } from '@/lib/validations/product.schema';
+import { useProfile } from '@/lib/queries/profile';
 
 type ScreenView = 'list' | 'add' | 'edit';
 
@@ -30,6 +36,7 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
   const { tokens } = useTheme();
   const p = tokens.palette;
   const { user } = useAuth();
+  const { data: profile } = useProfile(user?.id);
   const { data: products = [], isLoading } = useProductCatalog();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
@@ -39,6 +46,8 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
   const [editing, setEditing] = useState<ProductCatalogItem | null>(null);
   const [search, setSearch] = useState('');
 
+  const tradeType = profile?.business_type ?? null;
+
   const filtered = useMemo(() =>
     products.filter((prod) =>
       prod.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -47,25 +56,43 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
     [products, search],
   );
 
-  const sections = useMemo(() =>
-    PRODUCT_CATEGORIES.map((cat) => ({
-      category: cat,
-      data: filtered.filter((prod) => prod.category === cat.value),
-    })).filter((s) => s.data.length > 0),
-    [filtered],
-  );
+  // Sections are built from the trade-specific category list, plus any
+  // legacy categories not in the list (so historic data still renders).
+  const sections = useMemo(() => {
+    const tradeCats = getCategoriesForTrade(tradeType);
+    const knownKeys = new Set(tradeCats.map((c) => c.value));
+    const legacyKeys = Array.from(new Set(filtered.map((p) => p.category).filter((k) => !knownKeys.has(k))));
+    const allCats = [...tradeCats, ...legacyKeys.map((k) => getCategoryDefinition(k))];
+    return allCats
+      .map((cat) => ({ category: cat, data: filtered.filter((prod) => prod.category === cat.value) }))
+      .filter((s) => s.data.length > 0);
+  }, [filtered, tradeType]);
 
   async function handleAdd(values: ProductFormValues) {
     if (!user) return;
-    await createProduct.mutateAsync({ data: values, userId: user.id });
-    setView('list');
+    try {
+      await createProduct.mutateAsync({ data: values, userId: user.id });
+      setView('list');
+    } catch (e) {
+      Alert.alert(
+        'Could not save product',
+        e instanceof Error ? e.message : 'Something went wrong. Please try again.',
+      );
+    }
   }
 
   async function handleEdit(values: ProductFormValues) {
     if (!editing) return;
-    await updateProduct.mutateAsync({ id: editing.id, data: values });
-    setEditing(null);
-    setView('list');
+    try {
+      await updateProduct.mutateAsync({ id: editing.id, data: values });
+      setEditing(null);
+      setView('list');
+    } catch (e) {
+      Alert.alert(
+        'Could not save changes',
+        e instanceof Error ? e.message : 'Something went wrong. Please try again.',
+      );
+    }
   }
 
   function confirmDelete(product: ProductCatalogItem) {
@@ -87,14 +114,14 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
     const avg = withPrice.reduce((sum, prod) => {
       // Use first tier (default) price for the summary margin
       const defaultPrice = prod.price_tiers?.[0]?.price ?? prod.selling_price;
-      const netPrice = prod.category === 'hot_drinks' ? defaultPrice / 1.2 : defaultPrice;
+      const netPrice = isVatableCategory(prod.category) ? defaultPrice / 1.2 : defaultPrice;
       return sum + ((netPrice - prod.unit_cost) / netPrice) * 100;
     }, 0) / withPrice.length;
     return avg;
   }, [products]);
 
   function renderProduct({ item }: { item: ProductCatalogItem }) {
-    const isVatable = item.category === 'hot_drinks';
+    const isVatable = isVatableCategory(item.category);
     const tiers = item.price_tiers?.length ? item.price_tiers : [{ label: 'Standard', price: item.selling_price }];
     const defaultPrice = tiers[0].price;
     const netDefaultPrice = isVatable ? defaultPrice / 1.2 : defaultPrice;
@@ -193,7 +220,7 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
     );
   }
 
-  function renderSectionHeader({ section }: { section: { category: typeof PRODUCT_CATEGORIES[number]; data: ProductCatalogItem[] } }) {
+  function renderSectionHeader({ section }: { section: { category: { value: string; label: string; emoji: string }; data: ProductCatalogItem[] } }) {
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, paddingBottom: 6, paddingHorizontal: 2 }}>
         <Text style={{ fontSize: 10, fontWeight: '700', color: p.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
@@ -353,6 +380,7 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
             onSubmit={handleAdd}
             onCancel={() => setView('list')}
             submitting={createProduct.isPending}
+            tradeType={tradeType}
           />
         )}
 
@@ -362,6 +390,7 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
             onSubmit={handleEdit}
             onCancel={() => { setEditing(null); setView('list'); }}
             submitting={updateProduct.isPending}
+            tradeType={tradeType}
           />
         )}
       </View>

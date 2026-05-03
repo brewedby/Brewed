@@ -5,7 +5,6 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useForm, Controller, Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRouter } from 'expo-router';
 import { format, parseISO, isValid } from 'date-fns';
 import { unitSchema } from '@/lib/validations/unit.schema';
 import { FormField } from '@/components/shared/FormField';
@@ -209,7 +208,6 @@ interface Props {
 
 export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }: Props) {
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   const { tokens } = useTheme();
   const p = tokens.palette;
 
@@ -237,7 +235,8 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
     try {
       await onSubmit(data);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      router.back();
+      // Navigation is the parent screen's responsibility — different
+      // entry points need different destinations.
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save unit');
     } finally {

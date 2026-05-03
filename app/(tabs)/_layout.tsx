@@ -61,10 +61,10 @@ export default function TabLayout() {
       <Tabs.Screen name="discover"  listeners={TAB_LISTENERS} options={{ title: 'Discover',  tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.discover}  focused={focused} color={color} /> }} />
       <Tabs.Screen name="settings"  listeners={TAB_LISTENERS} options={{ title: 'Settings',  tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.settings}  focused={focused} color={color} /> }} />
 
-      {/* Hidden screens — still navigable via router.push */}
+      {/* Hidden screens — still navigable via router.push.
+          Fleet and Reports were moved to /(modal)/fleet and /(modal)/reports
+          so they get the same pull-down-to-dismiss treatment as Menu/COGS. */}
       <Tabs.Screen name="calendar" options={{ href: null }} />
-      <Tabs.Screen name="fleet"    options={{ href: null }} />
-      <Tabs.Screen name="reports"  options={{ href: null }} />
     </Tabs>
   );
 }

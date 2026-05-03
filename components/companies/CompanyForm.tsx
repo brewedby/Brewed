@@ -94,9 +94,10 @@ export function CompanyForm({ defaultValues, onSubmit, submitLabel = 'Save Compa
                 label="Website"
                 value={field.value ?? ''} onChangeText={field.onChange}
                 error={errors.website?.message}
-                placeholder="https://company.com"
+                placeholder="company.com"
                 keyboardType="url"
                 autoCapitalize="none"
+                autoCorrect={false}
               />
             )}
           />

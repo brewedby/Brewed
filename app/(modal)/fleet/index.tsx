@@ -143,7 +143,7 @@ export default function FleetScreen() {
 
   const AddButton = (
     <TouchableOpacity
-      onPress={() => router.push('/(tabs)/fleet/new')}
+      onPress={() => router.push('/(modal)/fleet/new')}
       accessibilityRole="button"
       accessibilityLabel="Add new unit"
       style={{
@@ -183,14 +183,14 @@ export default function FleetScreen() {
               icon="🚐"
               title="No units added yet"
               description="Add your coffee trucks and vans to track where they are."
-              action={{ label: 'Add First Unit', onPress: () => router.push('/(tabs)/fleet/new') }}
+              action={{ label: 'Add First Unit', onPress: () => router.push('/(modal)/fleet/new') }}
             />
           }
           ListFooterComponent={<View style={{ height: 40 }} />}
           renderItem={({ item: unit }) => (
             <FarUnitCard
               unit={unit}
-              onPress={() => router.push(`/(tabs)/fleet/${unit.id}`)}
+              onPress={() => router.push(`/(modal)/fleet/${unit.id}`)}
             />
           )}
         />

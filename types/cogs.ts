@@ -4,7 +4,10 @@
 // During implementation, add the table rows to types/database.ts and
 // update these to use Tables['product_catalog']['Row'] etc.
 
-export type ProductCategory = 'hot_drinks' | 'cold_drinks' | 'specials' | 'food' | 'other';
+// ProductCategory is a string keyed by snake_case so trade types can
+// introduce their own categories (e.g. burger trade → 'mains' / 'sides').
+// All known categories are defined in CATEGORY_DEFINITIONS below.
+export type ProductCategory = string;
 export type SalesReportStatus = 'pending' | 'parsed' | 'error';
 
 export interface PriceTier {
@@ -100,15 +103,103 @@ export interface ReconciliationSummary {
   coveragePercent: number;
 }
 
+// ── Category catalogue ──────────────────────────────────────────────
+// Every category that can appear in any trade type, keyed by snake_case.
+// `vatable: true` means the selling price includes 20% UK standard-rate VAT
+// (hot food, hot drinks, alcohol, ready-to-eat). Cold/take-away food is
+// generally zero-rated.
+export interface CategoryDefinition {
+  label: string;
+  emoji: string;
+  vatable: boolean;
+}
+
+export const CATEGORY_DEFINITIONS: Record<string, CategoryDefinition> = {
+  // Drinks
+  hot_drinks:    { label: 'Hot Drinks',    emoji: '☕', vatable: true  },
+  cold_drinks:   { label: 'Cold Drinks',   emoji: '🥤', vatable: false },
+  drinks:        { label: 'Drinks',        emoji: '🥤', vatable: false },
+  alcohol:       { label: 'Alcohol',       emoji: '🍺', vatable: true  },
+  cocktails:     { label: 'Cocktails',     emoji: '🍸', vatable: true  },
+  smoothies:     { label: 'Smoothies',     emoji: '🥤', vatable: false },
+  // Mains / Sides / Extras
+  mains:         { label: 'Mains',         emoji: '🍔', vatable: true  },
+  sides:         { label: 'Sides',         emoji: '🍟', vatable: true  },
+  extras:        { label: 'Extras',        emoji: '➕', vatable: true  },
+  toppings:      { label: 'Toppings',      emoji: '🧀', vatable: true  },
+  sauces:        { label: 'Sauces',        emoji: '🥫', vatable: false },
+  // Bakery / Sweet
+  bakes:         { label: 'Bakes',         emoji: '🥐', vatable: false },
+  bread:         { label: 'Bread',         emoji: '🍞', vatable: false },
+  pastries:      { label: 'Pastries',      emoji: '🥐', vatable: true  },
+  cakes:         { label: 'Cakes',         emoji: '🍰', vatable: false },
+  desserts:      { label: 'Desserts',      emoji: '🍨', vatable: true  },
+  ice_cream:     { label: 'Ice Cream',     emoji: '🍦', vatable: true  },
+  // Generic
+  food:          { label: 'Food',          emoji: '🍞', vatable: true  },
+  specials:      { label: 'Specials',      emoji: '⭐', vatable: true  },
+  other:         { label: 'Other',         emoji: '📦', vatable: false },
+};
+
+// ── Trade-type → ordered category list ──────────────────────────────
+// Defines the default category set surfaced in the menu builder for
+// each business type. Users can pick categories from any list — these
+// are just sensible defaults to make the menu feel relevant.
+export const TRADE_CATEGORIES: Record<string, string[]> = {
+  Coffee:              ['hot_drinks', 'cold_drinks', 'specials', 'bakes', 'other'],
+  'Street Food':       ['mains', 'sides', 'drinks', 'specials', 'extras', 'other'],
+  Pizza:               ['mains', 'sides', 'drinks', 'specials', 'extras', 'other'],
+  Burgers:             ['mains', 'sides', 'drinks', 'specials', 'extras', 'other'],
+  Desserts:            ['desserts', 'cakes', 'drinks', 'specials', 'extras', 'other'],
+  Bakery:              ['bakes', 'bread', 'pastries', 'cakes', 'hot_drinks', 'cold_drinks', 'other'],
+  'Ice Cream':         ['ice_cream', 'desserts', 'toppings', 'drinks', 'specials', 'other'],
+  Crepes:              ['mains', 'desserts', 'drinks', 'specials', 'toppings', 'other'],
+  Waffles:             ['mains', 'desserts', 'drinks', 'specials', 'toppings', 'other'],
+  Cocktails:           ['cocktails', 'alcohol', 'cold_drinks', 'specials', 'sides', 'other'],
+  'Craft Beer':        ['alcohol', 'cold_drinks', 'sides', 'specials', 'other'],
+  Wine:                ['alcohol', 'cold_drinks', 'sides', 'specials', 'other'],
+  'Juice & Smoothies': ['smoothies', 'cold_drinks', 'mains', 'specials', 'other'],
+  'Asian Food':        ['mains', 'sides', 'drinks', 'specials', 'extras', 'sauces', 'other'],
+  'Mexican Food':      ['mains', 'sides', 'drinks', 'specials', 'extras', 'sauces', 'other'],
+  Other:               ['mains', 'sides', 'drinks', 'specials', 'extras', 'other'],
+};
+
+// Sensible fallback when no trade type is selected or unknown
+export const DEFAULT_CATEGORIES: string[] = ['mains', 'sides', 'drinks', 'specials', 'extras', 'other'];
+
+// Resolve the categories for a given trade type, returning the full
+// definition objects in display order.
+export function getCategoriesForTrade(
+  tradeType: string | null | undefined,
+): (CategoryDefinition & { value: string })[] {
+  const keys = (tradeType && TRADE_CATEGORIES[tradeType]) || DEFAULT_CATEGORIES;
+  return keys.map((k) => ({ value: k, ...(CATEGORY_DEFINITIONS[k] ?? CATEGORY_DEFINITIONS.other) }));
+}
+
+export function isVatableCategory(category: string | null | undefined): boolean {
+  if (!category) return false;
+  return CATEGORY_DEFINITIONS[category]?.vatable ?? false;
+}
+
+export function getCategoryDefinition(category: string | null | undefined): (CategoryDefinition & { value: string }) {
+  const key = category ?? 'other';
+  return { value: key, ...(CATEGORY_DEFINITIONS[key] ?? CATEGORY_DEFINITIONS.other) };
+}
+
+// ── Legacy exports kept for backward compatibility with existing
+// imports. New code should call getCategoriesForTrade(profile.business_type).
 export const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; emoji: string }[] = [
   { value: 'hot_drinks',  label: 'Hot Drinks',  emoji: '☕' },
-  { value: 'cold_drinks', label: 'Cold Drinks',  emoji: '🥤' },
-  { value: 'specials',    label: 'Specials',     emoji: '⭐' },
-  { value: 'food',        label: 'Food',         emoji: '🍞' },
-  { value: 'other',       label: 'Other',        emoji: '📦' },
+  { value: 'cold_drinks', label: 'Cold Drinks', emoji: '🥤' },
+  { value: 'specials',    label: 'Specials',    emoji: '⭐' },
+  { value: 'food',        label: 'Food',        emoji: '🍞' },
+  { value: 'other',       label: 'Other',       emoji: '📦' },
 ];
 
-// Categories where the selling price includes 20% VAT (hot food/drinks)
-export const VATABLE_CATEGORIES: ProductCategory[] = ['hot_drinks', 'specials'];
+// Categories where the selling price includes 20% VAT (hot food/drinks).
+// Derived from CATEGORY_DEFINITIONS so the two stay in sync.
+export const VATABLE_CATEGORIES: ProductCategory[] = Object.entries(CATEGORY_DEFINITIONS)
+  .filter(([, def]) => def.vatable)
+  .map(([key]) => key);
 
 export const UNIT_OPTIONS = ['cup', 'item', 'portion', 'serving', 'kg', 'litre', 'slice', 'pack'];

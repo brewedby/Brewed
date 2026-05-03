@@ -21,8 +21,14 @@ export default function NewUnitScreen() {
       Alert.alert('Error', 'You must be signed in to add a unit.');
       return;
     }
-    await createUnit.mutateAsync({ data, userId: user.id });
-    router.back();
+    try {
+      await createUnit.mutateAsync({ data, userId: user.id });
+      // Always return to the Fleet index — back() can land on dashboard
+      // or settings depending on entry point.
+      router.replace('/(modal)/fleet');
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Could not save unit. Please try again.');
+    }
   }
 
   return (

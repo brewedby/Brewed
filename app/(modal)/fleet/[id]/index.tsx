@@ -84,7 +84,7 @@ export default function UnitDetailScreen() {
           <Text style={{ fontSize: 13, color: p.brand, fontWeight: '600' }}>‹ Fleet</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => router.push(`/(tabs)/fleet/${id}/edit`)}
+          onPress={() => router.push(`/(modal)/fleet/${id}/edit`)}
           style={{ borderWidth: 2, borderColor: p.text, paddingHorizontal: 14, paddingVertical: 5 }}
         >
           <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 0.5, color: p.text }}>EDIT</Text>

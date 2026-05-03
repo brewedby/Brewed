@@ -11,7 +11,9 @@ export const productSchema = z.object({
   price_tiers: z.array(priceTierSchema).min(1, 'At least one price is required'),
   unit_cost:   z.coerce.number().min(0, 'Cost must be 0 or greater').max(9999),
   unit:        z.string().min(1, 'Unit is required'),
-  category:    z.enum(['hot_drinks', 'cold_drinks', 'specials', 'food', 'other'] as const),
+  // Category is a free string keyed against CATEGORY_DEFINITIONS so trade
+  // types can introduce their own categories. Validated for length only.
+  category:    z.string().min(1, 'Category is required').max(40),
   is_active:   z.boolean().default(true),
 });
 
