@@ -3,6 +3,49 @@ import { supabase } from '@/lib/supabase';
 import { calcStaffingTotal } from '@/lib/calculations';
 import type { EventFormValues } from '@/lib/validations/event.schema';
 
+// Postgres "column does not exist" → 42703. Lets us roll out the
+// commission_basis column without forcing every install to run the
+// migration before saves start working.
+function isMissingColumnError(err: unknown, column: string): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as { code?: string; message?: string };
+  if (e.code === '42703') return true;
+  return typeof e.message === 'string' && e.message.toLowerCase().includes(column.toLowerCase());
+}
+
+function buildFinancialsRow(
+  data: EventFormValues,
+  eventId: string,
+  staffingTotal: number,
+  includeCommissionBasis: boolean,
+) {
+  const zeroRated = data.zero_rated_sales ?? 0;
+  const standardRated = data.standard_rated_sales ?? 0;
+  const row: Record<string, unknown> = {
+    event_id: eventId,
+    gross_sales: (zeroRated + standardRated) || data.gross_sales || 0,
+    zero_rated_sales: zeroRated,
+    standard_rated_sales: standardRated,
+    concessions_commission_pct: data.concessions_commission_pct ?? 0,
+    pitch_fee_refund_pct: data.pitch_fee_refund_pct ?? 0,
+    cost_of_goods: data.cost_of_goods,
+    pitch_fee: data.pitch_fee,
+    power_fee: data.power_fee ?? 0,
+    travel_costs: data.travel_costs,
+    camping_costs: data.camping_costs ?? 0,
+    equipment_costs: data.equipment_costs,
+    other_costs: data.other_costs,
+    staffing_costs: staffingTotal,
+    fresh_milk_litres: data.fresh_milk_litres ?? 0,
+    alt_milk_litres: data.alt_milk_litres ?? 0,
+    miles_driven: data.miles_driven ?? 0,
+  };
+  if (includeCommissionBasis) {
+    row.commission_basis = data.commission_basis ?? 'net';
+  }
+  return row;
+}
+
 export function useCreateEvent() {
   const qc = useQueryClient();
   return useMutation({
@@ -35,28 +78,16 @@ export function useCreateEvent() {
           ? calcStaffingTotal(data.staffing_entries.map((e) => ({ ...e, id: '', event_id: event.id, created_at: '', updated_at: '' })))
           : data.staffing_costs;
 
-      // 3. Create financials
-      const zeroRated = data.zero_rated_sales ?? 0;
-      const standardRated = data.standard_rated_sales ?? 0;
-      const { error: finError } = await supabase.from('event_financials').insert({
-        event_id: event.id,
-        gross_sales: (zeroRated + standardRated) || data.gross_sales || 0,
-        zero_rated_sales: zeroRated,
-        standard_rated_sales: standardRated,
-        concessions_commission_pct: data.concessions_commission_pct ?? 0,
-        pitch_fee_refund_pct: data.pitch_fee_refund_pct ?? 0,
-        cost_of_goods: data.cost_of_goods,
-        pitch_fee: data.pitch_fee,
-        power_fee: data.power_fee ?? 0,
-        travel_costs: data.travel_costs,
-        camping_costs: data.camping_costs ?? 0,
-        equipment_costs: data.equipment_costs,
-        other_costs: data.other_costs,
-        staffing_costs: staffingTotal,
-        fresh_milk_litres: data.fresh_milk_litres ?? 0,
-        alt_milk_litres: data.alt_milk_litres ?? 0,
-        miles_driven: data.miles_driven ?? 0,
-      });
+      // 3. Create financials — try with commission_basis, retry without if
+      // the column hasn't been migrated yet.
+      let finError = (await supabase
+        .from('event_financials')
+        .insert(buildFinancialsRow(data, event.id, staffingTotal, true) as never)).error;
+      if (finError && isMissingColumnError(finError, 'commission_basis')) {
+        finError = (await supabase
+          .from('event_financials')
+          .insert(buildFinancialsRow(data, event.id, staffingTotal, false) as never)).error;
+      }
       if (finError) throw finError;
 
       // 4. Create unit assignments
@@ -168,31 +199,16 @@ export function useUpdateEvent() {
           ? calcStaffingTotal(data.staffing_entries.map((e) => ({ ...e, id: e.id ?? '', event_id: id, created_at: '', updated_at: '' })))
           : data.staffing_costs;
 
-      const zeroRated = data.zero_rated_sales ?? 0;
-      const standardRated = data.standard_rated_sales ?? 0;
-
-      // 2. Upsert financials
-      const { error: finError } = await supabase
+      // 2. Upsert financials — graceful fallback if commission_basis
+      // column hasn't been migrated yet.
+      let finError = (await supabase
         .from('event_financials')
-        .upsert({
-          event_id: id,
-          gross_sales: (zeroRated + standardRated) || data.gross_sales || 0,
-          zero_rated_sales: zeroRated,
-          standard_rated_sales: standardRated,
-          concessions_commission_pct: data.concessions_commission_pct ?? 0,
-          pitch_fee_refund_pct: data.pitch_fee_refund_pct ?? 0,
-          cost_of_goods: data.cost_of_goods,
-          pitch_fee: data.pitch_fee,
-          power_fee: data.power_fee ?? 0,
-          travel_costs: data.travel_costs,
-          camping_costs: data.camping_costs ?? 0,
-          equipment_costs: data.equipment_costs,
-          other_costs: data.other_costs,
-          staffing_costs: staffingTotal,
-          fresh_milk_litres: data.fresh_milk_litres ?? 0,
-          alt_milk_litres: data.alt_milk_litres ?? 0,
-          miles_driven: data.miles_driven ?? 0,
-        }, { onConflict: 'event_id' });
+        .upsert(buildFinancialsRow(data, id, staffingTotal, true) as never, { onConflict: 'event_id' })).error;
+      if (finError && isMissingColumnError(finError, 'commission_basis')) {
+        finError = (await supabase
+          .from('event_financials')
+          .upsert(buildFinancialsRow(data, id, staffingTotal, false) as never, { onConflict: 'event_id' })).error;
+      }
       if (finError) throw finError;
 
       // 3. Replace unit assignments

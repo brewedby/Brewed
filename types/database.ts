@@ -261,6 +261,7 @@ export interface Database {
           fresh_milk_litres: number;
           alt_milk_litres: number;
           miles_driven: number | null;
+          commission_basis: 'net' | 'gross';
           created_at: string;
           updated_at: string;
         };
@@ -283,6 +284,7 @@ export interface Database {
           fresh_milk_litres?: number;
           alt_milk_litres?: number;
           miles_driven?: number | null;
+          commission_basis?: 'net' | 'gross';
           created_at?: string;
           updated_at?: string;
         };
@@ -305,6 +307,7 @@ export interface Database {
           fresh_milk_litres?: number;
           alt_milk_litres?: number;
           miles_driven?: number | null;
+          commission_basis?: 'net' | 'gross';
           updated_at?: string;
         };
         Relationships: [

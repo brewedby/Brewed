@@ -183,6 +183,7 @@ export default function EventDetailScreen() {
           zero_rated_sales: 0,
           standard_rated_sales: 0,
           concessions_commission_pct: event.event_financials?.concessions_commission_pct ?? 0,
+          commission_basis: (event.event_financials?.commission_basis ?? 'net') === 'gross' ? 'gross' : 'net',
           pitch_fee_refund_pct: event.event_financials?.pitch_fee_refund_pct ?? 0,
           cost_of_goods: 0,
           pitch_fee: event.event_financials?.pitch_fee ?? 0,

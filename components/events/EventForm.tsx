@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { format, parseISO, isValid } from 'date-fns';
-import { useForm, Controller, useFieldArray, Control, UseFormWatch } from 'react-hook-form';
+import { useForm, Controller, useFieldArray, Control, UseFormWatch, UseFormSetValue } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { eventSchema } from '@/lib/validations/event.schema';
 import type { EventFormValues } from '@/lib/validations/event.schema';
@@ -215,15 +215,18 @@ function CalcRow({
 }
 
 function FinancialsTabContent({
-  control, watch,
+  control, watch, setValue,
 }: {
-  control: Control<EventFormValues>; watch: UseFormWatch<EventFormValues>;
+  control: Control<EventFormValues>;
+  watch: UseFormWatch<EventFormValues>;
+  setValue: UseFormSetValue<EventFormValues>;
 }) {
   const { tokens } = useTheme();
   const p = tokens.palette;
   const zeroRated = watch('zero_rated_sales') ?? 0;
   const standardRated = watch('standard_rated_sales') ?? 0;
   const commissionPct = watch('concessions_commission_pct') ?? 0;
+  const commissionBasis = watch('commission_basis') ?? 'net';
   const pitchFee = watch('pitch_fee') ?? 0;
   const refundPct = watch('pitch_fee_refund_pct') ?? 0;
   const powerFee = watch('power_fee') ?? 0;
@@ -231,7 +234,9 @@ function FinancialsTabContent({
   const standardRatedNet = standardRated / 1.2;
   const vatCollected = standardRated - standardRatedNet;
   const totalNetSales = zeroRated + standardRatedNet;
-  const commissionAmount = totalNetSales * (commissionPct / 100);
+  const totalGrossSales = zeroRated + standardRated;
+  const commissionBase = commissionBasis === 'gross' ? totalGrossSales : totalNetSales;
+  const commissionAmount = commissionBase * (commissionPct / 100);
   const pitchFeeRefundGross = pitchFee * (refundPct / 100);
   const netRefund = pitchFeeRefundGross - commissionAmount;
   const effectivePitchFee = pitchFee - pitchFeeRefundGross + commissionAmount + powerFee;
@@ -270,12 +275,54 @@ function FinancialsTabContent({
 
       <SectionHeader title="Concessions Company / Organiser" />
       <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, padding: 16, gap: 12 }}>
+        {/* Commission basis: Net vs Gross — segmented control */}
+        <View>
+          <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.textMuted, marginBottom: 6 }}>
+            COMMISSION TAKEN ON
+          </Text>
+          <View style={{ flexDirection: 'row', borderWidth: 1, borderColor: p.borderStrong }}>
+            {([
+              { value: 'net' as const,   title: 'Net',   subtitle: 'ex-VAT' },
+              { value: 'gross' as const, title: 'Gross', subtitle: 'inc-VAT' },
+            ]).map((opt, i) => {
+              const active = commissionBasis === opt.value;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  onPress={() => setValue('commission_basis', opt.value)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={`Commission on ${opt.title} (${opt.subtitle}) sales`}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 10, paddingHorizontal: 12,
+                    backgroundColor: active ? p.text : p.surface,
+                    borderLeftWidth: i === 0 ? 0 : 1,
+                    borderLeftColor: p.borderStrong,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '700', letterSpacing: 0.3, color: active ? p.bg : p.text }}>
+                    {opt.title.toUpperCase()}
+                  </Text>
+                  <Text style={{ fontSize: 10, color: active ? p.bg : p.textMuted, marginTop: 1, fontStyle: 'italic' }}>
+                    {opt.subtitle}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 6, fontStyle: 'italic' }}>
+            Most concessions take commission on net (ex-VAT) sales — but some take it on gross (inc-VAT). Check your contract.
+          </Text>
+        </View>
+
         <Controller
           control={control} name="concessions_commission_pct"
           render={({ field }) => (
             <View>
               <FormField
-                label="Commission % (taken on net sales ex-VAT)"
+                label={`Commission % (taken on ${commissionBasis === 'gross' ? 'gross sales inc-VAT' : 'net sales ex-VAT'})`}
                 value={field.value ? String(field.value) : ''}
                 onChangeText={(t) => field.onChange(parseFloat(t) || 0)}
                 keyboardType="decimal-pad" placeholder="0"
@@ -312,7 +359,7 @@ function FinancialsTabContent({
         />
         {(pitchFee > 0 || commissionPct > 0 || powerFee > 0) && (
           <View style={{ backgroundColor: p.bg, borderWidth: 1, borderColor: p.border, padding: 12, gap: 2 }}>
-            <CalcRow label={`Commission (${commissionPct}% × net sales)`} value={formatCurrency(commissionAmount)} />
+            <CalcRow label={`Commission (${commissionPct}% × ${commissionBasis === 'gross' ? 'gross' : 'net'} sales)`} value={formatCurrency(commissionAmount)} />
             <CalcRow label={`Pitch fee refund gross (${refundPct}%)`} value={formatCurrency(pitchFeeRefundGross)} />
             <CalcRow label="Commission deducted from refund" value={`-${formatCurrency(commissionAmount)}`} />
             <CalcRow label="Net refund received" value={formatCurrency(Math.max(0, netRefund))} />
@@ -412,7 +459,7 @@ export function EventForm({
       application_date: '', status: 'pending', notes: '', company_id: '',
       unit_ids: [], application_url: '', overnight_stay: false, documents_uploaded: false,
       gross_sales: 0, zero_rated_sales: 0, standard_rated_sales: 0,
-      concessions_commission_pct: 0, pitch_fee_refund_pct: 0,
+      concessions_commission_pct: 0, commission_basis: 'net', pitch_fee_refund_pct: 0,
       cost_of_goods: 0, pitch_fee: 0, power_fee: 0,
       travel_costs: 0, camping_costs: 0, equipment_costs: 0, other_costs: 0,
       staffing_costs: 0, fresh_milk_litres: 0, alt_milk_litres: 0, miles_driven: 0,
@@ -716,7 +763,7 @@ export function EventForm({
         {/* FINANCIALS TAB */}
         {activeTab === 'Financials' && (
           <>
-            <FinancialsTabContent control={control} watch={watch} />
+            <FinancialsTabContent control={control} watch={watch} setValue={setValue} />
             {eventId && watchedDate && watchedEndDate && watchedEndDate !== watchedDate && (
               <View style={{ marginTop: 8 }}>
                 <DailyTakingsCard eventId={eventId} startDate={watchedDate} endDate={watchedEndDate} />

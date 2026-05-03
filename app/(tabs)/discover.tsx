@@ -340,7 +340,7 @@ export default function DiscoverScreen() {
           company_id: matchedCompany?.id ?? '',
           notes: `Discovered via Brewed Discover — ${discovered.organiser ?? discovered.source}`,
           gross_sales: 0, zero_rated_sales: 0, standard_rated_sales: 0,
-          concessions_commission_pct: 0, pitch_fee_refund_pct: 0, cost_of_goods: 0,
+          concessions_commission_pct: 0, commission_basis: 'net', pitch_fee_refund_pct: 0, cost_of_goods: 0,
           pitch_fee: 0, power_fee: 0, travel_costs: 0, camping_costs: 0,
           equipment_costs: 0, other_costs: 0, staffing_costs: 0,
           fresh_milk_litres: 0, alt_milk_litres: 0, miles_driven: 0,

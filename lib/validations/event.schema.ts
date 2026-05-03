@@ -35,6 +35,7 @@ export const eventSchema = z.object({
   zero_rated_sales: z.coerce.number().min(0),
   standard_rated_sales: z.coerce.number().min(0),
   concessions_commission_pct: z.coerce.number().min(0).max(100),
+  commission_basis: z.enum(['net', 'gross']).default('net'),
   pitch_fee_refund_pct: z.coerce.number().min(0).max(100),
 
   // Costs

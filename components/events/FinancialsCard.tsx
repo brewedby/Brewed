@@ -95,7 +95,7 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
             <>
               <Row label={`Pitch fee refund (${f.pitch_fee_refund_pct ?? 0}%)`}
                    value={formatCurrency(c.pitchFeeRefundGross)} indent />
-              <Row label={`Commission (${f.concessions_commission_pct ?? 0}% of net)`}
+              <Row label={`Commission (${f.concessions_commission_pct ?? 0}% of ${(f.commission_basis ?? 'net') === 'gross' ? 'gross' : 'net'})`}
                    value={`−${formatCurrency(c.commissionAmount)}`} indent />
               <Row label="Net refund received"
                    value={formatCurrency(Math.max(0, c.netRefund))} indent

@@ -44,6 +44,7 @@ export default function EditEventScreen() {
     zero_rated_sales: fin?.zero_rated_sales ?? 0,
     standard_rated_sales: fin?.standard_rated_sales ?? 0,
     concessions_commission_pct: fin?.concessions_commission_pct ?? 0,
+    commission_basis: (fin?.commission_basis ?? 'net') === 'gross' ? 'gross' : 'net',
     pitch_fee_refund_pct: fin?.pitch_fee_refund_pct ?? 0,
     cost_of_goods: fin?.cost_of_goods ?? 0,
     pitch_fee: fin?.pitch_fee ?? 0,

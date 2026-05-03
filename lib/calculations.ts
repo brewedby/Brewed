@@ -8,7 +8,7 @@ export function calcStaffingTotal(entries: StaffingEntry[]): number {
 /**
  * Full P&L calculation supporting:
  *  - VAT breakdown (hot drinks/food at 20%, cold drinks at 0%)
- *  - Concessions company commission on net (ex-VAT) sales
+ *  - Concessions company commission on net (ex-VAT) OR gross (inc-VAT) sales
  *  - Pitch fee with % refund; commission deducted from refund before payout
  *  - Power fee, camping costs as additional event costs
  *
@@ -35,13 +35,17 @@ export function calcEventFinancials(
   const standardRatedNet = standardRated / VAT_DIVISOR;
   const vatCollected = standardRated - standardRatedNet;
   const totalNetSales = hasVatBreakdown ? zeroRated + standardRatedNet : (f.gross_sales ?? 0);
+  const totalGrossSales = hasVatBreakdown ? zeroRated + standardRated : (f.gross_sales ?? 0);
 
   // --- Commission & pitch fee settlement ---
   const commissionPct = f.concessions_commission_pct ?? 0;
   const refundPct = f.pitch_fee_refund_pct ?? 0;
   const pitchFee = f.pitch_fee ?? 0;
+  // Default to 'net' for legacy rows where the column hasn't been backfilled.
+  const commissionBasis = (f.commission_basis ?? 'net') === 'gross' ? 'gross' : 'net';
+  const commissionBase = commissionBasis === 'gross' ? totalGrossSales : totalNetSales;
 
-  const commissionAmount = totalNetSales * (commissionPct / 100);
+  const commissionAmount = commissionBase * (commissionPct / 100);
   const pitchFeeRefundGross = pitchFee * (refundPct / 100);
   const netRefund = pitchFeeRefundGross - commissionAmount;
   const effectivePitchFee = pitchFee - pitchFeeRefundGross + commissionAmount;
@@ -98,7 +102,7 @@ export function calcAvgRevenuePerEvent(financials: EventFinancials[]): number {
 
 export const emptyFinancials: Omit<EventFinancials, 'id' | 'event_id' | 'created_at' | 'updated_at'> = {
   gross_sales: 0, zero_rated_sales: 0, standard_rated_sales: 0,
-  concessions_commission_pct: 0, pitch_fee_refund_pct: 0,
+  concessions_commission_pct: 0, commission_basis: 'net', pitch_fee_refund_pct: 0,
   cost_of_goods: 0, pitch_fee: 0, power_fee: 0,
   travel_costs: 0, camping_costs: 0, equipment_costs: 0, other_costs: 0,
   staffing_costs: 0, fresh_milk_litres: 0, alt_milk_litres: 0,
