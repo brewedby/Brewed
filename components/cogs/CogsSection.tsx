@@ -1,15 +1,7 @@
-/**
- * CogsSection — embeds into the event detail screen after InfrastructureList.
- *
- * IMPLEMENTATION: add <CogsSection eventId={event.id} existingCogs={...} />
- * in app/(tabs)/events/[id]/index.tsx after the DocumentsSection.
- */
 import React, { useState } from 'react';
-import {
-  View, Text, TouchableOpacity, ActivityIndicator, Alert,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTheme } from '@/lib/themeContext';
 import { useAuth } from '@/lib/auth';
 import { useProductCatalog } from '@/lib/queries/productCatalog';
 import { useSalesReports } from '@/lib/queries/salesReports';
@@ -24,14 +16,16 @@ interface Props {
 }
 
 export function CogsSection({ eventId, existingCogs }: Props) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const { user } = useAuth();
-  const router   = useRouter();
-  const { data: catalog = [] }  = useProductCatalog();
+  const router = useRouter();
+  const { data: catalog = [] } = useProductCatalog();
   const { data: reports = [], isLoading: reportsLoading } = useSalesReports(eventId);
   const uploadReport = useUploadSalesReport();
 
   const [showCatalog, setShowCatalog] = useState(false);
-  const [deletedId, setDeletedId]     = useState<string | null>(null);
+  const [deletedId, setDeletedId] = useState<string | null>(null);
 
   const visibleReports: SalesReport[] = reports.filter((r) => r.id !== deletedId);
 
@@ -40,7 +34,7 @@ export function CogsSection({ eventId, existingCogs }: Props) {
     if (catalog.length === 0) {
       Alert.alert(
         'Set up your Product Catalog first',
-        'Add your menu items and their costs in the Product Catalog before uploading a sales report. This lets Brewed calculate COGS automatically.',
+        'Add your menu items and their costs in the Product Catalog before uploading a sales report.',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Open Catalog', onPress: () => setShowCatalog(true) },
@@ -57,35 +51,46 @@ export function CogsSection({ eventId, existingCogs }: Props) {
   }
 
   const latestCalcCogs = visibleReports[0]?.calculated_cogs ?? 0;
-  const hasMismatch    = existingCogs > 0 && latestCalcCogs > 0
-                      && Math.abs(latestCalcCogs - existingCogs) > 0.5;
+  const hasMismatch = existingCogs > 0 && latestCalcCogs > 0
+    && Math.abs(latestCalcCogs - existingCogs) > 0.5;
 
   return (
-    <View style={styles.container}>
+    <View style={{ marginBottom: 16 }}>
       {/* Section header */}
-      <View style={styles.sectionHeader}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10, gap: 10 }}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.sectionTitle}>COGS from Sales Report</Text>
-          <Text style={styles.sectionSub}>Upload your POS export to calculate cost of goods accurately</Text>
+          <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1.5, color: p.textMuted, textTransform: 'uppercase' }}>
+            COGS from Sales Report
+          </Text>
+          <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 3 }}>
+            Upload your POS export to calculate cost of goods accurately
+          </Text>
         </View>
         <TouchableOpacity
           onPress={() => setShowCatalog(true)}
           accessibilityRole="button"
           accessibilityLabel="Manage product catalog"
-          style={styles.catalogButton}
+          style={{
+            flexDirection: 'row', alignItems: 'center', gap: 5,
+            borderWidth: 1, borderColor: p.border, backgroundColor: p.surface,
+            paddingHorizontal: 10, paddingVertical: 6,
+          }}
         >
-          <Ionicons name="pricetag-outline" size={14} color="#92400e" />
-          <Text style={styles.catalogButtonText}>Products</Text>
+          <Text style={{ fontSize: 11 }}>⊞</Text>
+          <Text style={{ fontSize: 12, color: p.textMuted, fontWeight: '600' }}>Products</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Mismatch banner (when report exists but differs from manual entry) */}
+      {/* Mismatch banner */}
       {hasMismatch && (
-        <View style={styles.mismatchBanner}>
-          <Ionicons name="alert-circle-outline" size={15} color="#b45309" />
-          <Text style={styles.mismatchText}>
-            Your manually entered COGS (£{existingCogs.toFixed(2)}) differs from the calculated
-            figure (£{latestCalcCogs.toFixed(2)}). Review the report below and tap Apply if correct.
+        <View style={{
+          flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+          backgroundColor: p.surface, padding: 10,
+          borderWidth: 1, borderColor: p.brand, marginBottom: 10,
+        }}>
+          <Text style={{ fontSize: 13, color: p.brand }}>!</Text>
+          <Text style={{ flex: 1, fontSize: 12, color: p.textMuted, lineHeight: 18 }}>
+            Manually entered COGS (£{existingCogs.toFixed(2)}) differs from calculated (£{latestCalcCogs.toFixed(2)}). Review below and tap Apply if correct.
           </Text>
         </View>
       )}
@@ -96,19 +101,26 @@ export function CogsSection({ eventId, existingCogs }: Props) {
         disabled={uploadReport.isPending}
         accessibilityRole="button"
         accessibilityLabel="Upload sales report CSV or PDF"
-        style={[styles.uploadButton, uploadReport.isPending && { opacity: 0.6 }]}
+        style={[
+          {
+            flexDirection: 'row', alignItems: 'center', gap: 12,
+            borderWidth: 1, borderColor: p.border, borderStyle: 'dashed',
+            padding: 14, backgroundColor: p.surface, marginBottom: 10,
+          },
+          uploadReport.isPending && { opacity: 0.6 },
+        ]}
       >
         {uploadReport.isPending ? (
           <>
-            <ActivityIndicator color="#92400e" size="small" />
-            <Text style={styles.uploadText}>Processing…</Text>
+            <ActivityIndicator color={p.brand} size="small" />
+            <Text style={{ fontSize: 14, fontWeight: '600', color: p.textMuted }}>Processing…</Text>
           </>
         ) : (
           <>
-            <Ionicons name="cloud-upload-outline" size={18} color="#92400e" />
+            <Text style={{ fontSize: 18, color: p.brand }}>↑</Text>
             <View>
-              <Text style={styles.uploadText}>Upload Sales Report</Text>
-              <Text style={styles.uploadSub}>CSV or PDF · POS export</Text>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: p.text }}>Upload Sales Report</Text>
+              <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 1 }}>CSV or PDF · POS export</Text>
             </View>
           </>
         )}
@@ -116,23 +128,22 @@ export function CogsSection({ eventId, existingCogs }: Props) {
 
       {/* Catalog nudge if empty */}
       {catalog.length === 0 && (
-        <View style={styles.nudge}>
-          <Text style={styles.nudgeText}>
-            💡 Add products to your catalog first so Brewed can match them automatically.
+        <View style={{
+          backgroundColor: p.surface, padding: 12,
+          borderWidth: 1, borderColor: p.border, marginBottom: 10, gap: 4,
+        }}>
+          <Text style={{ fontSize: 12, color: p.textMuted, lineHeight: 18 }}>
+            Add products to your catalog first so Brewed can match them automatically.
           </Text>
-          <TouchableOpacity
-            onPress={() => setShowCatalog(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Open product catalog"
-          >
-            <Text style={styles.nudgeLink}>Open Catalog →</Text>
+          <TouchableOpacity onPress={() => setShowCatalog(true)} accessibilityRole="button">
+            <Text style={{ fontSize: 12, color: p.brand, fontWeight: '700' }}>Open Catalog →</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Reports list */}
       {reportsLoading ? (
-        <ActivityIndicator color="#92400e" style={{ marginTop: 12 }} />
+        <ActivityIndicator color={p.brand} style={{ marginTop: 12 }} />
       ) : (
         visibleReports.map((report) => (
           <SalesReconciliation
@@ -146,7 +157,6 @@ export function CogsSection({ eventId, existingCogs }: Props) {
         ))
       )}
 
-      {/* Product catalog modal */}
       <ProductCatalogScreen
         visible={showCatalog}
         onClose={() => setShowCatalog(false)}
@@ -154,32 +164,3 @@ export function CogsSection({ eventId, existingCogs }: Props) {
     </View>
   );
 }
-
-const styles = {
-  container:      { marginBottom: 16 },
-  sectionHeader:  { flexDirection: 'row' as const, alignItems: 'flex-start' as const, marginBottom: 10, gap: 10 },
-  sectionTitle:   { fontSize: 14, fontWeight: '700' as const, color: '#1c1917' },
-  sectionSub:     { fontSize: 11, color: '#a8a29e', marginTop: 2 },
-  catalogButton:  { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, backgroundColor: '#fef3c7', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
-  catalogButtonText: { fontSize: 12, color: '#92400e', fontWeight: '600' as const },
-  mismatchBanner: {
-    flexDirection: 'row' as const, alignItems: 'flex-start' as const, gap: 8,
-    backgroundColor: '#fef9c3', padding: 10, borderRadius: 12,
-    borderWidth: 1, borderColor: '#fde68a', marginBottom: 10,
-  },
-  mismatchText:   { flex: 1, fontSize: 12, color: '#92400e', lineHeight: 18 },
-  uploadButton: {
-    flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12,
-    borderWidth: 1.5, borderColor: '#d97706', borderRadius: 14, borderStyle: 'dashed' as const,
-    padding: 14, backgroundColor: '#fffbeb', marginBottom: 10,
-  },
-  uploadText:   { fontSize: 14, fontWeight: '600' as const, color: '#92400e' },
-  uploadSub:    { fontSize: 11, color: '#b45309', marginTop: 1 },
-  nudge: {
-    backgroundColor: '#f0fdf4', borderRadius: 12, padding: 12,
-    borderWidth: 1, borderColor: '#bbf7d0', marginBottom: 10,
-    gap: 4,
-  },
-  nudgeText: { fontSize: 12, color: '#15803d', lineHeight: 18 },
-  nudgeLink: { fontSize: 12, color: '#15803d', fontWeight: '700' as const },
-};

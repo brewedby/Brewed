@@ -4,7 +4,7 @@ import {
   Alert, ActivityIndicator, TextInput, SectionList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/lib/themeContext';
 import { useAuth } from '@/lib/auth';
 import { useProductCatalog } from '@/lib/queries/productCatalog';
 import { useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/lib/mutations/productCatalog';
@@ -19,39 +19,41 @@ interface Props {
   onClose: () => void;
 }
 
-function marginColor(pct: number): string {
-  if (pct >= 60) return '#15803d';
-  if (pct >= 40) return '#b45309';
+function marginColor(pct: number, brand: string): string {
+  if (pct >= 60) return '#22c55e';
+  if (pct >= 40) return brand;
   return '#dc2626';
 }
 
 export function ProductCatalogScreen({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const { user } = useAuth();
   const { data: products = [], isLoading } = useProductCatalog();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
 
-  const [view, setView]     = useState<ScreenView>('list');
+  const [view, setView] = useState<ScreenView>('list');
   const [editing, setEditing] = useState<ProductCatalogItem | null>(null);
-  const [search, setSearch]   = useState('');
+  const [search, setSearch] = useState('');
 
   const filtered = useMemo(() =>
-    products.filter((p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.sku?.toLowerCase() ?? '').includes(search.toLowerCase())
+    products.filter((prod) =>
+      prod.name.toLowerCase().includes(search.toLowerCase()) ||
+      (prod.sku?.toLowerCase() ?? '').includes(search.toLowerCase())
     ),
     [products, search],
   );
 
-  // Group by category for the menu layout
-  const sections = useMemo(() => {
-    return PRODUCT_CATEGORIES.map((cat) => ({
+  const sections = useMemo(() =>
+    PRODUCT_CATEGORIES.map((cat) => ({
       category: cat,
-      data: filtered.filter((p) => p.category === cat.value),
-    })).filter((s) => s.data.length > 0);
-  }, [filtered]);
+      data: filtered.filter((prod) => prod.category === cat.value),
+    })).filter((s) => s.data.length > 0),
+    [filtered],
+  );
 
   async function handleAdd(values: ProductFormValues) {
     if (!user) return;
@@ -78,13 +80,13 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
   }
 
   const totalProducts = products.length;
-  const activeProducts = products.filter((p) => p.is_active).length;
+  const activeProducts = products.filter((prod) => prod.is_active).length;
   const avgMargin = useMemo(() => {
-    const withPrice = products.filter((p) => p.selling_price > 0);
+    const withPrice = products.filter((prod) => prod.selling_price > 0);
     if (withPrice.length === 0) return null;
-    const avg = withPrice.reduce((sum, p) => {
-      const netPrice = p.category === 'hot_drinks' ? p.selling_price / 1.2 : p.selling_price;
-      return sum + ((netPrice - p.unit_cost) / netPrice) * 100;
+    const avg = withPrice.reduce((sum, prod) => {
+      const netPrice = prod.category === 'hot_drinks' ? prod.selling_price / 1.2 : prod.selling_price;
+      return sum + ((netPrice - prod.unit_cost) / netPrice) * 100;
     }, 0) / withPrice.length;
     return avg;
   }, [products]);
@@ -95,41 +97,48 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
     const grossMargin = item.selling_price > 0
       ? ((netPrice - item.unit_cost) / netPrice) * 100
       : null;
+
     return (
-      <View style={styles.menuRow}>
+      <View style={{
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: p.surface, borderWidth: 1, borderColor: p.border,
+        padding: 12, marginBottom: 6, gap: 6,
+      }}>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={styles.menuProductName}>{item.name}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: p.text }}>{item.name}</Text>
             {!item.is_active && (
-              <View style={styles.inactiveBadge}>
-                <Text style={styles.inactiveBadgeText}>inactive</Text>
+              <View style={{ borderWidth: 1, borderColor: p.border, paddingHorizontal: 5, paddingVertical: 1 }}>
+                <Text style={{ fontSize: 9, color: p.textFaint, textTransform: 'uppercase', letterSpacing: 0.5 }}>inactive</Text>
               </View>
             )}
           </View>
-          {item.sku ? <Text style={styles.skuText}>SKU: {item.sku}</Text> : null}
+          {item.sku ? <Text style={{ fontSize: 10, color: p.textFaint, marginTop: 1 }}>SKU: {item.sku}</Text> : null}
         </View>
 
         {/* Price | COGS | Margin */}
-        <View style={styles.menuNumbers}>
-          <View style={styles.menuNumberCol}>
-            <Text style={styles.menuNumberLabel}>Price</Text>
-            <Text style={styles.menuPrice}>£{item.selling_price.toFixed(2)}</Text>
-            {isVatable && <Text style={{ fontSize: 8, color: '#a8a29e', textAlign: 'center' }}>inc. VAT</Text>}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ width: 52, alignItems: 'center' }}>
+            <Text style={{ fontSize: 9, color: p.textFaint, fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 }}>Price</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: p.text }}>£{item.selling_price.toFixed(2)}</Text>
+            {isVatable && <Text style={{ fontSize: 8, color: p.textFaint, textAlign: 'center' }}>inc. VAT</Text>}
           </View>
-          <View style={[styles.menuNumberCol, styles.menuNumberColMiddle]}>
-            <Text style={styles.menuNumberLabel}>COGS</Text>
-            <Text style={styles.menuCogs}>£{item.unit_cost.toFixed(2)}</Text>
+          <View style={{ width: 1, height: 32, backgroundColor: p.border, marginHorizontal: 2 }} />
+          <View style={{ width: 52, alignItems: 'center' }}>
+            <Text style={{ fontSize: 9, color: p.textFaint, fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 }}>COGS</Text>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: p.brand }}>£{item.unit_cost.toFixed(2)}</Text>
           </View>
-          <View style={styles.menuNumberCol}>
-            <Text style={styles.menuNumberLabel}>Margin</Text>
+          <View style={{ width: 1, height: 32, backgroundColor: p.border, marginHorizontal: 2 }} />
+          <View style={{ width: 52, alignItems: 'center' }}>
+            <Text style={{ fontSize: 9, color: p.textFaint, fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 }}>Margin</Text>
             {grossMargin !== null ? (
-              <Text style={[styles.menuMargin, { color: marginColor(grossMargin) }]}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: marginColor(grossMargin, p.brand) }}>
                 {grossMargin.toFixed(0)}%
               </Text>
             ) : (
-              <Text style={styles.menuMarginNone}>—</Text>
+              <Text style={{ fontSize: 14, color: p.textFaint }}>—</Text>
             )}
-            {isVatable && <Text style={{ fontSize: 8, color: '#a8a29e', textAlign: 'center' }}>ex-VAT</Text>}
+            {isVatable && <Text style={{ fontSize: 8, color: p.textFaint, textAlign: 'center' }}>ex-VAT</Text>}
           </View>
         </View>
 
@@ -138,17 +147,17 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
             onPress={() => { setEditing(item); setView('edit'); }}
             accessibilityRole="button"
             accessibilityLabel={`Edit ${item.name}`}
-            style={styles.actionBtn}
+            style={{ padding: 8 }}
           >
-            <Ionicons name="pencil-outline" size={16} color="#78716c" />
+            <Text style={{ fontSize: 15, color: p.textMuted }}>✎</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => confirmDelete(item)}
             accessibilityRole="button"
             accessibilityLabel={`Remove ${item.name}`}
-            style={styles.actionBtn}
+            style={{ padding: 8 }}
           >
-            <Ionicons name="trash-outline" size={16} color="#dc2626" />
+            <Text style={{ fontSize: 15, color: '#dc2626' }}>✕</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -157,58 +166,56 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
 
   function renderSectionHeader({ section }: { section: { category: typeof PRODUCT_CATEGORIES[number]; data: ProductCatalogItem[] } }) {
     return (
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionHeaderText}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, paddingBottom: 6, paddingHorizontal: 2 }}>
+        <Text style={{ fontSize: 10, fontWeight: '700', color: p.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
           {section.category.emoji} {section.category.label}
         </Text>
-        <Text style={styles.sectionCount}>{section.data.length}</Text>
+        <Text style={{ fontSize: 12, color: p.textFaint }}>{section.data.length}</Text>
       </View>
     );
   }
 
-  // Column header for the menu table
   const menuColumnHeader = (
-    <View style={styles.columnHeader}>
-      <Text style={[styles.columnHeaderText, { flex: 1 }]}>Product</Text>
-      <View style={styles.menuNumbers}>
-        <View style={styles.menuNumberCol}>
-          <Text style={styles.columnHeaderText}>Price</Text>
-        </View>
-        <View style={[styles.menuNumberCol, styles.menuNumberColMiddle]}>
-          <Text style={styles.columnHeaderText}>COGS</Text>
-        </View>
-        <View style={styles.menuNumberCol}>
-          <Text style={styles.columnHeaderText}>Margin</Text>
-        </View>
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 2, paddingTop: 14, paddingBottom: 4 }}>
+      <Text style={{ flex: 1, fontSize: 10, fontWeight: '700', color: p.textFaint, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        Product
+      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {['Price', 'COGS', 'Margin'].map((label, i) => (
+          <View key={label} style={{ width: i === 1 ? 56 : 52, alignItems: 'center' }}>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: p.textFaint, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              {label}
+            </Text>
+          </View>
+        ))}
       </View>
       <View style={{ width: 72 }} />
     </View>
   );
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
 
         {/* Header */}
-        <View style={styles.header}>
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+          paddingHorizontal: 20, paddingVertical: 14,
+          backgroundColor: p.surface, borderBottomWidth: 2, borderBottomColor: p.text,
+        }}>
           {view === 'list' ? (
             <>
               <View>
-                <Text style={styles.title}>Menu & COGS</Text>
-                <Text style={styles.titleSub}>Price, cost & margin per product</Text>
+                <Text style={{ fontFamily: tokens.type.display, fontSize: 20, color: p.text }}>Menu & COGS</Text>
+                <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 1 }}>Price, cost & margin per product</Text>
               </View>
               <TouchableOpacity
                 onPress={onClose}
                 accessibilityRole="button"
                 accessibilityLabel="Close product menu"
-                style={styles.closeButton}
+                style={{ padding: 4 }}
               >
-                <Ionicons name="close" size={22} color="#1c1917" />
+                <Text style={{ fontSize: 20, color: p.text }}>✕</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -219,10 +226,11 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
                 accessibilityLabel="Back to menu"
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
               >
-                <Ionicons name="chevron-back" size={18} color="#92400e" />
-                <Text style={{ color: '#92400e', fontWeight: '600', fontSize: 14 }}>Back</Text>
+                <Text style={{ color: p.brand, fontWeight: '600', fontSize: 14 }}>‹ Back</Text>
               </TouchableOpacity>
-              <Text style={styles.title}>{view === 'add' ? 'Add Product' : 'Edit Product'}</Text>
+              <Text style={{ fontFamily: tokens.type.display, fontSize: 18, color: p.text }}>
+                {view === 'add' ? 'Add Product' : 'Edit Product'}
+              </Text>
               <View style={{ width: 60 }} />
             </>
           )}
@@ -231,61 +239,60 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
         {view === 'list' && (
           <>
             {/* Summary strip */}
-            <View style={styles.summaryStrip}>
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>{totalProducts}</Text>
-                <Text style={styles.summaryLabel}>Products</Text>
+            <View style={{ flexDirection: 'row', backgroundColor: p.surface, paddingVertical: 12, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: p.border, alignItems: 'center' }}>
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: p.brand }}>{totalProducts}</Text>
+                <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 2 }}>Products</Text>
               </View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryValue}>{activeProducts}</Text>
-                <Text style={styles.summaryLabel}>Active</Text>
+              <View style={{ width: 1, height: 32, backgroundColor: p.border }} />
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: p.brand }}>{activeProducts}</Text>
+                <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 2 }}>Active</Text>
               </View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryItem}>
-                <Text style={[styles.summaryValue, avgMargin !== null ? { color: marginColor(avgMargin) } : {}]}>
+              <View style={{ width: 1, height: 32, backgroundColor: p.border }} />
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: avgMargin !== null ? marginColor(avgMargin, p.brand) : p.textFaint }}>
                   {avgMargin !== null ? `${avgMargin.toFixed(0)}%` : '—'}
                 </Text>
-                <Text style={styles.summaryLabel}>Avg Margin</Text>
+                <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 2 }}>Avg Margin</Text>
               </View>
             </View>
 
             {/* Search */}
-            <View style={styles.searchRow}>
-              <Ionicons name="search-outline" size={16} color="#a8a29e" />
+            <View style={{
+              flexDirection: 'row', alignItems: 'center',
+              backgroundColor: p.surface, margin: 16,
+              borderWidth: 1, borderColor: p.border,
+              paddingHorizontal: 12, paddingVertical: 8, gap: 8,
+            }}>
+              <Text style={{ fontSize: 14, color: p.textFaint }}>⌕</Text>
               <TextInput
                 value={search}
                 onChangeText={setSearch}
                 placeholder="Search menu..."
-                placeholderTextColor="#a8a29e"
-                style={styles.searchInput}
+                placeholderTextColor={p.textFaint}
+                style={{ flex: 1, fontSize: 14, color: p.text }}
                 accessibilityLabel="Search products"
                 returnKeyType="search"
                 clearButtonMode="while-editing"
                 onSubmitEditing={() => {}}
               />
-              {search.length > 0 && (
-                <TouchableOpacity onPress={() => setSearch('')} accessibilityLabel="Clear search">
-                  <Ionicons name="close-circle" size={16} color="#a8a29e" />
-                </TouchableOpacity>
-              )}
             </View>
 
             {/* Menu list */}
             {isLoading ? (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                <ActivityIndicator color="#92400e" />
+                <ActivityIndicator color={p.brand} />
               </View>
             ) : sections.length === 0 ? (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-                <Text style={{ fontSize: 40, marginBottom: 12 }}>🏷️</Text>
-                <Text style={{ fontWeight: '600', color: '#1c1917', fontSize: 16, marginBottom: 6 }}>
+                <Text style={{ fontFamily: tokens.type.display, fontSize: 22, color: p.text, marginBottom: 10 }}>
                   {search ? 'No matches' : 'Menu is empty'}
                 </Text>
-                <Text style={{ color: '#a8a29e', textAlign: 'center', fontSize: 13, lineHeight: 20 }}>
+                <Text style={{ color: p.textMuted, textAlign: 'center', fontSize: 13, lineHeight: 20 }}>
                   {search
                     ? 'Try a different search term.'
-                    : 'Add your menu items with their selling price and cost. Brewed uses these to calculate COGS automatically from your sales reports.'}
+                    : 'Add your menu items with selling price and cost. Brewed uses these to calculate COGS automatically from your sales reports.'}
                 </Text>
               </View>
             ) : (
@@ -304,15 +311,19 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
             )}
 
             {/* Add button */}
-            <View style={[styles.addButtonContainer, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              paddingHorizontal: 20, paddingTop: 12,
+              paddingBottom: insets.bottom + 16,
+              backgroundColor: p.bg, borderTopWidth: 1, borderTopColor: p.border,
+            }}>
               <TouchableOpacity
                 onPress={() => setView('add')}
                 accessibilityRole="button"
                 accessibilityLabel="Add new product to menu"
-                style={styles.addButton}
+                style={{ backgroundColor: p.text, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
               >
-                <Ionicons name="add" size={20} color="#fff" />
-                <Text style={styles.addButtonText}>Add Menu Item</Text>
+                <Text style={{ color: p.bg, fontWeight: '700', fontSize: 14, letterSpacing: 1 }}>+ ADD MENU ITEM</Text>
               </TouchableOpacity>
             </View>
           </>
@@ -338,93 +349,3 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
     </Modal>
   );
 }
-
-const styles = {
-  container: { flex: 1, backgroundColor: '#fafaf9' },
-  header: {
-    flexDirection: 'row' as const, alignItems: 'center' as const,
-    justifyContent: 'space-between' as const,
-    paddingHorizontal: 20, paddingVertical: 14,
-    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f5f5f4',
-  },
-  title:      { fontSize: 18, fontWeight: '700' as const, color: '#1c1917' },
-  titleSub:   { fontSize: 11, color: '#a8a29e', marginTop: 1 },
-  closeButton: { padding: 4 },
-
-  summaryStrip: {
-    flexDirection: 'row' as const, backgroundColor: '#fff',
-    paddingVertical: 12, paddingHorizontal: 20,
-    borderBottomWidth: 1, borderBottomColor: '#f5f5f4',
-    alignItems: 'center' as const,
-  },
-  summaryItem:    { flex: 1, alignItems: 'center' as const },
-  summaryValue:   { fontSize: 18, fontWeight: '700' as const, color: '#92400e' },
-  summaryLabel:   { fontSize: 11, color: '#a8a29e', marginTop: 2 },
-  summaryDivider: { width: 1, height: 32, backgroundColor: '#f5f5f4' },
-
-  searchRow: {
-    flexDirection: 'row' as const, alignItems: 'center' as const,
-    backgroundColor: '#fff', marginHorizontal: 16, marginTop: 12,
-    borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 12,
-    paddingHorizontal: 12, paddingVertical: 8, gap: 8,
-  },
-  searchInput: { flex: 1, fontSize: 14, color: '#1c1917' },
-
-  columnHeader: {
-    flexDirection: 'row' as const, alignItems: 'center' as const,
-    paddingHorizontal: 2, paddingTop: 14, paddingBottom: 4,
-  },
-  columnHeaderText: {
-    fontSize: 10, fontWeight: '700' as const, color: '#a8a29e',
-    textTransform: 'uppercase' as const, letterSpacing: 0.5, textAlign: 'center' as const,
-  },
-
-  sectionHeader: {
-    flexDirection: 'row' as const, alignItems: 'center' as const,
-    justifyContent: 'space-between' as const,
-    paddingTop: 16, paddingBottom: 6, paddingHorizontal: 2,
-  },
-  sectionHeaderText: { fontSize: 13, fontWeight: '700' as const, color: '#1c1917' },
-  sectionCount:      { fontSize: 12, color: '#a8a29e', fontWeight: '500' as const },
-
-  menuRow: {
-    flexDirection: 'row' as const, alignItems: 'center' as const,
-    backgroundColor: '#fff', borderRadius: 14, padding: 12,
-    marginBottom: 6, borderWidth: 1, borderColor: '#f5f5f4',
-    gap: 6,
-  },
-  menuProductName: { fontSize: 14, fontWeight: '600' as const, color: '#1c1917' },
-  skuText:         { fontSize: 10, color: '#a8a29e', marginTop: 1 },
-
-  menuNumbers: {
-    flexDirection: 'row' as const, alignItems: 'center' as const,
-  },
-  menuNumberCol: {
-    width: 52, alignItems: 'center' as const,
-  },
-  menuNumberColMiddle: {
-    borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#f5f5f4',
-    marginHorizontal: 2,
-  },
-  menuNumberLabel: { fontSize: 9, color: '#a8a29e', fontWeight: '600' as const, textTransform: 'uppercase' as const, marginBottom: 2 },
-  menuPrice:       { fontSize: 14, fontWeight: '700' as const, color: '#1c1917' },
-  menuCogs:        { fontSize: 14, fontWeight: '600' as const, color: '#b45309' },
-  menuMargin:      { fontSize: 14, fontWeight: '700' as const },
-  menuMarginNone:  { fontSize: 14, color: '#a8a29e' },
-
-  inactiveBadge:     { backgroundColor: '#f5f5f4', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
-  inactiveBadgeText: { fontSize: 10, color: '#78716c' },
-
-  actionBtn: { padding: 8 },
-
-  addButtonContainer: {
-    position: 'absolute' as const, bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 20, paddingTop: 12,
-    backgroundColor: '#fafaf9', borderTopWidth: 1, borderTopColor: '#f5f5f4',
-  },
-  addButton: {
-    backgroundColor: '#92400e', borderRadius: 16, paddingVertical: 14,
-    flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 8,
-  },
-  addButtonText: { color: '#fff', fontWeight: '700' as const, fontSize: 15 },
-};

@@ -1,13 +1,9 @@
-/**
- * SalesReconciliation — shows parsed line items, matched vs. unmatched,
- * COGS breakdown, discrepancy alert, and "Apply to Event" CTA.
- */
 import React, { useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity,
   ActivityIndicator, Modal, Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/lib/themeContext';
 import { useProductCatalog } from '@/lib/queries/productCatalog';
 import { useSalesLineItems } from '@/lib/queries/salesReports';
 import { useAssignProduct, useApplyCogs, useDeleteSalesReport } from '@/lib/mutations/salesReports';
@@ -19,23 +15,25 @@ import { PRODUCT_CATEGORIES } from '@/types/cogs';
 interface Props {
   report: SalesReport;
   eventId: string;
-  existingCogs: number;         // event_financials.cost_of_goods entered manually
-  onCogsApplied: () => void;    // callback after Apply is confirmed
+  existingCogs: number;
+  onCogsApplied: () => void;
   onDeleted: () => void;
 }
 
 export function SalesReconciliation({ report, eventId, existingCogs, onCogsApplied, onDeleted }: Props) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const { data: lineItems = [], isLoading } = useSalesLineItems(report.id);
   const { data: catalog = [] } = useProductCatalog();
   const assignProduct = useAssignProduct();
-  const applyCogs     = useApplyCogs();
-  const deleteReport  = useDeleteSalesReport();
+  const applyCogs = useApplyCogs();
+  const deleteReport = useDeleteSalesReport();
 
   const [assigningItem, setAssigningItem] = useState<SalesLineItemWithProduct | null>(null);
-  const [expanded, setExpanded]           = useState(true);
+  const [expanded, setExpanded] = useState(true);
 
   const calculatedCogs = report.calculated_cogs;
-  const discrepancy    = Math.abs(calculatedCogs - existingCogs);
+  const discrepancy = Math.abs(calculatedCogs - existingCogs);
   const hasDiscrepancy = existingCogs > 0 && discrepancy > 0.5;
 
   function handleApply() {
@@ -87,16 +85,23 @@ export function SalesReconciliation({ report, eventId, existingCogs, onCogsAppli
       : null;
 
     return (
-      <View style={[itemStyles.row, !item.is_matched && itemStyles.rowUnmatched]}>
+      <View style={[
+        {
+          flexDirection: 'row', alignItems: 'center',
+          paddingHorizontal: 14, paddingVertical: 10,
+          borderBottomWidth: 1, borderBottomColor: p.border, gap: 8,
+        },
+        !item.is_matched && { backgroundColor: p.surfaceAlt },
+      ]}>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             {cat && <Text style={{ fontSize: 14 }}>{cat.emoji}</Text>}
-            <Text style={itemStyles.productName} numberOfLines={1}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: p.text }} numberOfLines={1}>
               {item.product_name}
             </Text>
           </View>
           {item.is_matched && item.product_catalog && (
-            <Text style={itemStyles.matchedName}>
+            <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 1 }}>
               → {item.product_catalog.name}
               {item.is_manually_assigned ? ' (manual)' : ` (${Math.round((item.match_confidence ?? 0) * 100)}% match)`}
             </Text>
@@ -104,18 +109,24 @@ export function SalesReconciliation({ report, eventId, existingCogs, onCogsAppli
         </View>
 
         <View style={{ alignItems: 'flex-end', gap: 2 }}>
-          <Text style={itemStyles.qty}>×{item.quantity % 1 === 0 ? item.quantity : item.quantity.toFixed(1)}</Text>
+          <Text style={{ fontSize: 12, color: p.textMuted }}>
+            ×{item.quantity % 1 === 0 ? item.quantity : item.quantity.toFixed(1)}
+          </Text>
           {item.is_matched && item.cogs_calculated != null ? (
-            <Text style={itemStyles.cogs}>£{item.cogs_calculated.toFixed(2)}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: p.brand }}>
+              £{item.cogs_calculated.toFixed(2)}
+            </Text>
           ) : (
             <TouchableOpacity
               onPress={() => setAssigningItem(item)}
               accessibilityRole="button"
               accessibilityLabel={`Assign product to ${item.product_name}`}
-              style={itemStyles.assignButton}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 3,
+                backgroundColor: p.brandSoft, paddingHorizontal: 8, paddingVertical: 4,
+              }}
             >
-              <Ionicons name="link-outline" size={11} color="#92400e" />
-              <Text style={itemStyles.assignText}>Assign</Text>
+              <Text style={{ fontSize: 11, color: p.brand, fontWeight: '600' }}>Assign</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -123,62 +134,66 @@ export function SalesReconciliation({ report, eventId, existingCogs, onCogsAppli
     );
   }
 
-  const matchedCount  = lineItems.filter((i) => i.is_matched).length;
-  const coveragePct   = lineItems.length > 0 ? Math.round((matchedCount / lineItems.length) * 100) : 0;
+  const matchedCount = lineItems.filter((i) => i.is_matched).length;
+  const coveragePct = lineItems.length > 0 ? Math.round((matchedCount / lineItems.length) * 100) : 0;
 
   return (
-    <View style={styles.container}>
+    <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, marginBottom: 12, overflow: 'hidden' }}>
       {/* Report header */}
       <TouchableOpacity
         onPress={() => setExpanded((e) => !e)}
         accessibilityRole="button"
         accessibilityLabel={`${expanded ? 'Collapse' : 'Expand'} sales report`}
-        style={styles.reportHeader}
+        style={{ flexDirection: 'row', alignItems: 'center', padding: 14, gap: 8 }}
       >
         <View style={{ flex: 1 }}>
-          <Text style={styles.fileName} numberOfLines={1}>{report.file_name}</Text>
-          <Text style={styles.fileMeta}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: p.text }} numberOfLines={1}>
+            {report.file_name}
+          </Text>
+          <Text style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>
             {matchedCount}/{report.total_line_items} matched · {coveragePct}% coverage
           </Text>
         </View>
-        <Ionicons
-          name={expanded ? 'chevron-up' : 'chevron-down'}
-          size={16} color="#78716c"
-        />
+        <Text style={{ fontSize: 14, color: p.textFaint }}>{expanded ? '▲' : '▼'}</Text>
       </TouchableOpacity>
 
       {expanded && (
         <>
-          {/* Summary cards */}
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryValue}>£{report.total_revenue_from_file.toFixed(2)}</Text>
-              <Text style={styles.summaryLabel}>Revenue (file)</Text>
+          {/* Summary row */}
+          <View style={{ flexDirection: 'row', paddingHorizontal: 14, gap: 0, marginBottom: 8, borderTopWidth: 1, borderTopColor: p.border }}>
+            <View style={{ flex: 1, padding: 10, alignItems: 'center' }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: p.text }}>
+                £{report.total_revenue_from_file.toFixed(2)}
+              </Text>
+              <Text style={{ fontSize: 10, color: p.textFaint, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>Revenue</Text>
             </View>
-            <View style={styles.summaryCard}>
-              <Text style={[styles.summaryValue, { color: '#92400e' }]}>
+            <View style={{ width: 1, backgroundColor: p.border }} />
+            <View style={{ flex: 1, padding: 10, alignItems: 'center' }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: p.brand }}>
                 £{calculatedCogs.toFixed(2)}
               </Text>
-              <Text style={styles.summaryLabel}>Calc. COGS</Text>
+              <Text style={{ fontSize: 10, color: p.textFaint, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>Calc. COGS</Text>
             </View>
-            <View style={styles.summaryCard}>
-              <Text style={[styles.summaryValue, {
-                color: calculatedCogs > 0 && report.total_revenue_from_file > 0
-                  ? '#16a34a' : '#a8a29e',
-              }]}>
+            <View style={{ width: 1, backgroundColor: p.border }} />
+            <View style={{ flex: 1, padding: 10, alignItems: 'center' }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: calculatedCogs > 0 && report.total_revenue_from_file > 0 ? '#22c55e' : p.textFaint }}>
                 {report.total_revenue_from_file > 0
                   ? `${Math.round((1 - calculatedCogs / report.total_revenue_from_file) * 100)}%`
                   : '—'}
               </Text>
-              <Text style={styles.summaryLabel}>Gross margin</Text>
+              <Text style={{ fontSize: 10, color: p.textFaint, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>Margin</Text>
             </View>
           </View>
 
           {/* Discrepancy alert */}
           {hasDiscrepancy && (
-            <View style={styles.discrepancyAlert}>
-              <Ionicons name="warning-outline" size={16} color="#b45309" />
-              <Text style={styles.discrepancyText}>
+            <View style={{
+              flexDirection: 'row', alignItems: 'center', gap: 8,
+              backgroundColor: p.surfaceAlt, marginHorizontal: 14, marginBottom: 8,
+              padding: 10, borderWidth: 1, borderColor: p.brand,
+            }}>
+              <Text style={{ fontSize: 13, color: p.brand }}>!</Text>
+              <Text style={{ flex: 1, fontSize: 12, color: p.textMuted }}>
                 Manual COGS (£{existingCogs.toFixed(2)}) differs by £{discrepancy.toFixed(2)} from calculated.
               </Text>
             </View>
@@ -186,42 +201,51 @@ export function SalesReconciliation({ report, eventId, existingCogs, onCogsAppli
 
           {/* Line items */}
           {isLoading ? (
-            <ActivityIndicator color="#92400e" style={{ marginVertical: 16 }} />
+            <ActivityIndicator color={p.brand} style={{ marginVertical: 16 }} />
           ) : (
             <FlatList
               data={lineItems}
               keyExtractor={(item) => item.id}
               renderItem={renderLineItem}
               scrollEnabled={false}
-              style={{ marginTop: 8 }}
+              style={{ marginTop: 4 }}
             />
           )}
 
           {/* Actions */}
-          <View style={styles.actionRow}>
+          <View style={{ flexDirection: 'row', padding: 14, gap: 10, borderTopWidth: 1, borderTopColor: p.border, marginTop: 4 }}>
             <TouchableOpacity
               onPress={handleDelete}
               accessibilityRole="button"
               accessibilityLabel="Remove this sales report"
-              style={styles.deleteButton}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 4,
+                paddingVertical: 10, paddingHorizontal: 14,
+                borderWidth: 1, borderColor: '#dc2626',
+              }}
             >
-              <Ionicons name="trash-outline" size={14} color="#dc2626" />
-              <Text style={styles.deleteText}>Remove</Text>
+              <Text style={{ fontSize: 13, color: '#dc2626' }}>✕</Text>
+              <Text style={{ fontSize: 13, color: '#dc2626', fontWeight: '500' }}>Remove</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleApply}
               disabled={applyCogs.isPending || calculatedCogs === 0}
               accessibilityRole="button"
               accessibilityLabel="Apply calculated COGS to event"
-              style={[styles.applyButton, (calculatedCogs === 0 || applyCogs.isPending) && { opacity: 0.5 }]}
+              style={[
+                {
+                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  gap: 6, backgroundColor: p.text, paddingVertical: 12,
+                },
+                (calculatedCogs === 0 || applyCogs.isPending) && { opacity: 0.5 },
+              ]}
             >
               {applyCogs.isPending ? (
-                <ActivityIndicator color="#fff" size="small" />
+                <ActivityIndicator color={p.bg} size="small" />
               ) : (
-                <>
-                  <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
-                  <Text style={styles.applyText}>Apply £{calculatedCogs.toFixed(2)} to Event</Text>
-                </>
+                <Text style={{ color: p.bg, fontWeight: '700', fontSize: 13, letterSpacing: 0.5 }}>
+                  APPLY £{calculatedCogs.toFixed(2)} TO EVENT
+                </Text>
               )}
             </TouchableOpacity>
           </View>
@@ -235,20 +259,20 @@ export function SalesReconciliation({ report, eventId, existingCogs, onCogsAppli
         presentationStyle="formSheet"
         onRequestClose={() => setAssigningItem(null)}
       >
-        <View style={{ flex: 1, padding: 20 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#1c1917' }}>
+        <View style={{ flex: 1, padding: 20, backgroundColor: p.bg }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottomWidth: 2, borderBottomColor: p.text, paddingBottom: 14 }}>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: p.text }}>
               Assign: "{assigningItem?.product_name}"
             </Text>
             <TouchableOpacity onPress={() => setAssigningItem(null)} accessibilityLabel="Close">
-              <Ionicons name="close" size={22} color="#1c1917" />
+              <Text style={{ fontSize: 20, color: p.text }}>✕</Text>
             </TouchableOpacity>
           </View>
-          <Text style={{ color: '#78716c', fontSize: 13, marginBottom: 12 }}>
+          <Text style={{ color: p.textMuted, fontSize: 13, marginBottom: 12 }}>
             Which product in your catalog does this match?
           </Text>
           <FlatList
-            data={catalog.filter((p) => p.is_active)}
+            data={catalog.filter((prod) => prod.is_active)}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => {
               const cat = PRODUCT_CATEGORIES.find((c) => c.value === item.category);
@@ -259,21 +283,23 @@ export function SalesReconciliation({ report, eventId, existingCogs, onCogsAppli
                   accessibilityLabel={`Assign to ${item.name}`}
                   style={{
                     flexDirection: 'row', alignItems: 'center', padding: 14,
-                    borderRadius: 12, borderWidth: 1, borderColor: '#f5f5f4',
-                    backgroundColor: '#fff', marginBottom: 8, gap: 10,
+                    borderWidth: 1, borderColor: p.border,
+                    backgroundColor: p.surface, marginBottom: 8, gap: 10,
                   }}
                 >
-                  <Text style={{ fontSize: 20 }}>{cat?.emoji ?? '📦'}</Text>
+                  <Text style={{ fontSize: 20 }}>{cat?.emoji ?? '☕'}</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: '600', color: '#1c1917' }}>{item.name}</Text>
-                    <Text style={{ fontSize: 11, color: '#a8a29e' }}>£{item.unit_cost.toFixed(2)} per {item.unit}</Text>
+                    <Text style={{ fontWeight: '600', color: p.text }}>{item.name}</Text>
+                    <Text style={{ fontSize: 11, color: p.textFaint }}>
+                      £{item.unit_cost.toFixed(2)} per {item.unit}
+                    </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color="#a8a29e" />
+                  <Text style={{ fontSize: 14, color: p.textFaint }}>›</Text>
                 </TouchableOpacity>
               );
             }}
             ListEmptyComponent={
-              <Text style={{ color: '#a8a29e', textAlign: 'center', marginTop: 40 }}>
+              <Text style={{ color: p.textFaint, textAlign: 'center', marginTop: 40 }}>
                 No active products in catalog
               </Text>
             }
@@ -283,40 +309,3 @@ export function SalesReconciliation({ report, eventId, existingCogs, onCogsAppli
     </View>
   );
 }
-
-const styles = {
-  container:      { backgroundColor: '#fff', borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: '#f5f5f4', overflow: 'hidden' as const },
-  reportHeader:   { flexDirection: 'row' as const, alignItems: 'center' as const, padding: 14, gap: 8 },
-  fileName:       { fontSize: 14, fontWeight: '600' as const, color: '#1c1917' },
-  fileMeta:       { fontSize: 11, color: '#78716c', marginTop: 2 },
-  summaryRow:     { flexDirection: 'row' as const, paddingHorizontal: 14, gap: 8, marginBottom: 8 },
-  summaryCard:    { flex: 1, backgroundColor: '#fafaf9', borderRadius: 12, padding: 10, alignItems: 'center' as const },
-  summaryValue:   { fontSize: 15, fontWeight: '700' as const, color: '#1c1917' },
-  summaryLabel:   { fontSize: 10, color: '#a8a29e', marginTop: 2 },
-  discrepancyAlert: {
-    flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8,
-    backgroundColor: '#fef9c3', marginHorizontal: 14, marginBottom: 8,
-    padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#fde68a',
-  },
-  discrepancyText: { flex: 1, fontSize: 12, color: '#92400e' },
-  actionRow:    { flexDirection: 'row' as const, padding: 14, gap: 10, borderTopWidth: 1, borderTopColor: '#f5f5f4', marginTop: 4 },
-  deleteButton: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: '#fee2e2' },
-  deleteText:   { fontSize: 13, color: '#dc2626', fontWeight: '500' as const },
-  applyButton:  { flex: 1, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 6, backgroundColor: '#92400e', paddingVertical: 12, borderRadius: 12 },
-  applyText:    { color: '#fff', fontWeight: '700' as const, fontSize: 13 },
-};
-
-const itemStyles = {
-  row: {
-    flexDirection: 'row' as const, alignItems: 'center' as const,
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: '#fafaf9', gap: 8,
-  },
-  rowUnmatched: { backgroundColor: '#fffbeb' },
-  productName:  { fontSize: 13, fontWeight: '600' as const, color: '#1c1917' },
-  matchedName:  { fontSize: 11, color: '#78716c', marginTop: 1 },
-  qty:          { fontSize: 12, color: '#78716c' },
-  cogs:         { fontSize: 14, fontWeight: '700' as const, color: '#92400e' },
-  assignButton: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 3, backgroundColor: '#fef3c7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  assignText:   { fontSize: 11, color: '#92400e', fontWeight: '600' as const },
-};

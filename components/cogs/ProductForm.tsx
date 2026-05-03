@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTheme } from '@/lib/themeContext';
 import { productSchema, type ProductFormValues } from '@/lib/validations/product.schema';
 import { PRODUCT_CATEGORIES, UNIT_OPTIONS, type ProductCatalogItem } from '@/types/cogs';
 
@@ -16,6 +17,9 @@ interface ProductFormProps {
 }
 
 export function ProductForm({ initial, onSubmit, onCancel, submitting }: ProductFormProps) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
+
   const {
     control,
     handleSubmit,
@@ -35,11 +39,28 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting }: Product
 
   const isEdit = !!initial;
 
+  const fieldLabel = (label: string, required?: boolean) => (
+    <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.textMuted, marginBottom: 6, marginTop: 16, textTransform: 'uppercase' }}>
+      {label}{required ? ' *' : ''}
+    </Text>
+  );
+
+  const inputStyle = (hasError?: boolean) => ({
+    borderWidth: 1,
+    borderColor: hasError ? '#dc2626' : p.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: p.text,
+    backgroundColor: p.surface,
+    marginBottom: 4,
+  });
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
 
-        <Text style={styles.sectionTitle}>Product name *</Text>
+        {fieldLabel('Product name', true)}
         <Controller
           control={control}
           name="name"
@@ -47,69 +68,69 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting }: Product
             <TextInput
               {...field}
               onChangeText={field.onChange}
-              style={[styles.input, errors.name && styles.inputError]}
+              style={inputStyle(!!errors.name)}
               placeholder="e.g. Flat White"
-              placeholderTextColor="#a8a29e"
+              placeholderTextColor={p.textFaint}
               accessibilityLabel="Product name"
             />
           )}
         />
-        {errors.name && <Text style={styles.error}>{errors.name.message}</Text>}
+        {errors.name && <Text style={{ fontSize: 11, color: '#dc2626', marginBottom: 4 }}>{errors.name.message}</Text>}
 
         {/* Two-column: Selling Price | COGS */}
         <View style={{ flexDirection: 'row', gap: 12 }}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.sectionTitle}>Selling price (£) *</Text>
-            <Text style={styles.hint}>What you charge the customer</Text>
+            {fieldLabel('Selling price (£)', true)}
+            <Text style={{ fontSize: 11, color: p.textFaint, marginBottom: 8 }}>What you charge the customer</Text>
             <Controller
               control={control}
               name="selling_price"
               render={({ field }) => (
-                <View style={styles.currencyRow}>
-                  <Text style={styles.currencySymbol}>£</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Text style={{ fontSize: 18, color: p.textMuted, fontWeight: '600' }}>£</Text>
                   <TextInput
                     value={field.value === 0 ? '' : String(field.value)}
                     onChangeText={field.onChange}
                     onBlur={field.onBlur}
-                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                    style={[inputStyle(!!errors.selling_price), { flex: 1, marginBottom: 0 }]}
                     keyboardType="decimal-pad"
                     placeholder="3.50"
-                    placeholderTextColor="#a8a29e"
+                    placeholderTextColor={p.textFaint}
                     accessibilityLabel="Selling price in pounds"
                   />
                 </View>
               )}
             />
-            {errors.selling_price && <Text style={styles.error}>{errors.selling_price.message}</Text>}
+            {errors.selling_price && <Text style={{ fontSize: 11, color: '#dc2626', marginBottom: 4 }}>{errors.selling_price.message}</Text>}
           </View>
 
           <View style={{ flex: 1 }}>
-            <Text style={styles.sectionTitle}>Cost to make (£) *</Text>
-            <Text style={styles.hint}>Your actual cost per unit</Text>
+            {fieldLabel('Cost to make (£)', true)}
+            <Text style={{ fontSize: 11, color: p.textFaint, marginBottom: 8 }}>Your actual cost per unit</Text>
             <Controller
               control={control}
               name="unit_cost"
               render={({ field }) => (
-                <View style={styles.currencyRow}>
-                  <Text style={styles.currencySymbol}>£</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Text style={{ fontSize: 18, color: p.textMuted, fontWeight: '600' }}>£</Text>
                   <TextInput
                     value={field.value === 0 ? '' : String(field.value)}
                     onChangeText={field.onChange}
                     onBlur={field.onBlur}
-                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                    style={[inputStyle(!!errors.unit_cost), { flex: 1, marginBottom: 0 }]}
                     keyboardType="decimal-pad"
                     placeholder="0.65"
-                    placeholderTextColor="#a8a29e"
+                    placeholderTextColor={p.textFaint}
                     accessibilityLabel="Unit cost in pounds"
                   />
                 </View>
               )}
             />
-            {errors.unit_cost && <Text style={styles.error}>{errors.unit_cost.message}</Text>}
+            {errors.unit_cost && <Text style={{ fontSize: 11, color: '#dc2626', marginBottom: 4 }}>{errors.unit_cost.message}</Text>}
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Unit *</Text>
+        {fieldLabel('Unit', true)}
         <Controller
           control={control}
           name="unit"
@@ -123,9 +144,14 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting }: Product
                     accessibilityRole="radio"
                     accessibilityLabel={`Unit: ${u}`}
                     accessibilityState={{ checked: field.value === u }}
-                    style={[styles.pill, field.value === u && styles.pillActive]}
+                    style={{
+                      paddingHorizontal: 14, paddingVertical: 8,
+                      borderWidth: field.value === u ? 2 : 1,
+                      borderColor: field.value === u ? p.text : p.border,
+                      backgroundColor: field.value === u ? p.text : p.surface,
+                    }}
                   >
-                    <Text style={[styles.pillText, field.value === u && styles.pillTextActive]}>
+                    <Text style={{ fontSize: 13, color: field.value === u ? p.bg : p.textMuted, fontWeight: '500' }}>
                       {u}
                     </Text>
                   </TouchableOpacity>
@@ -135,7 +161,7 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting }: Product
           )}
         />
 
-        <Text style={styles.sectionTitle}>Category *</Text>
+        {fieldLabel('Category', true)}
         <Controller
           control={control}
           name="category"
@@ -148,9 +174,14 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting }: Product
                   accessibilityRole="radio"
                   accessibilityLabel={`${cat.label} category`}
                   accessibilityState={{ checked: field.value === cat.value }}
-                  style={[styles.pill, field.value === cat.value && styles.pillActive]}
+                  style={{
+                    paddingHorizontal: 14, paddingVertical: 8,
+                    borderWidth: field.value === cat.value ? 2 : 1,
+                    borderColor: field.value === cat.value ? p.text : p.border,
+                    backgroundColor: field.value === cat.value ? p.text : p.surface,
+                  }}
                 >
-                  <Text style={[styles.pillText, field.value === cat.value && styles.pillTextActive]}>
+                  <Text style={{ fontSize: 13, color: field.value === cat.value ? p.bg : p.textMuted, fontWeight: '500' }}>
                     {cat.emoji} {cat.label}
                   </Text>
                 </TouchableOpacity>
@@ -159,8 +190,8 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting }: Product
           )}
         />
 
-        <Text style={styles.sectionTitle}>SKU / Barcode (optional)</Text>
-        <Text style={styles.hint}>
+        {fieldLabel('SKU / Barcode (optional)')}
+        <Text style={{ fontSize: 11, color: p.textFaint, marginBottom: 8 }}>
           If your POS exports a product code, add it here for exact matching
         </Text>
         <Controller
@@ -171,9 +202,9 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting }: Product
               {...field}
               value={field.value ?? ''}
               onChangeText={field.onChange}
-              style={styles.input}
+              style={inputStyle()}
               placeholder="e.g. FW-SM or 5012345678900"
-              placeholderTextColor="#a8a29e"
+              placeholderTextColor={p.textFaint}
               autoCapitalize="none"
               accessibilityLabel="SKU or barcode"
             />
@@ -185,21 +216,23 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting }: Product
             onPress={onCancel}
             accessibilityRole="button"
             accessibilityLabel="Cancel"
-            style={styles.cancelButton}
+            style={{ flex: 1, paddingVertical: 14, borderWidth: 1, borderColor: p.border, alignItems: 'center' }}
           >
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Text style={{ color: p.textMuted, fontWeight: '600' }}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={handleSubmit(onSubmit)}
             disabled={submitting}
             accessibilityRole="button"
             accessibilityLabel={isEdit ? 'Save product changes' : 'Add product to catalog'}
-            style={[styles.saveButton, submitting && { opacity: 0.6 }]}
+            style={[{ flex: 2, paddingVertical: 14, backgroundColor: p.text, alignItems: 'center' }, submitting && { opacity: 0.6 }]}
           >
             {submitting ? (
-              <ActivityIndicator color="#fff" size="small" />
+              <ActivityIndicator color={p.bg} size="small" />
             ) : (
-              <Text style={styles.saveText}>{isEdit ? 'Save Changes' : 'Add Product'}</Text>
+              <Text style={{ color: p.bg, fontWeight: '700', fontSize: 14, letterSpacing: 1 }}>
+                {isEdit ? 'SAVE CHANGES' : 'ADD PRODUCT'}
+              </Text>
             )}
           </TouchableOpacity>
         </View>
@@ -207,34 +240,3 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting }: Product
     </KeyboardAvoidingView>
   );
 }
-
-const styles = {
-  sectionTitle: { fontSize: 13, fontWeight: '600' as const, color: '#1c1917', marginBottom: 4, marginTop: 16 },
-  hint:         { fontSize: 11, color: '#a8a29e', marginBottom: 8 },
-  input: {
-    borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, color: '#1c1917', backgroundColor: '#fff', marginBottom: 4,
-  },
-  inputError: { borderColor: '#dc2626' },
-  error:      { fontSize: 11, color: '#dc2626', marginBottom: 4 },
-  currencyRow:   { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, marginBottom: 4 },
-  currencySymbol: { fontSize: 18, color: '#78716c', fontWeight: '600' as const },
-  pill: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-    borderWidth: 1, borderColor: '#e7e5e4', backgroundColor: '#fff',
-  },
-  pillActive:     { backgroundColor: '#1c1917', borderColor: '#1c1917' },
-  pillText:       { fontSize: 13, color: '#57534e', fontWeight: '500' as const },
-  pillTextActive: { color: '#fff' },
-  cancelButton: {
-    flex: 1, paddingVertical: 14, borderRadius: 16,
-    borderWidth: 1, borderColor: '#e7e5e4', alignItems: 'center' as const,
-  },
-  cancelText: { color: '#57534e', fontWeight: '600' as const },
-  saveButton: {
-    flex: 2, paddingVertical: 14, borderRadius: 16,
-    backgroundColor: '#92400e', alignItems: 'center' as const,
-  },
-  saveText: { color: '#fff', fontWeight: '700' as const, fontSize: 15 },
-};
