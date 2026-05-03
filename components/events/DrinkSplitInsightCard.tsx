@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import { useTheme } from '@/lib/themeContext';
 import { useAllHistoricalTakings } from '@/lib/queries/dailyTakings';
 import { predictDrinkSplit, projectDayTakings, computePredictionAccuracy } from '@/lib/drinkSplitEngine';
 import { formatCurrency } from '@/lib/formatters';
@@ -10,12 +11,6 @@ interface Props {
   expectedTakings?: number;
 }
 
-const CONFIDENCE_STYLES = {
-  high:   { bg: '#dcfce7', text: '#166534', label: 'High confidence' },
-  medium: { bg: '#fef9c3', text: '#854d0e', label: 'Medium confidence' },
-  low:    { bg: '#f1f5f9', text: '#475569', label: 'Low confidence — needs more data' },
-};
-
 const BRACKET_LABELS: Record<string, string> = {
   cold: '❄️ Cold',
   cool: '🌤 Cool',
@@ -24,30 +19,37 @@ const BRACKET_LABELS: Record<string, string> = {
 };
 
 export function DrinkSplitInsightCard({ forecastTempC, expectedTakings }: Props) {
+  const { tokens, isDark } = useTheme();
+  const p = tokens.palette;
   const { dailyTakings, eventFinancials, totalDataPoints } = useAllHistoricalTakings();
 
-  // Not enough data yet — show guidance instead of low-confidence defaults
+  const confidenceLabel = (key: 'high' | 'medium' | 'low') => {
+    if (key === 'high') return { color: '#22c55e', label: 'High confidence' };
+    if (key === 'medium') return { color: p.brand, label: 'Medium confidence' };
+    return { color: p.textFaint, label: 'Low confidence — needs more data' };
+  };
+
   if (totalDataPoints < MIN_DATA_POINTS) {
     return (
-      <View style={{ backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#f5f5f4', padding: 16, marginBottom: 12 }}>
+      <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, padding: 16, marginBottom: 12 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-          <Text style={{ fontWeight: '700', fontSize: 14, color: '#1c1917' }}>🧠 Drink Split Prediction</Text>
-          <View style={{ backgroundColor: '#f1f5f9', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-            <Text style={{ fontSize: 10, fontWeight: '600', color: '#475569' }}>Learning…</Text>
+          <Text style={{ fontFamily: tokens.type.display, fontSize: 16, color: p.text }}>Drink Split Prediction</Text>
+          <View style={{ borderWidth: 1, borderColor: p.border, paddingHorizontal: 8, paddingVertical: 3 }}>
+            <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 0.5, color: p.textMuted, textTransform: 'uppercase' }}>Learning…</Text>
           </View>
         </View>
-        <Text style={{ fontSize: 13, color: '#78716c', lineHeight: 20, marginBottom: 8 }}>
+        <Text style={{ fontSize: 13, color: p.textMuted, lineHeight: 20, marginBottom: 8 }}>
           Not enough data yet — predictions will improve as you record more days.
         </Text>
-        <View style={{ backgroundColor: '#fafaf9', borderRadius: 10, padding: 10 }}>
+        <View style={{ backgroundColor: p.surfaceAlt, padding: 10, borderWidth: 1, borderColor: p.border }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 12, color: '#a8a29e' }}>Data points collected</Text>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#78350f' }}>{totalDataPoints} / {MIN_DATA_POINTS}</Text>
+            <Text style={{ fontSize: 12, color: p.textFaint }}>Data points collected</Text>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: p.brand }}>{totalDataPoints} / {MIN_DATA_POINTS}</Text>
           </View>
-          <View style={{ marginTop: 6, height: 4, backgroundColor: '#f5f5f4', borderRadius: 2, overflow: 'hidden' }}>
-            <View style={{ width: `${Math.min(100, (totalDataPoints / MIN_DATA_POINTS) * 100)}%`, height: 4, backgroundColor: '#b45309', borderRadius: 2 }} />
+          <View style={{ marginTop: 6, height: 4, backgroundColor: p.border, overflow: 'hidden' }}>
+            <View style={{ width: `${Math.min(100, (totalDataPoints / MIN_DATA_POINTS) * 100)}%`, height: 4, backgroundColor: p.brand }} />
           </View>
-          <Text style={{ fontSize: 10, color: '#a8a29e', marginTop: 6 }}>
+          <Text style={{ fontSize: 10, color: p.textFaint, marginTop: 6 }}>
             Record daily takings or upload a sales CSV to start training the engine.
           </Text>
         </View>
@@ -57,38 +59,44 @@ export function DrinkSplitInsightCard({ forecastTempC, expectedTakings }: Props)
 
   const prediction = predictDrinkSplit(forecastTempC, dailyTakings, eventFinancials);
   const projection = expectedTakings ? projectDayTakings(expectedTakings, prediction) : null;
-  const confStyle  = CONFIDENCE_STYLES[prediction.confidence];
-  const accuracy   = computePredictionAccuracy(dailyTakings, eventFinancials);
+  const conf = confidenceLabel(prediction.confidence);
+  const accuracy = computePredictionAccuracy(dailyTakings, eventFinancials);
+
+  const hotColor = p.brand;
+  const icedColor = isDark ? '#7dd3fc' : '#0369a1';
+  const icedBarBg = isDark ? '#0ea5e9' : '#7dd3fc';
 
   return (
-    <View style={{ backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#f5f5f4', padding: 16, marginBottom: 12 }}>
+    <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, padding: 16, marginBottom: 12 }}>
       {/* Header */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
         <View>
-          <Text style={{ fontWeight: '700', fontSize: 14, color: '#1c1917' }}>🧠 Drink Split Prediction</Text>
-          <Text style={{ fontSize: 11, color: '#78716c', marginTop: 1 }}>{prediction.tempBracket} · {forecastTempC.toFixed(0)}°C forecast</Text>
+          <Text style={{ fontFamily: tokens.type.display, fontSize: 16, color: p.text }}>Drink Split Prediction</Text>
+          <Text style={{ fontSize: 11, color: p.textMuted, marginTop: 1 }}>
+            {prediction.tempBracket} · {forecastTempC.toFixed(0)}°C forecast
+          </Text>
         </View>
-        <View style={{ backgroundColor: confStyle.bg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 }}>
-          <Text style={{ fontSize: 10, fontWeight: '600', color: confStyle.text }}>{confStyle.label}</Text>
+        <View style={{ borderWidth: 1, borderColor: conf.color, paddingHorizontal: 8, paddingVertical: 3 }}>
+          <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 0.5, color: conf.color, textTransform: 'uppercase' }}>{conf.label}</Text>
         </View>
       </View>
 
       {/* Split bar */}
-      <View style={{ flexDirection: 'row', borderRadius: 999, overflow: 'hidden', height: 20, marginBottom: 8 }}>
-        <View style={{ flex: prediction.hotPct, backgroundColor: '#b45309', justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flexDirection: 'row', overflow: 'hidden', height: 20, marginBottom: 8, borderWidth: 1, borderColor: p.border }}>
+        <View style={{ flex: prediction.hotPct, backgroundColor: hotColor, justifyContent: 'center', alignItems: 'center' }}>
           {prediction.hotPct > 20 && <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>☕ {prediction.hotPct}%</Text>}
         </View>
-        <View style={{ flex: prediction.icedPct, backgroundColor: '#7dd3fc', justifyContent: 'center', alignItems: 'center' }}>
+        <View style={{ flex: prediction.icedPct, backgroundColor: icedBarBg, justifyContent: 'center', alignItems: 'center' }}>
           {prediction.icedPct > 20 && <Text style={{ fontSize: 10, fontWeight: '700', color: '#0c4a6e' }}>🧊 {prediction.icedPct}%</Text>}
         </View>
       </View>
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-        <Text style={{ fontSize: 11, color: '#92400e' }}>☕ Hot: {prediction.hotPct}% (20% VAT)</Text>
-        <Text style={{ fontSize: 11, color: '#0369a1' }}>🧊 Iced: {prediction.icedPct}% (0% VAT)</Text>
+        <Text style={{ fontSize: 11, color: hotColor }}>☕ Hot: {prediction.hotPct}% (20% VAT)</Text>
+        <Text style={{ fontSize: 11, color: icedColor }}>🧊 Iced: {prediction.icedPct}% (0% VAT)</Text>
       </View>
 
-      <Text style={{ fontSize: 10, color: '#a8a29e', marginBottom: projection ? 12 : 8 }}>
+      <Text style={{ fontSize: 10, color: p.textFaint, marginBottom: projection ? 12 : 8 }}>
         {prediction.basedOnDays > 0
           ? `Based on ${prediction.basedOnDays} data point${prediction.basedOnDays !== 1 ? 's' : ''} in similar conditions` +
             (prediction.basedOnRealWeatherDays > 0 || prediction.basedOnHistoricalEvents > 0
@@ -99,33 +107,33 @@ export function DrinkSplitInsightCard({ forecastTempC, expectedTakings }: Props)
 
       {/* Projected takings breakdown */}
       {projection && (
-        <View style={{ backgroundColor: '#fafaf9', borderRadius: 10, padding: 10, gap: 3, marginBottom: 10 }}>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569', marginBottom: 2 }}>
-            Projected for {formatCurrency(expectedTakings ?? 0)} takings:
+        <View style={{ backgroundColor: p.surfaceAlt, padding: 10, gap: 3, marginBottom: 10, borderWidth: 1, borderColor: p.border }}>
+          <Text style={{ fontSize: 10, fontWeight: '700', color: p.textMuted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+            Projected for {formatCurrency(expectedTakings ?? 0)} takings
           </Text>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 11, color: '#78716c' }}>Hot drinks (inc VAT)</Text>
-            <Text style={{ fontSize: 11, fontWeight: '600', color: '#92400e' }}>{formatCurrency(projection.hotGross)}</Text>
+            <Text style={{ fontSize: 11, color: p.textMuted }}>Hot drinks (inc VAT)</Text>
+            <Text style={{ fontSize: 11, fontWeight: '600', color: hotColor }}>{formatCurrency(projection.hotGross)}</Text>
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 11, color: '#78716c' }}>Iced drinks</Text>
-            <Text style={{ fontSize: 11, fontWeight: '600', color: '#0369a1' }}>{formatCurrency(projection.icedGross)}</Text>
+            <Text style={{ fontSize: 11, color: p.textMuted }}>Iced drinks</Text>
+            <Text style={{ fontSize: 11, fontWeight: '600', color: icedColor }}>{formatCurrency(projection.icedGross)}</Text>
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 11, color: '#dc2626' }}>VAT to collect</Text>
             <Text style={{ fontSize: 11, fontWeight: '600', color: '#dc2626' }}>{formatCurrency(projection.vatAmount)}</Text>
           </View>
-          <View style={{ height: 1, backgroundColor: '#e2e8f0', marginVertical: 2 }} />
+          <View style={{ height: 1, backgroundColor: p.border, marginVertical: 2 }} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#1c1917' }}>Net Revenue</Text>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#059669' }}>{formatCurrency(projection.netSales)}</Text>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: p.text }}>Net Revenue</Text>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#22c55e' }}>{formatCurrency(projection.netSales)}</Text>
           </View>
         </View>
       )}
 
       {/* Engine metrics */}
-      <View style={{ borderTopWidth: 1, borderTopColor: '#f5f5f4', paddingTop: 10, gap: 6 }}>
-        <Text style={{ fontSize: 10, fontWeight: '700', color: '#a8a29e', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+      <View style={{ borderTopWidth: 1, borderTopColor: p.border, borderStyle: 'dashed', paddingTop: 10, gap: 6 }}>
+        <Text style={{ fontSize: 10, fontWeight: '700', color: p.textFaint, textTransform: 'uppercase', letterSpacing: 1 }}>
           Learning from {totalDataPoints} trading day{totalDataPoints !== 1 ? 's' : ''}
         </Text>
 
@@ -134,16 +142,17 @@ export function DrinkSplitInsightCard({ forecastTempC, expectedTakings }: Props)
           {(Object.entries(prediction.bracketBreakdown) as [string, number][])
             .filter(([, count]) => count > 0)
             .map(([bracket, count]) => (
-              <View key={bracket} style={{ backgroundColor: '#f5f5f4', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                <Text style={{ fontSize: 10, color: '#57534e' }}>{BRACKET_LABELS[bracket] ?? bracket}: {count}</Text>
+              <View key={bracket} style={{ borderWidth: 1, borderColor: p.border, paddingHorizontal: 8, paddingVertical: 3 }}>
+                <Text style={{ fontSize: 10, color: p.textMuted }}>{BRACKET_LABELS[bracket] ?? bracket}: {count}</Text>
               </View>
             ))}
         </View>
 
         {/* Accuracy metric */}
         {accuracy && (
-          <Text style={{ fontSize: 10, color: '#78716c' }}>
-            Avg prediction error: <Text style={{ fontWeight: '600', color: accuracy.avgErrorPct < 10 ? '#16a34a' : accuracy.avgErrorPct < 20 ? '#b45309' : '#dc2626' }}>
+          <Text style={{ fontSize: 10, color: p.textMuted }}>
+            Avg prediction error:{' '}
+            <Text style={{ fontWeight: '600', color: accuracy.avgErrorPct < 10 ? '#22c55e' : accuracy.avgErrorPct < 20 ? p.brand : '#dc2626' }}>
               ±{accuracy.avgErrorPct.toFixed(1)}%
             </Text>
             {' '}across {accuracy.sampleCount} day{accuracy.sampleCount !== 1 ? 's' : ''}

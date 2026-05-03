@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/lib/themeContext';
 
 export function OfflineBanner() {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   return (
-    <View style={{ backgroundColor: '#92400e', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 6, paddingHorizontal: 16, gap: 6 }}>
-      <Ionicons name="cloud-offline-outline" size={14} color="#fef3c7" />
-      <Text style={{ color: '#fef3c7', fontSize: 12, fontWeight: '600' }}>
+    <View style={{ backgroundColor: p.text, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 6, paddingHorizontal: 16, gap: 6 }}>
+      <Text style={{ color: p.brandSoft, fontSize: 11 }}>⌖</Text>
+      <Text style={{ color: p.brandSoft, fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' }}>
         No connection — showing cached data
       </Text>
     </View>

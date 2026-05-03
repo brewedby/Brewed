@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useTheme } from '@/lib/themeContext';
 
 export const WHEEL_ITEM_HEIGHT = 48;
 export const WHEEL_VISIBLE_ITEMS = 5;
@@ -11,6 +12,8 @@ interface WheelColumnProps {
 }
 
 export function WheelColumn({ items, initialIndex, onChange }: WheelColumnProps) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const scrollRef = useRef<ScrollView>(null);
   const [selectedIdx, setSelectedIdx] = useState(
     Math.max(0, Math.min(initialIndex, items.length - 1)),
@@ -55,8 +58,10 @@ export function WheelColumn({ items, initialIndex, onChange }: WheelColumnProps)
           left: 4,
           right: 4,
           height: WHEEL_ITEM_HEIGHT,
-          backgroundColor: '#f1f5f9',
-          borderRadius: 10,
+          backgroundColor: p.surfaceAlt,
+          borderTopWidth: 1,
+          borderBottomWidth: 1,
+          borderColor: p.border,
         }}
       />
       <ScrollView
@@ -89,7 +94,7 @@ export function WheelColumn({ items, initialIndex, onChange }: WheelColumnProps)
               style={{
                 fontSize: selectedIdx === index ? 17 : 15,
                 fontWeight: selectedIdx === index ? '600' : '400',
-                color: selectedIdx === index ? '#0f172a' : '#94a3b8',
+                color: selectedIdx === index ? p.text : p.textFaint,
               }}
             >
               {String(item)}

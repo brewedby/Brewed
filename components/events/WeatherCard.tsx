@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { differenceInDays, parseISO, eachDayOfInterval, format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+import { useTheme } from '@/lib/themeContext';
 
 interface OMDay {
   date: string;
@@ -61,7 +62,6 @@ function hotIcedSplit(avgTemp: number): { hot: number; iced: number } {
 }
 
 async function geocode(location: string): Promise<{ lat: number; lng: number }> {
-  // 1. Nominatim (OpenStreetMap) — better coverage of UK venues and postcodes
   try {
     const res = await global.fetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1&countrycodes=gb`,
@@ -73,7 +73,6 @@ async function geocode(location: string): Promise<{ lat: number; lng: number }> 
     }
   } catch { /* fall through */ }
 
-  // 2. Open-Meteo geocoding fallback
   try {
     const res = await global.fetch(
       `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`,
@@ -84,7 +83,6 @@ async function geocode(location: string): Promise<{ lat: number; lng: number }> 
     }
   } catch { /* fall through */ }
 
-  // 3. Silent London fallback
   return { lat: 51.5074, lng: -0.1278 };
 }
 
@@ -93,7 +91,7 @@ async function fetchSevenTimer(lat: number, lon: number): Promise<STDay[]> {
     `https://www.7timer.info/bin/api.pl?lon=${lon}&lat=${lat}&product=civil&output=json`,
   );
   const data = await res.json();
-  const initStr: string = data.init; // "2025061606"
+  const initStr: string = data.init;
   const initDate = new Date(
     `${initStr.slice(0, 4)}-${initStr.slice(4, 6)}-${initStr.slice(6, 8)}T${initStr.slice(8, 10)}:00:00Z`,
   );
@@ -117,6 +115,9 @@ async function fetchSevenTimer(lat: number, lon: number): Promise<STDay[]> {
   return days.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+const CARD_RADIUS = 14;
+const CELL_RADIUS = 10;
+
 export function WeatherCard({
   location,
   startDate,
@@ -130,12 +131,22 @@ export function WeatherCard({
   eventId?: string;
   onTempFetched?: (avgTemp: number) => void;
 }) {
+  const { tokens, isDark } = useTheme();
+  const p = tokens.palette;
   const [days, setDays] = useState<DualDay[] | null>(null);
   const [avgTemp, setAvgTemp] = useState(15);
   const [loading, setLoading] = useState(true);
   const [outOfRange, setOutOfRange] = useState(false);
   const onTempFetchedRef = useRef(onTempFetched);
   useEffect(() => { onTempFetchedRef.current = onTempFetched; });
+
+  // Subtle dual-source backgrounds that work in both modes
+  const omRowBg = isDark ? p.surfaceAlt : '#fafaf9';
+  const stRowBg = isDark ? 'rgba(96,165,250,0.10)' : '#f0f9ff';
+  const stRowBorder = isDark ? 'rgba(96,165,250,0.35)' : '#bae6fd';
+  const hotColor = p.brand;
+  const icedColor = isDark ? '#7dd3fc' : '#0369a1';
+  const icedBg = isDark ? '#0ea5e9' : '#7dd3fc';
 
   useEffect(() => {
     async function load() {
@@ -217,23 +228,23 @@ export function WeatherCard({
   }, [location, startDate, endDate, eventId]);
 
   if (loading) return (
-    <View style={{ backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e7e5e4', padding: 16, alignItems: 'center' }}>
-      <ActivityIndicator size="small" color="#b45309" />
-      <Text style={{ fontSize: 12, color: '#a8a29e', marginTop: 8 }}>Fetching forecast…</Text>
+    <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, borderRadius: CARD_RADIUS, padding: 16, alignItems: 'center' }}>
+      <ActivityIndicator size="small" color={p.brand} />
+      <Text style={{ fontSize: 12, color: p.textFaint, marginTop: 8 }}>Fetching forecast…</Text>
     </View>
   );
 
   if (outOfRange) return (
-    <View style={{ backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e7e5e4', padding: 16 }}>
-      <Text style={{ fontWeight: '700', color: '#1c1917', fontSize: 13, marginBottom: 4 }}>🌤️ Weather Forecast</Text>
-      <Text style={{ fontSize: 12, color: '#a8a29e' }}>Forecast available within 14 days of event.</Text>
+    <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, borderRadius: CARD_RADIUS, padding: 16 }}>
+      <Text style={{ fontFamily: tokens.type.display, color: p.text, fontSize: 16, marginBottom: 4 }}>🌤️ Weather Forecast</Text>
+      <Text style={{ fontSize: 12, color: p.textFaint }}>Forecast available within 14 days of event.</Text>
     </View>
   );
 
   if (!days || days.length === 0) return (
-    <View style={{ backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e7e5e4', padding: 16 }}>
-      <Text style={{ fontWeight: '700', color: '#1c1917', fontSize: 13, marginBottom: 4 }}>🌤️ Weather Forecast</Text>
-      <Text style={{ fontSize: 12, color: '#a8a29e' }}>
+    <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, borderRadius: CARD_RADIUS, padding: 16 }}>
+      <Text style={{ fontFamily: tokens.type.display, color: p.text, fontSize: 16, marginBottom: 4 }}>🌤️ Weather Forecast</Text>
+      <Text style={{ fontSize: 12, color: p.textFaint }}>
         Forecast unavailable — we couldn't match "{location}" or the providers didn't return data.
       </Text>
     </View>
@@ -244,10 +255,12 @@ export function WeatherCard({
   const hasST = days.some((d) => d.st !== null);
 
   return (
-    <View style={{ backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e7e5e4', padding: 16 }}>
-      <Text style={{ fontWeight: '700', color: '#1c1917', fontSize: 14, marginBottom: 4 }}>🌤️ Weather Forecast</Text>
+    <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, borderRadius: CARD_RADIUS, padding: 16 }}>
+      <Text style={{ fontFamily: tokens.type.display, color: p.text, fontSize: 16, marginBottom: 4 }}>🌤️ Weather Forecast</Text>
       {hasOM && hasST && (
-        <Text style={{ fontSize: 11, color: '#a8a29e', marginBottom: 12 }}>Two independent sources — ✅ agree · ⚠️ differ</Text>
+        <Text style={{ fontSize: 11, color: p.textFaint, marginBottom: 12 }}>
+          Two independent sources — ✅ agree · ⚠️ differ
+        </Text>
       )}
 
       {/* Per-day dual grid */}
@@ -259,18 +272,18 @@ export function WeatherCard({
             <View
               key={d.date}
               style={{
-                flex: 1, alignItems: 'center', borderRadius: 12, overflow: 'hidden',
-                borderWidth: 1, borderColor: agree === false ? '#fde68a' : '#f5f5f4',
+                flex: 1, alignItems: 'center', borderRadius: CELL_RADIUS, overflow: 'hidden',
+                borderWidth: 1, borderColor: agree === false ? p.brand : p.border,
               }}
             >
-              <Text style={{ fontSize: 10, color: '#78716c', paddingTop: 5, fontWeight: '500' }}>{dayLabel}</Text>
+              <Text style={{ fontSize: 10, color: p.textMuted, paddingTop: 5, fontWeight: '600', letterSpacing: 0.3 }}>{dayLabel}</Text>
 
               {/* Open-Meteo row */}
               {d.om ? (
-                <View style={{ alignItems: 'center', paddingVertical: 5, paddingHorizontal: 4, width: '100%', backgroundColor: '#fafaf9' }}>
+                <View style={{ alignItems: 'center', paddingVertical: 5, paddingHorizontal: 4, width: '100%', backgroundColor: omRowBg }}>
                   <Text style={{ fontSize: 16 }}>{omEmoji(d.om.weatherCode)}</Text>
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#1c1917' }}>{d.om.maxTemp.toFixed(0)}°</Text>
-                  <Text style={{ fontSize: 10, color: '#a8a29e' }}>{d.om.minTemp.toFixed(0)}°</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: p.text }}>{d.om.maxTemp.toFixed(0)}°</Text>
+                  <Text style={{ fontSize: 10, color: p.textFaint }}>{d.om.minTemp.toFixed(0)}°</Text>
                   {d.om.precipitation > 0 && (
                     <Text style={{ fontSize: 9, color: '#3b82f6', marginTop: 1 }}>
                       💧{d.om.precipitation.toFixed(1)}
@@ -278,22 +291,22 @@ export function WeatherCard({
                   )}
                 </View>
               ) : (
-                <View style={{ paddingVertical: 5, alignItems: 'center', backgroundColor: '#fafaf9', width: '100%' }}>
-                  <Text style={{ fontSize: 10, color: '#d6d3d1' }}>—</Text>
+                <View style={{ paddingVertical: 5, alignItems: 'center', backgroundColor: omRowBg, width: '100%' }}>
+                  <Text style={{ fontSize: 10, color: p.textFaint }}>—</Text>
                 </View>
               )}
 
               {/* 7Timer row */}
               {hasST && (
                 d.st ? (
-                  <View style={{ alignItems: 'center', paddingVertical: 5, paddingHorizontal: 4, width: '100%', backgroundColor: '#f0f9ff' }}>
+                  <View style={{ alignItems: 'center', paddingVertical: 5, paddingHorizontal: 4, width: '100%', backgroundColor: stRowBg }}>
                     <Text style={{ fontSize: 16 }}>{stEmoji(d.st.weather)}</Text>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#1c1917' }}>{d.st.tempC}°</Text>
-                    <Text style={{ fontSize: 9, color: '#7dd3fc' }}>7T</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: p.text }}>{d.st.tempC}°</Text>
+                    <Text style={{ fontSize: 9, color: icedColor, fontWeight: '600' }}>7T</Text>
                   </View>
                 ) : (
-                  <View style={{ paddingVertical: 5, alignItems: 'center', backgroundColor: '#f0f9ff', width: '100%' }}>
-                    <Text style={{ fontSize: 10, color: '#bae6fd' }}>—</Text>
+                  <View style={{ paddingVertical: 5, alignItems: 'center', backgroundColor: stRowBg, width: '100%' }}>
+                    <Text style={{ fontSize: 10, color: p.textFaint }}>—</Text>
                   </View>
                 )
               )}
@@ -308,29 +321,29 @@ export function WeatherCard({
       </View>
 
       {hasOM && hasST && (
-        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 10 }}>
+        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <View style={{ width: 10, height: 10, backgroundColor: '#fafaf9', borderRadius: 2, borderWidth: 1, borderColor: '#e7e5e4' }} />
-            <Text style={{ fontSize: 10, color: '#78716c' }}>Open-Meteo</Text>
+            <View style={{ width: 10, height: 10, backgroundColor: omRowBg, borderRadius: 3, borderWidth: 1, borderColor: p.border }} />
+            <Text style={{ fontSize: 10, color: p.textMuted }}>Open-Meteo</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <View style={{ width: 10, height: 10, backgroundColor: '#f0f9ff', borderRadius: 2, borderWidth: 1, borderColor: '#bae6fd' }} />
-            <Text style={{ fontSize: 10, color: '#78716c' }}>7Timer</Text>
+            <View style={{ width: 10, height: 10, backgroundColor: stRowBg, borderRadius: 3, borderWidth: 1, borderColor: stRowBorder }} />
+            <Text style={{ fontSize: 10, color: p.textMuted }}>7Timer</Text>
           </View>
         </View>
       )}
 
       {/* Hot vs Iced split */}
-      <Text style={{ fontSize: 12, color: '#57534e', fontWeight: '600', marginBottom: 6 }}>
+      <Text style={{ fontSize: 11, color: p.textMuted, fontWeight: '700', letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase' }}>
         Prepare: {hot}% Hot / {iced}% Iced
       </Text>
-      <View style={{ flexDirection: 'row', borderRadius: 999, overflow: 'hidden', height: 14 }}>
-        <View style={{ flex: hot, backgroundColor: '#78350f' }} />
-        <View style={{ flex: iced, backgroundColor: '#bae6fd' }} />
+      <View style={{ flexDirection: 'row', borderRadius: 8, overflow: 'hidden', height: 14 }}>
+        <View style={{ flex: hot, backgroundColor: hotColor }} />
+        <View style={{ flex: iced, backgroundColor: icedBg }} />
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-        <Text style={{ fontSize: 11, color: '#92400e' }}>☕ {hot}% Hot</Text>
-        <Text style={{ fontSize: 11, color: '#0284c7' }}>🧊 {iced}% Iced</Text>
+        <Text style={{ fontSize: 11, color: hotColor }}>☕ {hot}% Hot</Text>
+        <Text style={{ fontSize: 11, color: icedColor }}>🧊 {iced}% Iced</Text>
       </View>
     </View>
   );

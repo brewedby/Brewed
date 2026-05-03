@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useTheme } from '@/lib/themeContext';
 
 interface Props {
   title: string;
@@ -12,31 +12,26 @@ interface Props {
 
 export function PageHeader({ title, subtitle, backButton, rightAction }: Props) {
   const router = useRouter();
+  const { tokens } = useTheme();
+  const p = tokens.palette;
 
   return (
-    <View className="flex-row items-center justify-between px-4 pt-2 pb-4">
-      <View className="flex-row items-center flex-1">
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
         {backButton && (
           <TouchableOpacity
             onPress={() => router.back()}
             accessibilityRole="button"
             accessibilityLabel="Go back"
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            style={{
-              width: 44,
-              height: 44,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginLeft: -10,
-              marginRight: 4,
-            }}
+            style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -10, marginRight: 4 }}
           >
-            <Ionicons name="chevron-back" size={26} color="#b45309" />
+            <Text style={{ color: p.brand, fontSize: 22, fontWeight: '600' }}>‹</Text>
           </TouchableOpacity>
         )}
-        <View className="flex-1">
-          <Text className="text-xl font-bold text-stone-900" numberOfLines={1}>{title}</Text>
-          {subtitle && <Text className="text-stone-500 text-sm mt-0.5">{subtitle}</Text>}
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontFamily: tokens.type.display, fontSize: 22, color: p.text }} numberOfLines={1}>{title}</Text>
+          {subtitle && <Text style={{ color: p.textMuted, fontSize: 13, marginTop: 2 }}>{subtitle}</Text>}
         </View>
       </View>
       {rightAction && (
@@ -45,9 +40,9 @@ export function PageHeader({ title, subtitle, backButton, rightAction }: Props) 
           accessibilityRole="button"
           accessibilityLabel={rightAction.label}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          className="ml-3"
+          style={{ marginLeft: 12, borderWidth: 2, borderColor: p.text, paddingHorizontal: 12, paddingVertical: 6 }}
         >
-          <Text className="text-amber-600 font-semibold text-sm">{rightAction.label}</Text>
+          <Text style={{ color: p.text, fontWeight: '700', fontSize: 11, letterSpacing: 1 }}>{rightAction.label.toUpperCase()}</Text>
         </TouchableOpacity>
       )}
     </View>

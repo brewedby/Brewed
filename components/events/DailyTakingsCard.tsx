@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { format, parseISO, eachDayOfInterval } from 'date-fns';
+import { useTheme } from '@/lib/themeContext';
 import { formatCurrency } from '@/lib/formatters';
 import { useDailyTakings } from '@/lib/queries/dailyTakings';
 import { useUpsertDailyTakings } from '@/lib/mutations/dailyTakings';
@@ -21,6 +22,8 @@ interface DayInput {
 }
 
 export function DailyTakingsCard({ eventId, startDate, endDate, readOnly = false }: Props) {
+  const { tokens, isDark } = useTheme();
+  const p = tokens.palette;
   const { data: dailyTakings = [], isLoading } = useDailyTakings(eventId);
   const upsert = useUpsertDailyTakings(eventId);
   const days = eachDayOfInterval({ start: parseISO(startDate), end: parseISO(endDate) });
@@ -30,6 +33,11 @@ export function DailyTakingsCard({ eventId, startDate, endDate, readOnly = false
   const [saving, setSaving] = useState<string | null>(null);
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+  const hotColor = p.brand;
+  const icedColor = isDark ? '#7dd3fc' : '#0369a1';
+  const icedBarBg = isDark ? '#0ea5e9' : '#7dd3fc';
+  const todayBg = isDark ? p.surfaceAlt : '#fffbeb';
 
   function getRecorded(dateStr: string): DailyTakings | undefined {
     return dailyTakings.find((d) => d.day_date === dateStr);
@@ -111,50 +119,52 @@ export function DailyTakingsCard({ eventId, startDate, endDate, readOnly = false
   const netRevenue   = hotNet + totalIced;
 
   return (
-    <View style={{ backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#f5f5f4', marginBottom: 12, overflow: 'hidden' }}>
-      {/* Header */}
-      <View style={{ backgroundColor: '#1c1917', padding: 16 }}>
+    <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, marginBottom: 12, overflow: 'hidden' }}>
+      {/* Header (ink-block) */}
+      <View style={{ backgroundColor: p.text, padding: 16 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Daily Takings</Text>
+          <Text style={{ fontFamily: tokens.type.display, color: p.bg, fontSize: 17 }}>Daily Takings</Text>
           {daysRecorded > 0 && (
-            <Text style={{ color: '#fef3c7', fontSize: 12 }}>{daysRecorded}/{days.length} days recorded</Text>
+            <Text style={{ color: p.brandSoft, fontSize: 11, letterSpacing: 0.5, textTransform: 'uppercase', fontWeight: '700' }}>
+              {daysRecorded}/{days.length} recorded
+            </Text>
           )}
         </View>
         {totalTakings > 0 && (
           <View style={{ flexDirection: 'row', gap: 16, marginTop: 10 }}>
             <View>
-              <Text style={{ color: '#a8a29e', fontSize: 10 }}>Total Takings</Text>
-              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>{formatCurrency(totalTakings)}</Text>
+              <Text style={{ color: p.brandSoft, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 }}>Takings</Text>
+              <Text style={{ color: p.bg, fontWeight: '700', fontSize: 16, fontFamily: tokens.type.display }}>{formatCurrency(totalTakings)}</Text>
             </View>
             <View>
-              <Text style={{ color: '#a8a29e', fontSize: 10 }}>Net Revenue</Text>
-              <Text style={{ color: '#fbbf24', fontWeight: '700', fontSize: 16 }}>{formatCurrency(netRevenue)}</Text>
+              <Text style={{ color: p.brandSoft, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 }}>Net</Text>
+              <Text style={{ color: '#fbbf24', fontWeight: '700', fontSize: 16, fontFamily: tokens.type.display }}>{formatCurrency(netRevenue)}</Text>
             </View>
             <View>
-              <Text style={{ color: '#a8a29e', fontSize: 10 }}>VAT Due</Text>
-              <Text style={{ color: '#f87171', fontWeight: '700', fontSize: 16 }}>{formatCurrency(vatDue)}</Text>
+              <Text style={{ color: p.brandSoft, fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 }}>VAT</Text>
+              <Text style={{ color: '#f87171', fontWeight: '700', fontSize: 16, fontFamily: tokens.type.display }}>{formatCurrency(vatDue)}</Text>
             </View>
           </View>
         )}
         {hotPct !== null && (
           <View style={{ marginTop: 10 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-              <Text style={{ color: '#a8a29e', fontSize: 10 }}>☕ Hot {hotPct}%</Text>
-              <Text style={{ color: '#a8a29e', fontSize: 10 }}>🧊 Iced {100 - hotPct}%</Text>
+              <Text style={{ color: p.brandSoft, fontSize: 10 }}>☕ Hot {hotPct}%</Text>
+              <Text style={{ color: p.brandSoft, fontSize: 10 }}>🧊 Iced {100 - hotPct}%</Text>
             </View>
-            <View style={{ flexDirection: 'row', borderRadius: 999, overflow: 'hidden', height: 8 }}>
-              <View style={{ flex: hotPct, backgroundColor: '#b45309' }} />
-              <View style={{ flex: 100 - hotPct, backgroundColor: '#bae6fd' }} />
+            <View style={{ flexDirection: 'row', overflow: 'hidden', height: 8 }}>
+              <View style={{ flex: hotPct, backgroundColor: hotColor }} />
+              <View style={{ flex: 100 - hotPct, backgroundColor: icedBarBg }} />
             </View>
           </View>
         )}
       </View>
 
       {isLoading ? (
-        <ActivityIndicator color="#b45309" style={{ padding: 20 }} />
+        <ActivityIndicator color={p.brand} style={{ padding: 20 }} />
       ) : readOnly && dailyTakings.length === 0 ? (
         <View style={{ padding: 20, alignItems: 'center' }}>
-          <Text style={{ color: '#a8a29e', fontSize: 13 }}>No daily takings recorded yet</Text>
+          <Text style={{ color: p.textFaint, fontSize: 13 }}>No daily takings recorded yet</Text>
         </View>
       ) : (
         days.map((day, index) => {
@@ -167,63 +177,86 @@ export function DailyTakingsCard({ eventId, startDate, endDate, readOnly = false
           const inp      = getInput(dateStr);
 
           return (
-            <View key={dateStr} style={{ borderTopWidth: 1, borderTopColor: '#f5f5f4' }}>
+            <View key={dateStr} style={{ borderTopWidth: 1, borderTopColor: p.border }}>
               <TouchableOpacity
                 onPress={() => readOnly ? undefined : setExpandedDay(isExpanded ? null : dateStr)}
                 disabled={readOnly}
-                style={{ flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: isToday ? '#fffbeb' : '#fff' }}
+                style={{ flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: isToday ? todayBg : p.surface }}
                 activeOpacity={readOnly ? 1 : 0.7}
               >
-                <View style={{ width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginRight: 12, backgroundColor: recorded ? '#78350f' : isToday ? '#fef3c7' : '#f5f5f4' }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: recorded ? '#fff' : isToday ? '#92400e' : '#78716c' }}>D{dayNum}</Text>
+                <View style={{
+                  width: 32, height: 32, alignItems: 'center', justifyContent: 'center', marginRight: 12,
+                  borderWidth: recorded ? 0 : 1, borderColor: p.border,
+                  backgroundColor: recorded ? p.brand : isToday ? p.brandSoft : p.surfaceAlt,
+                }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: recorded ? p.bg : isToday ? p.brand : p.textMuted, letterSpacing: 0.5 }}>D{dayNum}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={{ fontWeight: '600', color: '#1c1917', fontSize: 13 }}>{format(day, 'EEE d MMM')}</Text>
-                    {isToday && <View style={{ backgroundColor: '#fef3c7', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999 }}><Text style={{ fontSize: 10, fontWeight: '600', color: '#92400e' }}>Today</Text></View>}
-                    {isFuture && <Text style={{ fontSize: 10, color: '#a8a29e' }}>Upcoming</Text>}
+                    <Text style={{ fontWeight: '600', color: p.text, fontSize: 13 }}>{format(day, 'EEE d MMM')}</Text>
+                    {isToday && (
+                      <View style={{ borderWidth: 1, borderColor: p.brand, paddingHorizontal: 5, paddingVertical: 1 }}>
+                        <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 0.6, color: p.brand, textTransform: 'uppercase' }}>Today</Text>
+                      </View>
+                    )}
+                    {isFuture && <Text style={{ fontSize: 10, color: p.textFaint, textTransform: 'uppercase', letterSpacing: 0.5 }}>Upcoming</Text>}
                   </View>
                   {recorded && recorded.total_takings > 0 ? (
                     <View style={{ flexDirection: 'row', gap: 10, marginTop: 2 }}>
-                      <Text style={{ fontSize: 11, color: '#57534e' }}>{formatCurrency(recorded.total_takings)} total</Text>
-                      {recorded.hot_drinks_sales > 0 && <Text style={{ fontSize: 11, color: '#92400e' }}>☕ {formatCurrency(recorded.hot_drinks_sales)}</Text>}
-                      {recorded.iced_drinks_sales > 0 && <Text style={{ fontSize: 11, color: '#0284c7' }}>🧊 {formatCurrency(recorded.iced_drinks_sales)}</Text>}
+                      <Text style={{ fontSize: 11, color: p.textMuted }}>{formatCurrency(recorded.total_takings)} total</Text>
+                      {recorded.hot_drinks_sales > 0 && <Text style={{ fontSize: 11, color: hotColor }}>☕ {formatCurrency(recorded.hot_drinks_sales)}</Text>}
+                      {recorded.iced_drinks_sales > 0 && <Text style={{ fontSize: 11, color: icedColor }}>🧊 {formatCurrency(recorded.iced_drinks_sales)}</Text>}
                     </View>
                   ) : (
-                    <Text style={{ fontSize: 11, color: '#a8a29e', marginTop: 1 }}>{isFuture ? 'Not yet' : 'Tap to enter takings'}</Text>
+                    <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 1 }}>{isFuture ? 'Not yet' : 'Tap to enter takings'}</Text>
                   )}
                 </View>
-                {!readOnly && <Text style={{ color: '#a8a29e', fontSize: 14 }}>{isExpanded ? '▲' : '▼'}</Text>}
+                {!readOnly && <Text style={{ color: p.textFaint, fontSize: 14 }}>{isExpanded ? '▲' : '▼'}</Text>}
               </TouchableOpacity>
 
               {isExpanded && !readOnly && (
-                <View style={{ padding: 14, paddingTop: 4, backgroundColor: isToday ? '#fffbeb' : '#fafaf9', gap: 12 }}>
+                <View style={{ padding: 14, paddingTop: 4, backgroundColor: isToday ? todayBg : p.surfaceAlt, gap: 12 }}>
                   {/* Total */}
                   <View>
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: '#57534e', marginBottom: 4 }}>Total Takings *</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#fff' }}>
-                      <Text style={{ color: '#78716c', marginRight: 4 }}>£</Text>
-                      <TextInput value={inp.total_takings} onChangeText={(v) => updateInput(dateStr, 'total_takings', v)} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor="#a8a29e" style={{ flex: 1, fontSize: 16, fontWeight: '600', color: '#1c1917', padding: 0 }} />
+                    <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.textMuted, marginBottom: 6, textTransform: 'uppercase' }}>Total Takings *</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: p.border, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: p.surface }}>
+                      <Text style={{ color: p.textMuted, marginRight: 4 }}>£</Text>
+                      <TextInput
+                        value={inp.total_takings}
+                        onChangeText={(v) => updateInput(dateStr, 'total_takings', v)}
+                        keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor={p.textFaint}
+                        style={{ flex: 1, fontSize: 16, fontWeight: '600', color: p.text, padding: 0 }}
+                      />
                     </View>
                   </View>
 
                   {/* Hot + Iced */}
                   <View style={{ flexDirection: 'row', gap: 10 }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: '#92400e', marginBottom: 4 }}>☕ Hot (inc. VAT)</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#fde68a', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 10, backgroundColor: '#fffbeb' }}>
-                        <Text style={{ color: '#92400e', marginRight: 4 }}>£</Text>
-                        <TextInput value={inp.hot_drinks_sales} onChangeText={(v) => updateInput(dateStr, 'hot_drinks_sales', v)} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor="#d97706" style={{ flex: 1, fontSize: 14, fontWeight: '600', color: '#78350f', padding: 0 }} />
+                      <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: hotColor, marginBottom: 6, textTransform: 'uppercase' }}>☕ Hot (inc. VAT)</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: hotColor, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: p.surface }}>
+                        <Text style={{ color: hotColor, marginRight: 4 }}>£</Text>
+                        <TextInput
+                          value={inp.hot_drinks_sales}
+                          onChangeText={(v) => updateInput(dateStr, 'hot_drinks_sales', v)}
+                          keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor={p.textFaint}
+                          style={{ flex: 1, fontSize: 14, fontWeight: '600', color: p.text, padding: 0 }}
+                        />
                       </View>
-                      <Text style={{ fontSize: 10, color: '#a8a29e', marginTop: 2 }}>20% VAT included</Text>
+                      <Text style={{ fontSize: 10, color: p.textFaint, marginTop: 2 }}>20% VAT included</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: '#0284c7', marginBottom: 4 }}>🧊 Iced (0% VAT)</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#bae6fd', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 10, backgroundColor: '#f0f9ff' }}>
-                        <Text style={{ color: '#0284c7', marginRight: 4 }}>£</Text>
-                        <TextInput value={inp.iced_drinks_sales} onChangeText={(v) => updateInput(dateStr, 'iced_drinks_sales', v)} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor="#7dd3fc" style={{ flex: 1, fontSize: 14, fontWeight: '600', color: '#0369a1', padding: 0 }} />
+                      <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: icedColor, marginBottom: 6, textTransform: 'uppercase' }}>🧊 Iced (0% VAT)</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: icedColor, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: p.surface }}>
+                        <Text style={{ color: icedColor, marginRight: 4 }}>£</Text>
+                        <TextInput
+                          value={inp.iced_drinks_sales}
+                          onChangeText={(v) => updateInput(dateStr, 'iced_drinks_sales', v)}
+                          keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor={p.textFaint}
+                          style={{ flex: 1, fontSize: 14, fontWeight: '600', color: p.text, padding: 0 }}
+                        />
                       </View>
-                      <Text style={{ fontSize: 10, color: '#a8a29e', marginTop: 2 }}>Zero rated</Text>
+                      <Text style={{ fontSize: 10, color: p.textFaint, marginTop: 2 }}>Zero rated</Text>
                     </View>
                   </View>
 
@@ -237,39 +270,53 @@ export function DailyTakingsCard({ eventId, startDate, endDate, readOnly = false
                     const netTotal  = hotNetAmt + iced;
                     const hotSplit  = (hot + iced) > 0 ? Math.round((hot / (hot + iced)) * 100) : 0;
                     return (
-                      <View style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 10, gap: 4 }}>
-                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#475569', marginBottom: 2 }}>VAT Breakdown Preview</Text>
+                      <View style={{ backgroundColor: p.surface, padding: 10, gap: 4, borderWidth: 1, borderColor: p.border }}>
+                        <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1, color: p.textMuted, marginBottom: 2, textTransform: 'uppercase' }}>VAT Preview</Text>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                          <Text style={{ fontSize: 11, color: '#64748b' }}>Hot net (ex-VAT)</Text>
-                          <Text style={{ fontSize: 11, fontWeight: '600', color: '#1c1917' }}>{formatCurrency(hotNetAmt)}</Text>
+                          <Text style={{ fontSize: 11, color: p.textMuted }}>Hot net (ex-VAT)</Text>
+                          <Text style={{ fontSize: 11, fontWeight: '600', color: p.text }}>{formatCurrency(hotNetAmt)}</Text>
                         </View>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                          <Text style={{ fontSize: 11, color: '#64748b' }}>VAT collected</Text>
+                          <Text style={{ fontSize: 11, color: p.textMuted }}>VAT collected</Text>
                           <Text style={{ fontSize: 11, fontWeight: '600', color: '#dc2626' }}>{formatCurrency(vatAmt)}</Text>
                         </View>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                          <Text style={{ fontSize: 11, color: '#64748b' }}>Iced (zero rated)</Text>
-                          <Text style={{ fontSize: 11, fontWeight: '600', color: '#1c1917' }}>{formatCurrency(iced)}</Text>
+                          <Text style={{ fontSize: 11, color: p.textMuted }}>Iced (zero rated)</Text>
+                          <Text style={{ fontSize: 11, fontWeight: '600', color: p.text }}>{formatCurrency(iced)}</Text>
                         </View>
-                        <View style={{ height: 1, backgroundColor: '#e2e8f0', marginVertical: 2 }} />
+                        <View style={{ height: 1, backgroundColor: p.border, marginVertical: 2 }} />
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                          <Text style={{ fontSize: 11, fontWeight: '700', color: '#1c1917' }}>Net Revenue</Text>
-                          <Text style={{ fontSize: 11, fontWeight: '700', color: '#059669' }}>{formatCurrency(netTotal)}</Text>
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: p.text }}>Net Revenue</Text>
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: '#22c55e' }}>{formatCurrency(netTotal)}</Text>
                         </View>
-                        <Text style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>Split: {hotSplit}% hot / {100 - hotSplit}% iced</Text>
+                        <Text style={{ fontSize: 10, color: p.textFaint, marginTop: 4 }}>Split: {hotSplit}% hot / {100 - hotSplit}% iced</Text>
                       </View>
                     );
                   })()}
 
                   {/* Notes */}
                   <View>
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: '#57534e', marginBottom: 4 }}>Notes (optional)</Text>
-                    <TextInput value={inp.notes} onChangeText={(v) => updateInput(dateStr, 'notes', v)} placeholder="e.g. Busy morning, slow after 3pm…" placeholderTextColor="#a8a29e" multiline numberOfLines={2} style={{ borderWidth: 1, borderColor: '#e7e5e4', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 13, color: '#1c1917', backgroundColor: '#fff', textAlignVertical: 'top', minHeight: 60 }} />
+                    <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.textMuted, marginBottom: 6, textTransform: 'uppercase' }}>Notes</Text>
+                    <TextInput
+                      value={inp.notes}
+                      onChangeText={(v) => updateInput(dateStr, 'notes', v)}
+                      placeholder="e.g. Busy morning, slow after 3pm…" placeholderTextColor={p.textFaint}
+                      multiline numberOfLines={2}
+                      style={{ borderWidth: 1, borderColor: p.border, paddingHorizontal: 12, paddingVertical: 8, fontSize: 13, color: p.text, backgroundColor: p.surface, textAlignVertical: 'top', minHeight: 60 }}
+                    />
                   </View>
 
-                  {/* Save */}
-                  <TouchableOpacity onPress={() => saveDay(dateStr, dayNum)} disabled={saving === dateStr} style={{ backgroundColor: '#78350f', borderRadius: 10, paddingVertical: 14, alignItems: 'center' }}>
-                    {saving === dateStr ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Save Day {dayNum}</Text>}
+                  {/* Save (ink-block) */}
+                  <TouchableOpacity
+                    onPress={() => saveDay(dateStr, dayNum)}
+                    disabled={saving === dateStr}
+                    style={{ backgroundColor: p.text, paddingVertical: 14, alignItems: 'center' }}
+                  >
+                    {saving === dateStr ? (
+                      <ActivityIndicator color={p.bg} />
+                    ) : (
+                      <Text style={{ color: p.bg, fontWeight: '700', fontSize: 13, letterSpacing: 1 }}>SAVE DAY {dayNum}</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               )}

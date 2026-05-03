@@ -1,15 +1,9 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  Modal,
-  Pressable,
-  TouchableOpacity,
-  FlatList,
-  ActivityIndicator,
-  Alert,
+  View, Text, Modal, Pressable, TouchableOpacity,
+  FlatList, ActivityIndicator, Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/lib/themeContext';
 import { useEvents } from '@/lib/queries/events';
 import { useLogSales } from '@/lib/mutations/events';
 import { CurrencyInput } from '@/components/shared/CurrencyInput';
@@ -22,6 +16,8 @@ interface Props {
 }
 
 export function QuickSalesSheet({ visible, onClose }: Props) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const [selectedEvent, setSelectedEvent] = useState<EventWithFinancials | null>(null);
   const [grossSales, setGrossSales] = useState(0);
 
@@ -57,22 +53,22 @@ export function QuickSalesSheet({ visible, onClose }: Props) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <Pressable className="flex-1 bg-black/50 justify-end" onPress={handleClose}>
+      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} onPress={handleClose}>
         <Pressable>
-          <View className="bg-white rounded-t-3xl px-6 pt-5 pb-10">
-            <View className="w-12 h-1 bg-stone-300 rounded-full self-center mb-5" />
+          <View style={{ backgroundColor: p.bg, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 36, borderTopWidth: 2, borderTopColor: p.text }}>
+            <View style={{ width: 40, height: 3, backgroundColor: p.border, alignSelf: 'center', marginBottom: 18 }} />
 
-            <Text className="text-xl font-bold text-stone-900 mb-1">Log Today's Sales</Text>
-            <Text className="text-stone-400 text-sm mb-5">
+            <Text style={{ fontFamily: tokens.type.display, fontSize: 22, color: p.text, marginBottom: 4 }}>Log Today's Sales</Text>
+            <Text style={{ color: p.textFaint, fontSize: 13, marginBottom: 20 }}>
               Pick an event and enter your gross takings
             </Text>
 
-            <Text className="text-stone-600 text-sm font-medium mb-2">Event</Text>
+            <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.textMuted, marginBottom: 8, textTransform: 'uppercase' }}>Event</Text>
             {isLoading ? (
-              <ActivityIndicator color="#b45309" />
+              <ActivityIndicator color={p.brand} />
             ) : !events || events.length === 0 ? (
-              <View className="bg-stone-50 rounded-xl p-4 mb-4">
-                <Text className="text-stone-400 text-sm text-center">
+              <View style={{ backgroundColor: p.surface, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: p.border }}>
+                <Text style={{ color: p.textFaint, fontSize: 13, textAlign: 'center' }}>
                   No accepted events found
                 </Text>
               </View>
@@ -87,24 +83,26 @@ export function QuickSalesSheet({ visible, onClose }: Props) {
                   return (
                     <TouchableOpacity
                       onPress={() => setSelectedEvent(item)}
-                      className={`flex-row items-center px-3 py-3 rounded-xl mb-1.5 ${
-                        isSelected
-                          ? 'bg-amber-50 border border-amber-300'
-                          : 'bg-stone-50 border border-stone-100'
-                      }`}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center',
+                        paddingHorizontal: 12, paddingVertical: 12, marginBottom: 6,
+                        borderWidth: isSelected ? 2 : 1,
+                        borderColor: isSelected ? p.brand : p.border,
+                        backgroundColor: isSelected ? p.brandSoft : p.surface,
+                      }}
                       activeOpacity={0.7}
                     >
                       {isSelected && (
-                        <Ionicons name="checkmark-circle" size={16} color="#b45309" style={{ marginRight: 8 }} />
+                        <Text style={{ marginRight: 8, fontSize: 14, color: p.brand, fontWeight: '700' }}>✓</Text>
                       )}
-                      <View className="flex-1">
+                      <View style={{ flex: 1 }}>
                         <Text
-                          className={`text-sm font-medium ${isSelected ? 'text-amber-800' : 'text-stone-800'}`}
+                          style={{ fontSize: 13, fontWeight: '600', color: isSelected ? p.brandText : p.text }}
                           numberOfLines={1}
                         >
                           {item.name}
                         </Text>
-                        <Text className="text-stone-400 text-xs mt-0.5">
+                        <Text style={{ color: p.textFaint, fontSize: 11, marginTop: 2 }}>
                           {formatDateRange(item.date, item.end_date)}
                           {item.location ? ` · ${item.location}` : ''}
                         </Text>
@@ -115,7 +113,7 @@ export function QuickSalesSheet({ visible, onClose }: Props) {
               />
             )}
 
-            <View className="mb-6">
+            <View style={{ marginBottom: 22 }}>
               <CurrencyInput
                 label="Gross Sales"
                 value={grossSales}
@@ -124,23 +122,23 @@ export function QuickSalesSheet({ visible, onClose }: Props) {
               />
             </View>
 
-            <View className="gap-3">
+            <View style={{ gap: 10 }}>
               <TouchableOpacity
                 onPress={handleSave}
                 disabled={saving}
-                className="bg-amber-700 py-4 rounded-xl items-center"
+                style={{ backgroundColor: p.text, paddingVertical: 16, alignItems: 'center' }}
               >
                 {saving ? (
-                  <ActivityIndicator color="white" />
+                  <ActivityIndicator color={p.bg} />
                 ) : (
-                  <Text className="text-white font-semibold text-base">Save</Text>
+                  <Text style={{ color: p.bg, fontWeight: '700', fontSize: 14, letterSpacing: 1 }}>SAVE</Text>
                 )}
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleClose}
-                className="bg-stone-100 py-4 rounded-xl items-center"
+                style={{ borderWidth: 1, borderColor: p.border, paddingVertical: 16, alignItems: 'center' }}
               >
-                <Text className="text-stone-700 font-semibold">Cancel</Text>
+                <Text style={{ color: p.textMuted, fontWeight: '600', fontSize: 14 }}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>

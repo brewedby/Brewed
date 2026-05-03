@@ -51,6 +51,8 @@ function DatePickerModal({
 }: {
   visible: boolean; value: string; onConfirm: (iso: string) => void; onClose: () => void;
 }) {
+  const { tokens } = useTheme();
+  const palette = tokens.palette;
   const now = new Date();
   const currentYear = now.getFullYear();
   const years = Array.from({ length: 21 }, (_, i) => currentYear - 5 + i);
@@ -61,14 +63,14 @@ function DatePickerModal({
 
   useEffect(() => {
     if (!visible) return;
-    const p = (() => {
+    const parsed = (() => {
       if (!value) return now;
       try { const d = parseISO(value); return isValid(d) ? d : now; }
       catch { return now; }
     })();
-    const yi = years.indexOf(p.getFullYear());
-    setDayIdx(p.getDate() - 1);
-    setMonthIdx(p.getMonth());
+    const yi = years.indexOf(parsed.getFullYear());
+    setDayIdx(parsed.getDate() - 1);
+    setMonthIdx(parsed.getMonth());
     setYearIdx(yi >= 0 ? yi : 5);
   }, [visible]);
 
@@ -87,15 +89,15 @@ function DatePickerModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' }}>
+      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
         <TouchableOpacity style={{ flex: 1 }} onPress={onClose} activeOpacity={1} />
-        <View style={{ backgroundColor: '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 8 }}>
+        <View style={{ backgroundColor: palette.bg, borderTopWidth: 2, borderTopColor: palette.text }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 18, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: palette.border }}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ fontSize: 16, color: '#64748b' }}>Cancel</Text>
+              <Text style={{ fontSize: 15, color: palette.brand, fontWeight: '600' }}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={handleConfirm} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#1e293b' }}>Done</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: palette.text }}>Done</Text>
             </TouchableOpacity>
           </View>
           <View style={{ flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 36 }}>

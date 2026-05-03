@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/lib/themeContext';
 import type { MonthlyRevenue } from '@/types';
 import { formatCurrencyCompact } from '@/lib/formatters';
 
@@ -12,93 +12,70 @@ interface Props {
 }
 
 export function RevenueBarChart({ data }: Props) {
+  const { tokens, isDark } = useTheme();
+  const p = tokens.palette;
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const maxValue = Math.max(...data.map((d) => Math.max(d.grossSales, d.netProfit)), 1);
   const hasAnyData = data.some((d) => d.grossSales > 0 || d.netProfit !== 0);
 
   const selected = selectedMonth != null ? data[selectedMonth] : null;
 
+  const grossBarColor = p.brand;
+  const grossActiveColor = isDark ? '#fbbf24' : '#d97706';
+  const netBarColor = isDark ? '#4ade80' : '#22c55e';
+  const netActiveColor = isDark ? '#22c55e' : '#16a34a';
+
   return (
-    <View
-      className="bg-white rounded-2xl p-4 border border-stone-100"
-      style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }}
-    >
-      <Text className="font-bold text-stone-900 mb-2">Monthly Revenue {new Date().getFullYear()}</Text>
+    <View style={{ backgroundColor: p.surface, padding: 14, borderWidth: 1, borderColor: p.border }}>
+      <Text style={{ fontFamily: tokens.type.display, fontSize: 16, color: p.text, marginBottom: 8 }}>
+        Monthly Revenue {new Date().getFullYear()}
+      </Text>
 
       {!hasAnyData ? (
-        <View className="py-8 items-center justify-center">
-          <Text className="text-3xl mb-2">📊</Text>
-          <Text className="text-stone-500 text-sm text-center px-4">
+        <View style={{ paddingVertical: 32, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: p.textMuted, fontSize: 13, textAlign: 'center', paddingHorizontal: 16 }}>
             No revenue recorded for this year yet.
           </Text>
-          <Text className="text-stone-400 text-xs text-center mt-1 px-4">
+          <Text style={{ color: p.textFaint, fontSize: 11, textAlign: 'center', marginTop: 4, paddingHorizontal: 16 }}>
             Add financials to your events to see your monthly breakdown.
           </Text>
         </View>
       ) : (
         <>
-          <View className="flex-row items-center gap-4 mb-3">
-            <View className="flex-row items-center gap-1.5">
-              <View className="w-3 h-3 rounded-sm bg-amber-400" />
-              <Text className="text-stone-500 text-xs">Gross Sales</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <View style={{ width: 10, height: 10, backgroundColor: grossBarColor }} />
+              <Text style={{ color: p.textMuted, fontSize: 11 }}>Gross Sales</Text>
             </View>
-            <View className="flex-row items-center gap-1.5">
-              <View className="w-3 h-3 rounded-sm bg-green-500" />
-              <Text className="text-stone-500 text-xs">Net Profit</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <View style={{ width: 10, height: 10, backgroundColor: netBarColor }} />
+              <Text style={{ color: p.textMuted, fontSize: 11 }}>Net Profit</Text>
             </View>
           </View>
 
-          {/* Tooltip card — floating, styled, with icon */}
+          {/* Tooltip card */}
           <View style={{ minHeight: 54, marginBottom: 6, justifyContent: 'center' }}>
             {selected ? (
               <View
                 style={{
-                  backgroundColor: '#1c1917',
-                  borderRadius: 12,
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  alignSelf: 'flex-start',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 10,
-                  elevation: 3,
-                  shadowColor: '#000',
-                  shadowOpacity: 0.18,
-                  shadowRadius: 6,
-                  shadowOffset: { width: 0, height: 2 },
+                  backgroundColor: p.text, paddingHorizontal: 12, paddingVertical: 8,
+                  alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 10,
                 }}
               >
-                <View
-                  style={{
-                    width: 28, height: 28, borderRadius: 8,
-                    backgroundColor: '#78350f', alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  <Ionicons name="stats-chart" size={14} color="#fbbf24" />
-                </View>
                 <View>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#ffffff' }}>{selected.month}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: p.bg, letterSpacing: 0.5, textTransform: 'uppercase' }}>{selected.month}</Text>
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 2 }}>
                     <Text style={{ fontSize: 11, color: '#fbbf24', fontWeight: '600' }}>
                       Gross {formatCurrencyCompact(selected.grossSales)}
                     </Text>
-                    <Text
-                      style={{
-                        fontSize: 11,
-                        color: selected.netProfit >= 0 ? '#4ade80' : '#f87171',
-                        fontWeight: '600',
-                      }}
-                    >
+                    <Text style={{ fontSize: 11, color: selected.netProfit >= 0 ? '#4ade80' : '#f87171', fontWeight: '600' }}>
                       Net {formatCurrencyCompact(selected.netProfit)}
                     </Text>
                   </View>
                 </View>
               </View>
             ) : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Ionicons name="information-circle-outline" size={12} color="#a8a29e" />
-                <Text style={{ fontSize: 11, color: '#a8a29e' }}>Tap a bar for details</Text>
-              </View>
+              <Text style={{ fontSize: 11, color: p.textFaint }}>Tap a bar for details</Text>
             )}
           </View>
 
@@ -118,48 +95,24 @@ export function RevenueBarChart({ data }: Props) {
                   accessibilityState={{ selected: isSelected }}
                   style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end' }}
                 >
-                  {/* Selected highlight behind bars */}
                   <View
                     style={{
-                      flexDirection: 'row',
-                      alignItems: 'flex-end',
-                      justifyContent: 'center',
-                      gap: 2,
-                      height: BAR_AREA_HEIGHT,
-                      width: '100%',
-                      paddingHorizontal: 2,
-                      paddingTop: 4,
-                      borderRadius: 8,
-                      backgroundColor: isSelected ? '#fef3c7' : 'transparent',
+                      flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center',
+                      gap: 2, height: BAR_AREA_HEIGHT, width: '100%',
+                      paddingHorizontal: 2, paddingTop: 4,
+                      backgroundColor: isSelected ? p.brandSoft : 'transparent',
                       borderWidth: isSelected ? 1 : 0,
-                      borderColor: '#fcd34d',
+                      borderColor: p.brand,
                       opacity: isDimmed ? 0.35 : 1,
                     }}
                   >
-                    <View
-                      style={{
-                        width: '42%',
-                        height: grossHeight,
-                        backgroundColor: isSelected ? '#f59e0b' : '#fbbf24',
-                        borderTopLeftRadius: 3,
-                        borderTopRightRadius: 3,
-                      }}
-                    />
-                    <View
-                      style={{
-                        width: '42%',
-                        height: netHeight,
-                        backgroundColor: isSelected ? '#16a34a' : '#22c55e',
-                        borderTopLeftRadius: 3,
-                        borderTopRightRadius: 3,
-                      }}
-                    />
+                    <View style={{ width: '42%', height: grossHeight, backgroundColor: isSelected ? grossActiveColor : grossBarColor }} />
+                    <View style={{ width: '42%', height: netHeight, backgroundColor: isSelected ? netActiveColor : netBarColor }} />
                   </View>
                   <Text
                     style={{
-                      fontSize: 10,
-                      color: isSelected ? '#b45309' : '#a8a29e',
-                      marginTop: 4,
+                      fontSize: 10, marginTop: 4,
+                      color: isSelected ? p.brand : p.textFaint,
                       fontWeight: isSelected ? '700' : '500',
                     }}
                   >
