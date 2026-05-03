@@ -35,6 +35,13 @@ export function useDashboard(year?: number) {
 
       const netProfitYtd = ytdEvents.reduce((sum, e) => {
         if (!e.event_financials) return sum;
+        // Only include events with actual sales — upcoming events with committed
+        // costs but no sales would otherwise drag the bottom line negative.
+        const hasSales =
+          (e.event_financials.gross_sales ?? 0) > 0 ||
+          (e.event_financials.standard_rated_sales ?? 0) > 0 ||
+          (e.event_financials.zero_rated_sales ?? 0) > 0;
+        if (!hasSales) return sum;
         return sum + calcEventFinancials(e.event_financials).netProfit;
       }, 0);
 

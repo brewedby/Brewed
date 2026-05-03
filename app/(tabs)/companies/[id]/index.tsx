@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -8,7 +8,7 @@ import { useDeleteCompany } from '@/lib/queries/companies';
 import { EventCard } from '@/components/events/EventCard';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { formatCurrency } from '@/lib/formatters';
+import { formatCurrency, toISODateString } from '@/lib/formatters';
 import { useTheme } from '@/lib/themeContext';
 
 export default function CompanyDetailScreen() {
@@ -21,6 +21,19 @@ export default function CompanyDetailScreen() {
   const { data: allEvents } = useEvents({ companyId: id });
   const deleteCompany = useDeleteCompany();
   const [refreshing, setRefreshing] = useState(false);
+
+  const today = toISODateString(new Date());
+  const events = allEvents ?? [];
+
+  const { upcomingEvents, completedEvents } = useMemo(() => {
+    const upcoming = events
+      .filter((e) => e.date >= today && e.status !== 'rejected' && e.status !== 'withdrawn')
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const completed = events
+      .filter((e) => e.date < today || e.status === 'rejected' || e.status === 'withdrawn')
+      .sort((a, b) => b.calculations.netProfit - a.calculations.netProfit);
+    return { upcomingEvents: upcoming, completedEvents: completed };
+  }, [events, today]);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -44,9 +57,14 @@ export default function CompanyDetailScreen() {
     </View>
   );
 
-  const events = allEvents ?? [];
   const totalRevenue = events.reduce((s, e) => s + (e.event_financials?.gross_sales ?? 0), 0);
-  const totalNet = events.reduce((s, e) => s + e.calculations.netProfit, 0);
+  const totalNet = events.reduce((s, e) => {
+    const hasSales =
+      (e.event_financials?.gross_sales ?? 0) > 0 ||
+      (e.event_financials?.standard_rated_sales ?? 0) > 0 ||
+      (e.event_financials?.zero_rated_sales ?? 0) > 0;
+    return hasSales ? s + e.calculations.netProfit : s;
+  }, 0);
   const accepted = events.filter((e) => e.status === 'accepted').length;
   const decided = events.filter((e) => e.status === 'accepted' || e.status === 'rejected').length;
   const acceptanceRate = decided > 0 ? `${((accepted / decided) * 100).toFixed(0)}%` : '—';
@@ -146,11 +164,38 @@ export default function CompanyDetailScreen() {
         </View>
 
         {/* Events */}
-        <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: p.textMuted, marginBottom: 12 }}>EVENTS</Text>
         {events.length === 0 ? (
           <EmptyState icon="🎪" title="No events yet" description="No events linked to this company." />
         ) : (
-          events.map((event) => <EventCard key={event.id} event={event} />)
+          <>
+            {upcomingEvents.length > 0 && (
+              <>
+                <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: p.textMuted, marginBottom: 12 }}>UPCOMING</Text>
+                {upcomingEvents.map((event) => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    onPress={() => router.push({ pathname: `/(tabs)/events/${event.id}`, params: { companyName: company.name } })}
+                  />
+                ))}
+                <View style={{ height: 20 }} />
+              </>
+            )}
+            {completedEvents.length > 0 && (
+              <>
+                <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: p.textMuted, marginBottom: 12 }}>
+                  {completedEvents.length === 1 ? 'PAST & DECIDED' : `PAST & DECIDED · RANKED BY NET PROFIT`}
+                </Text>
+                {completedEvents.map((event) => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    onPress={() => router.push({ pathname: `/(tabs)/events/${event.id}`, params: { companyName: company.name } })}
+                  />
+                ))}
+              </>
+            )}
+          </>
         )}
 
         {/* Delete */}

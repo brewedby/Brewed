@@ -96,7 +96,7 @@ function ApplicationTimeline({ currentStatus }: { currentStatus: ApplicationStat
 
 export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, companyName } = useLocalSearchParams<{ id: string; companyName?: string }>();
   const router = useRouter();
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -223,12 +223,14 @@ export default function EventDetailScreen() {
         <TouchableOpacity
           onPress={() => router.back()}
           accessibilityRole="button"
-          accessibilityLabel="Back to applications"
+          accessibilityLabel={companyName ? `Back to ${companyName}` : 'Back to applications'}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 16 }}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 36 }}
         >
           <Ionicons name="chevron-back" size={14} color={p.brand} />
-          <Text style={{ color: p.brand, fontSize: 13, fontWeight: '600' }}>Applications</Text>
+          <Text style={{ color: p.brand, fontSize: 13, fontWeight: '600' }} numberOfLines={1}>
+            {companyName ?? 'Applications'}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => router.push(`/(tabs)/events/${id}/edit`)}

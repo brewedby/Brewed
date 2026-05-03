@@ -115,7 +115,7 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
       {!hasSiteCostSection && (f.pitch_fee ?? 0) > 0 && (
         <Row label="Pitch Fee"      value={formatCurrency(f.pitch_fee)} />
       )}
-      <Row label="Staffing"         value={formatCurrency(f.staffing_costs)} />
+      <Row label="Staffing"         value={formatCurrency(c.totalStaffingCost)} />
       <Row label="Travel"           value={formatCurrency(f.travel_costs)} />
       {(f.camping_costs ?? 0) > 0 && (
         <Row label="Camping"        value={formatCurrency(f.camping_costs ?? 0)} />
@@ -123,6 +123,9 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
       <Row label="Equipment"        value={formatCurrency(f.equipment_costs)} />
       {(f.other_costs ?? 0) > 0 && (
         <Row label="Other"          value={formatCurrency(f.other_costs ?? 0)} />
+      )}
+      {(f.miles_driven ?? 0) > 0 && (
+        <Row label={`Mileage (${f.miles_driven} mi @ 45p)`} value={`= ${formatCurrency((f.miles_driven ?? 0) * 0.45)}`} indent />
       )}
 
       {hasMilk && (

@@ -10,9 +10,10 @@ const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 
 interface Props {
   event: EventWithFinancials;
+  onPress?: () => void;
 }
 
-export const EventCard = React.memo(function EventCard({ event }: Props) {
+export const EventCard = React.memo(function EventCard({ event, onPress }: Props) {
   const router = useRouter();
   const { tokens, isDark } = useTheme();
   const p = tokens.palette;
@@ -20,7 +21,12 @@ export const EventCard = React.memo(function EventCard({ event }: Props) {
 
   const fin = event.event_financials;
   const calc = event.calculations;
-  const net = fin && fin.gross_sales > 0 ? calc.netProfit : null;
+  const hasSales =
+    fin &&
+    ((fin.gross_sales ?? 0) > 0 ||
+     (fin.standard_rated_sales ?? 0) > 0 ||
+     (fin.zero_rated_sales ?? 0) > 0);
+  const net = hasSales ? calc.netProfit : null;
   const org = event.concessions_companies?.name ?? null;
   const dotColor = STATUS_DOT[event.status] ?? p.textFaint;
 
@@ -30,7 +36,7 @@ export const EventCard = React.memo(function EventCard({ event }: Props) {
 
   return (
     <TouchableOpacity
-      onPress={() => router.push(`/(tabs)/events/${event.id}`)}
+      onPress={onPress ?? (() => router.push(`/(tabs)/events/${event.id}`))}
       accessibilityRole="button"
       accessibilityLabel={`Open ${event.name}`}
       activeOpacity={0.7}

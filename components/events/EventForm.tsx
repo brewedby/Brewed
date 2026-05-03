@@ -165,6 +165,36 @@ function DatePickerButton({
   );
 }
 
+const PCT_CHIPS = [0, 5, 10, 15, 20, 25, 30];
+
+function PctChips({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+      {PCT_CHIPS.map((pct) => {
+        const active = value === pct;
+        return (
+          <TouchableOpacity
+            key={pct}
+            onPress={() => onChange(pct)}
+            style={{
+              paddingHorizontal: 10, paddingVertical: 5,
+              borderWidth: active ? 2 : 1,
+              borderColor: active ? p.text : p.border,
+              backgroundColor: active ? p.text : p.surface,
+            }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: '700', color: active ? p.bg : p.textMuted }}>
+              {pct}%
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 function CalcRow({
   label, value, highlight,
 }: {
@@ -218,15 +248,15 @@ function FinancialsTabContent({
       <SectionHeader title="Sales & VAT" />
       <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, padding: 16, gap: 12 }}>
         <Controller
-          control={control} name="standard_rated_sales"
-          render={({ field }) => (
-            <CurrencyInput label="Hot drinks & food — 20% VAT" value={field.value} onChangeValue={field.onChange} />
-          )}
-        />
-        <Controller
           control={control} name="zero_rated_sales"
           render={({ field }) => (
             <CurrencyInput label="Cold drinks — 0% VAT" value={field.value} onChangeValue={field.onChange} />
+          )}
+        />
+        <Controller
+          control={control} name="standard_rated_sales"
+          render={({ field }) => (
+            <CurrencyInput label="Hot drinks & food — 20% VAT" value={field.value} onChangeValue={field.onChange} />
           )}
         />
         {(zeroRated > 0 || standardRated > 0) && (
@@ -243,12 +273,15 @@ function FinancialsTabContent({
         <Controller
           control={control} name="concessions_commission_pct"
           render={({ field }) => (
-            <FormField
-              label="Commission % (taken on net sales ex-VAT)"
-              value={field.value ? String(field.value) : ''}
-              onChangeText={(t) => field.onChange(parseFloat(t) || 0)}
-              keyboardType="decimal-pad" placeholder="0"
-            />
+            <View>
+              <FormField
+                label="Commission % (taken on net sales ex-VAT)"
+                value={field.value ? String(field.value) : ''}
+                onChangeText={(t) => field.onChange(parseFloat(t) || 0)}
+                keyboardType="decimal-pad" placeholder="0"
+              />
+              <PctChips value={field.value ?? 0} onChange={field.onChange} />
+            </View>
           )}
         />
         <Controller
@@ -260,12 +293,15 @@ function FinancialsTabContent({
         <Controller
           control={control} name="pitch_fee_refund_pct"
           render={({ field }) => (
-            <FormField
-              label="Pitch fee refund % (before commission deduction)"
-              value={field.value ? String(field.value) : ''}
-              onChangeText={(t) => field.onChange(parseFloat(t) || 0)}
-              keyboardType="decimal-pad" placeholder="0"
-            />
+            <View>
+              <FormField
+                label="Pitch fee refund % (before commission deduction)"
+                value={field.value ? String(field.value) : ''}
+                onChangeText={(t) => field.onChange(parseFloat(t) || 0)}
+                keyboardType="decimal-pad" placeholder="0"
+              />
+              <PctChips value={field.value ?? 0} onChange={field.onChange} />
+            </View>
           )}
         />
         <Controller
