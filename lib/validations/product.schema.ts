@@ -14,6 +14,9 @@ export const productSchema = z.object({
   // Category is a free string keyed against CATEGORY_DEFINITIONS so trade
   // types can introduce their own categories. Validated for length only.
   category:    z.string().min(1, 'Category is required').max(40),
+  // Per-product VAT override. null/undefined = use the category default
+  // (CATEGORY_DEFINITIONS[category].vatable).
+  is_vatable:  z.boolean().nullable().optional(),
   is_active:   z.boolean().default(true),
 });
 

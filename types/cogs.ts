@@ -25,6 +25,8 @@ export interface ProductCatalogItem {
   price_tiers: PriceTier[];
   unit: string;
   category: ProductCategory;
+  /** null = follow CATEGORY_DEFINITIONS[category].vatable, true/false = explicit override */
+  is_vatable: boolean | null;
   is_active: boolean;
   sort_order: number;
   created_at: string;
@@ -179,6 +181,15 @@ export function getCategoriesForTrade(
 export function isVatableCategory(category: string | null | undefined): boolean {
   if (!category) return false;
   return CATEGORY_DEFINITIONS[category]?.vatable ?? false;
+}
+
+/** Returns whether a product's selling price includes VAT, taking into
+ *  account the per-product override (if set) before falling back to the
+ *  category default. */
+export function isProductVatable(product: { category: string; is_vatable?: boolean | null }): boolean {
+  if (product.is_vatable === true) return true;
+  if (product.is_vatable === false) return false;
+  return isVatableCategory(product.category);
 }
 
 export function getCategoryDefinition(category: string | null | undefined): (CategoryDefinition & { value: string }) {

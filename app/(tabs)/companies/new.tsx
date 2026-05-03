@@ -24,7 +24,10 @@ export default function NewCompanyScreen() {
         </TouchableOpacity>
       </View>
       <CompanyForm
-        onSubmit={async (data) => { await createCompany.mutateAsync({ data, userId: user!.id }); }}
+        onSubmit={async (data) => {
+          await createCompany.mutateAsync({ data, userId: user!.id });
+          router.back();
+        }}
         submitLabel="Add Company"
       />
     </View>

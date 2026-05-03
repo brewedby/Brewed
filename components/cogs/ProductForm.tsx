@@ -60,6 +60,7 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting, tradeType
       unit_cost:   initial?.unit_cost ?? 0,
       unit:        initial?.unit      ?? 'cup',
       category:    defaultCategory,
+      is_vatable:  initial?.is_vatable ?? null,
       is_active:   initial?.is_active ?? true,
     },
   });
@@ -303,6 +304,61 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting, tradeType
               ))}
             </View>
           )}
+        />
+
+        {/* ── VAT (per-product override) ── */}
+        {fieldLabel('Includes 20% VAT')}
+        <Controller
+          control={control}
+          name="category"
+          render={({ field: catField }) => {
+            const def = getCategoryDefinition(catField.value);
+            const defaultLabel = def.vatable ? 'VAT (default)' : 'No VAT (default)';
+            return (
+              <Controller
+                control={control}
+                name="is_vatable"
+                render={({ field }) => {
+                  const opts: { v: boolean | null; label: string }[] = [
+                    { v: null,  label: defaultLabel },
+                    { v: true,  label: 'VAT' },
+                    { v: false, label: 'No VAT' },
+                  ];
+                  return (
+                    <View>
+                      <Text style={{ fontSize: 11, color: p.textFaint, marginBottom: 8 }}>
+                        UK rule: hot food/drinks include 20% VAT, cold take-away is zero-rated. Override per product when the category default is wrong.
+                      </Text>
+                      <View style={{ flexDirection: 'row', borderWidth: 1, borderColor: p.borderStrong, marginBottom: 16 }}>
+                        {opts.map((opt, i) => {
+                          const active = field.value === opt.v;
+                          return (
+                            <TouchableOpacity
+                              key={String(opt.v)}
+                              onPress={() => field.onChange(opt.v)}
+                              accessibilityRole="radio"
+                              accessibilityLabel={opt.label}
+                              accessibilityState={{ selected: active }}
+                              style={{
+                                flex: 1, paddingVertical: 10, alignItems: 'center', minHeight: 44, justifyContent: 'center',
+                                borderLeftWidth: i === 0 ? 0 : 1,
+                                borderLeftColor: p.borderStrong,
+                                backgroundColor: active ? p.text : 'transparent',
+                              }}
+                            >
+                              <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: active ? p.bg : p.text, textTransform: 'uppercase' }}>
+                                {opt.label}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  );
+                }}
+              />
+            );
+          }}
         />
 
         {fieldLabel('SKU / Barcode (optional)')}

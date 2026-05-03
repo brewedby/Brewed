@@ -76,7 +76,10 @@ export default function EditEventScreen() {
         defaultValues={defaultValues}
         companies={companies}
         units={units}
-        onSubmit={(data) => updateEvent.mutateAsync({ id, data })}
+        onSubmit={async (data) => {
+          await updateEvent.mutateAsync({ id, data });
+          router.back();
+        }}
         submitLabel="Save Changes"
         eventId={id}
       />

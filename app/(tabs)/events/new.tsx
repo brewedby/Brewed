@@ -33,6 +33,7 @@ export default function NewEventScreen() {
         onSubmit={async (data) => {
           if (!user) { Alert.alert('Not signed in', 'Please sign in to create events.'); return; }
           await createEvent.mutateAsync({ data, userId: user.id });
+          router.back();
         }}
         submitLabel="Create Event"
       />

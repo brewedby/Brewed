@@ -69,8 +69,17 @@ export function useProfile(userId: string | undefined) {
       };
     },
     enabled: !!userId,
-    // Re-check entitlement every 5 min so a renewal/cancellation reflects without restart
+    // The profile is the source of truth for business_name, business_type
+    // and entitlement state. We need the entitlement to refresh after a
+    // sub renewal/cancellation, but constant refetches re-fire hydration
+    // effects in screens like Settings. Strategy:
+    //   • staleTime: 5 min — within this window, switching tabs uses cache
+    //   • refetchInterval: 5 min — entitlement updates within 5 min of change
+    //   • refetchOnWindowFocus: false — don't refetch every time the app
+    //     comes back to foreground (was firing the hydration effect)
+    staleTime: 1000 * 60 * 5,
     refetchInterval: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
   });
 }
 

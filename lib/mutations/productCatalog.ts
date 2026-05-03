@@ -3,22 +3,15 @@ import { supabase } from '@/lib/supabase';
 import type { ProductFormValues } from '@/lib/validations/product.schema';
 import type { ProductCatalogItem } from '@/types/cogs';
 
-// Supabase client cast helper — remove once types/database.ts includes these tables
-function catalogTable() {
-  return (supabase as unknown as {
-    from: (t: string) => ReturnType<typeof supabase.from>;
-  }).from('product_catalog');
-}
-
 // Postgres "column does not exist" surfaces as code 42703 / a message
-// containing "price_tiers". If the user has not yet applied
-// migration_011_price_tiers.sql we degrade gracefully so Add Product
-// keeps working with the legacy single selling_price column.
-function isPriceTiersMissingError(err: unknown): boolean {
+// containing the column name. If the user has not yet applied the
+// matching migration we degrade gracefully so the action keeps working
+// against the legacy schema.
+function isMissingColumnError(err: unknown, column: string): boolean {
   if (!err || typeof err !== 'object') return false;
   const e = err as { code?: string; message?: string };
   if (e.code === '42703') return true;
-  return typeof e.message === 'string' && /price_tiers/i.test(e.message);
+  return typeof e.message === 'string' && new RegExp(column, 'i').test(e.message);
 }
 
 export function useCreateProduct() {
@@ -42,16 +35,32 @@ export function useCreateProduct() {
         category:      data.category,
         is_active:     data.is_active,
       };
+      const fullRow = {
+        ...baseRow,
+        price_tiers: data.price_tiers,
+        is_vatable:  data.is_vatable ?? null,
+      };
 
-      let { data: created, error } = await catalogTable()
-        .insert({ ...baseRow, price_tiers: data.price_tiers })
+      let { data: created, error } = await supabase
+        .from('product_catalog')
+        .insert(fullRow)
         .select()
         .single();
 
-      if (error && isPriceTiersMissingError(error)) {
-        // Fallback: legacy schema without price_tiers column
-        ({ data: created, error } = await catalogTable()
-          .insert(baseRow)
+      // Fall back through missing columns one at a time so partial
+      // migrations still work.
+      if (error && isMissingColumnError(error, 'is_vatable')) {
+        ({ data: created, error } = await supabase
+          .from('product_catalog')
+          // is_vatable column missing — drop it from the insert
+          .insert({ ...baseRow, price_tiers: data.price_tiers } as typeof fullRow)
+          .select()
+          .single());
+      }
+      if (error && isMissingColumnError(error, 'price_tiers')) {
+        ({ data: created, error } = await supabase
+          .from('product_catalog')
+          .insert(baseRow as typeof fullRow)
           .select()
           .single());
       }
@@ -83,13 +92,28 @@ export function useUpdateProduct() {
         category:      data.category,
         is_active:     data.is_active,
       };
+      const fullUpdate = {
+        ...baseUpdate,
+        price_tiers: data.price_tiers,
+        is_vatable:  data.is_vatable ?? null,
+      };
 
-      let { error } = await catalogTable()
-        .update({ ...baseUpdate, price_tiers: data.price_tiers })
+      let { error } = await supabase
+        .from('product_catalog')
+        .update(fullUpdate)
         .eq('id', id);
 
-      if (error && isPriceTiersMissingError(error)) {
-        ({ error } = await catalogTable().update(baseUpdate).eq('id', id));
+      if (error && isMissingColumnError(error, 'is_vatable')) {
+        ({ error } = await supabase
+          .from('product_catalog')
+          .update({ ...baseUpdate, price_tiers: data.price_tiers } as typeof fullUpdate)
+          .eq('id', id));
+      }
+      if (error && isMissingColumnError(error, 'price_tiers')) {
+        ({ error } = await supabase
+          .from('product_catalog')
+          .update(baseUpdate as typeof fullUpdate)
+          .eq('id', id));
       }
 
       if (error) throw error;
@@ -102,7 +126,7 @@ export function useDeleteProduct() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await catalogTable().delete().eq('id', id);
+      const { error } = await supabase.from('product_catalog').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['product_catalog'] }),
@@ -114,7 +138,7 @@ export function useReorderProducts() {
   return useMutation({
     mutationFn: async (orderedIds: string[]) => {
       const updates = orderedIds.map((id, idx) =>
-        catalogTable().update({ sort_order: idx }).eq('id', id)
+        supabase.from('product_catalog').update({ sort_order: idx }).eq('id', id)
       );
       await Promise.all(updates);
     },

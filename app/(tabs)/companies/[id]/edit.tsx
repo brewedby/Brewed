@@ -37,7 +37,10 @@ export default function EditCompanyScreen() {
           website: company.website ?? '',
           notes: company.notes ?? '',
         }}
-        onSubmit={(data) => updateCompany.mutateAsync({ id, data })}
+        onSubmit={async (data) => {
+          await updateCompany.mutateAsync({ id, data });
+          router.back();
+        }}
         submitLabel="Save Changes"
       />
     </View>

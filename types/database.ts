@@ -592,9 +592,15 @@ export interface Database {
           name: string;
           sku: string | null;
           selling_price: number;
+          // JSONB: array of { label: string; price: number }. Added in
+          // migration_011_price_tiers — falls back to [] if not present.
+          price_tiers: { label: string; price: number }[] | null;
           unit_cost: number;
           unit: string;
           category: string;
+          // Per-product VAT override. null = use category default.
+          // Added in migration_012_per_product_vat.
+          is_vatable: boolean | null;
           is_active: boolean;
           sort_order: number;
           created_at: string;
@@ -606,9 +612,11 @@ export interface Database {
           name: string;
           sku?: string | null;
           selling_price?: number;
+          price_tiers?: { label: string; price: number }[] | null;
           unit_cost?: number;
           unit?: string;
           category?: string;
+          is_vatable?: boolean | null;
           is_active?: boolean;
           sort_order?: number;
           created_at?: string;
@@ -620,9 +628,11 @@ export interface Database {
           name?: string;
           sku?: string | null;
           selling_price?: number;
+          price_tiers?: { label: string; price: number }[] | null;
           unit_cost?: number;
           unit?: string;
           category?: string;
+          is_vatable?: boolean | null;
           is_active?: boolean;
           sort_order?: number;
           updated_at?: string;

@@ -12,7 +12,7 @@ import { ProductForm } from './ProductForm';
 import {
   getCategoriesForTrade,
   getCategoryDefinition,
-  isVatableCategory,
+  isProductVatable,
   type ProductCatalogItem,
 } from '@/types/cogs';
 import type { ProductFormValues } from '@/lib/validations/product.schema';
@@ -58,15 +58,26 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
 
   // Sections are built from the trade-specific category list, plus any
   // legacy categories not in the list (so historic data still renders).
+  const tradeCatKeys = useMemo(
+    () => new Set(getCategoriesForTrade(tradeType).map((c) => c.value)),
+    [tradeType],
+  );
   const sections = useMemo(() => {
     const tradeCats = getCategoriesForTrade(tradeType);
-    const knownKeys = new Set(tradeCats.map((c) => c.value));
-    const legacyKeys = Array.from(new Set(filtered.map((p) => p.category).filter((k) => !knownKeys.has(k))));
+    const legacyKeys = Array.from(new Set(filtered.map((p) => p.category).filter((k) => !tradeCatKeys.has(k))));
     const allCats = [...tradeCats, ...legacyKeys.map((k) => getCategoryDefinition(k))];
     return allCats
       .map((cat) => ({ category: cat, data: filtered.filter((prod) => prod.category === cat.value) }))
       .filter((s) => s.data.length > 0);
-  }, [filtered, tradeType]);
+  }, [filtered, tradeType, tradeCatKeys]);
+
+  // Number of products whose category is NOT in the current trade's list —
+  // surfaces a one-time prompt to re-categorise legacy data after the
+  // trade-aware categories shipped.
+  const legacyCount = useMemo(
+    () => products.filter((p) => !tradeCatKeys.has(p.category)).length,
+    [products, tradeCatKeys],
+  );
 
   async function handleAdd(values: ProductFormValues) {
     if (!user) return;
@@ -114,14 +125,14 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
     const avg = withPrice.reduce((sum, prod) => {
       // Use first tier (default) price for the summary margin
       const defaultPrice = prod.price_tiers?.[0]?.price ?? prod.selling_price;
-      const netPrice = isVatableCategory(prod.category) ? defaultPrice / 1.2 : defaultPrice;
+      const netPrice = isProductVatable(prod) ? defaultPrice / 1.2 : defaultPrice;
       return sum + ((netPrice - prod.unit_cost) / netPrice) * 100;
     }, 0) / withPrice.length;
     return avg;
   }, [products]);
 
   function renderProduct({ item }: { item: ProductCatalogItem }) {
-    const isVatable = isVatableCategory(item.category);
+    const isVatable = isProductVatable(item);
     const tiers = item.price_tiers?.length ? item.price_tiers : [{ label: 'Standard', price: item.selling_price }];
     const defaultPrice = tiers[0].price;
     const netDefaultPrice = isVatable ? defaultPrice / 1.2 : defaultPrice;
@@ -324,6 +335,28 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
                 onSubmitEditing={() => {}}
               />
             </View>
+
+            {/* Legacy category prompt — appears when products use categories
+                that aren't in the current trade type's list. Tapping a
+                product with a legacy category opens the edit form where
+                they can pick a new one. */}
+            {legacyCount > 0 && (
+              <View style={{
+                marginHorizontal: 16, marginBottom: 8,
+                paddingHorizontal: 12, paddingVertical: 10,
+                borderWidth: 1, borderColor: p.brand,
+                backgroundColor: p.surfaceAlt,
+              }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.brand, textTransform: 'uppercase', marginBottom: 4 }}>
+                  ● Re-categorise reminder
+                </Text>
+                <Text style={{ fontSize: 12, color: p.textMuted, lineHeight: 17 }}>
+                  {legacyCount === 1
+                    ? '1 product uses a legacy category. Tap ✎ on it to pick a category that matches your trade type.'
+                    : `${legacyCount} products use legacy categories. Tap ✎ on each to pick a category that matches your trade type.`}
+                </Text>
+              </View>
+            )}
 
             {/* Menu list */}
             {isLoading ? (

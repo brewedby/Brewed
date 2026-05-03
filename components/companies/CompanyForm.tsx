@@ -3,7 +3,6 @@ import { View, ScrollView, TouchableOpacity, Text, Alert, ActivityIndicator } fr
 import * as Haptics from 'expo-haptics';
 import { useForm, Controller, Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRouter } from 'expo-router';
 import { companySchema, CompanyFormValues } from '@/lib/validations/company.schema';
 import { FormField } from '@/components/shared/FormField';
 import { useTheme } from '@/lib/themeContext';
@@ -16,7 +15,6 @@ interface Props {
 
 export function CompanyForm({ defaultValues, onSubmit, submitLabel = 'Save Company' }: Props) {
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   const { tokens } = useTheme();
   const p = tokens.palette;
 
@@ -30,7 +28,8 @@ export function CompanyForm({ defaultValues, onSubmit, submitLabel = 'Save Compa
     try {
       await onSubmit(data);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      router.back();
+      // Navigation is the parent screen's responsibility — different
+      // entry points need different destinations.
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save company');
     } finally {

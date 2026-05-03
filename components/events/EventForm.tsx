@@ -6,7 +6,6 @@ import * as Haptics from 'expo-haptics';
 import { format, parseISO, isValid } from 'date-fns';
 import { useForm, Controller, useFieldArray, Control, UseFormWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRouter } from 'expo-router';
 import { eventSchema } from '@/lib/validations/event.schema';
 import type { EventFormValues } from '@/lib/validations/event.schema';
 import { FormField } from '@/components/shared/FormField';
@@ -365,7 +364,6 @@ export function EventForm({
 }: Props) {
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>('Details');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   const { tokens } = useTheme();
   const p = tokens.palette;
 
@@ -426,7 +424,8 @@ export function EventForm({
       };
       await onSubmit(converted);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      router.back();
+      // Navigation is the parent screen's responsibility — different
+      // entry points need different destinations.
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message
         : typeof e === 'object' && e !== null && 'message' in e
