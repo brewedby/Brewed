@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { useTheme } from '@/lib/themeContext';
 
 interface Props {
   error: Error | null | unknown;
@@ -8,6 +9,9 @@ interface Props {
 }
 
 export function QueryError({ error, onRetry, message }: Props) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
+
   if (!error) return null;
   const errMessage =
     error instanceof Error
@@ -17,22 +21,23 @@ export function QueryError({ error, onRetry, message }: Props) {
         : typeof error === 'string'
           ? error
           : 'An unexpected error occurred';
+
   return (
-    <View className="flex-1 items-center justify-center px-6 py-12">
-      <Text className="text-4xl mb-4">⚠️</Text>
-      <Text className="text-stone-700 font-semibold text-center mb-2">
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 48 }}>
+      <Text style={{ fontSize: 36, marginBottom: 16 }}>⚠️</Text>
+      <Text style={{ fontFamily: tokens.type.display, fontSize: 18, color: p.text, textAlign: 'center', marginBottom: 8 }}>
         {message ?? 'Something went wrong'}
       </Text>
-      <Text className="text-stone-400 text-xs text-center mb-6" numberOfLines={3}>
+      <Text style={{ fontSize: 12, color: p.textMuted, textAlign: 'center', marginBottom: 24 }} numberOfLines={3}>
         {errMessage}
       </Text>
       <TouchableOpacity
         onPress={onRetry}
         accessibilityLabel="Retry"
         accessibilityRole="button"
-        className="bg-amber-700 px-6 py-3 rounded-xl"
+        style={{ borderWidth: 2, borderColor: p.text, paddingHorizontal: 24, paddingVertical: 12 }}
       >
-        <Text className="text-white font-semibold">Try Again</Text>
+        <Text style={{ color: p.text, fontWeight: '700', fontSize: 13, letterSpacing: 0.5 }}>TRY AGAIN</Text>
       </TouchableOpacity>
     </View>
   );

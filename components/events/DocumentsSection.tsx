@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 import { useDocuments } from '@/lib/queries/documents';
 import { useUploadDocument, useDeleteDocument } from '@/lib/mutations/documents';
+import { useTheme } from '@/lib/themeContext';
 import type { EventDocument } from '@/types';
 
 function formatFileSize(bytes: number | null): string {
@@ -12,7 +13,7 @@ function formatFileSize(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function mimeIcon(mimeType: string | null): string {
+function mimeIcon(mimeType: string | null): React.ComponentProps<typeof Ionicons>['name'] {
   if (!mimeType) return 'document-outline';
   if (mimeType === 'application/pdf') return 'document-text-outline';
   if (mimeType.startsWith('image/')) return 'image-outline';
@@ -26,6 +27,9 @@ interface DocumentRowProps {
 }
 
 function DocumentRow({ doc, onDelete, deleting }: DocumentRowProps) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
+
   function handleDelete() {
     Alert.alert(
       'Remove document',
@@ -38,25 +42,25 @@ function DocumentRow({ doc, onDelete, deleting }: DocumentRowProps) {
   }
 
   return (
-    <View className="flex-row items-center py-2.5 border-b border-stone-50">
-      <Ionicons name={mimeIcon(doc.mime_type) as React.ComponentProps<typeof Ionicons>["name"]} size={20} color="#a8a29e" />
-      <View className="flex-1 mx-3">
-        <Text className="text-stone-800 text-sm font-medium" numberOfLines={1}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: p.border, borderStyle: 'dashed' }}>
+      <Ionicons name={mimeIcon(doc.mime_type)} size={18} color={p.textFaint} />
+      <View style={{ flex: 1, marginHorizontal: 10 }}>
+        <Text style={{ fontSize: 14, color: p.text, fontWeight: '500' }} numberOfLines={1}>
           {doc.file_name}
         </Text>
         {doc.file_size && (
-          <Text className="text-stone-400 text-xs mt-0.5">{formatFileSize(doc.file_size)}</Text>
+          <Text style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>{formatFileSize(doc.file_size)}</Text>
         )}
       </View>
       {deleting ? (
-        <ActivityIndicator size="small" color="#a8a29e" />
+        <ActivityIndicator size="small" color={p.textFaint} />
       ) : (
         <TouchableOpacity
           onPress={handleDelete}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           accessibilityLabel={`Remove ${doc.file_name}`}
         >
-          <Ionicons name="close-circle-outline" size={20} color="#a8a29e" />
+          <Ionicons name="close-circle-outline" size={20} color={p.textFaint} />
         </TouchableOpacity>
       )}
     </View>
@@ -68,37 +72,39 @@ interface Props {
 }
 
 export function DocumentsSection({ eventId }: Props) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const { data: docs, isLoading } = useDocuments(eventId);
   const { mutate: upload, isPending: uploading } = useUploadDocument(eventId);
   const { mutate: deleteDoc, isPending: deleting, variables: deletingVars } = useDeleteDocument();
 
   return (
-    <View className="bg-white rounded-2xl p-4 border border-stone-100">
-      <View className="flex-row items-center justify-between mb-2">
-        <Text className="font-bold text-stone-900 text-base">Documents</Text>
+    <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, padding: 16 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <Text style={{ fontFamily: tokens.type.display, fontSize: 18, color: p.text }}>Documents</Text>
         <TouchableOpacity
           onPress={() => upload()}
           disabled={uploading}
-          className="flex-row items-center gap-1"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
           accessibilityLabel="Add document"
         >
           {uploading ? (
-            <ActivityIndicator size="small" color="#b45309" />
+            <ActivityIndicator size="small" color={p.brand} />
           ) : (
             <>
-              <Ionicons name="add-circle-outline" size={18} color="#b45309" />
-              <Text className="text-amber-700 text-sm font-medium">Add</Text>
+              <Ionicons name="add-circle-outline" size={18} color={p.brand} />
+              <Text style={{ fontSize: 13, color: p.brand, fontWeight: '600' }}>Add</Text>
             </>
           )}
         </TouchableOpacity>
       </View>
 
       {isLoading ? (
-        <ActivityIndicator size="small" color="#a8a29e" />
+        <ActivityIndicator size="small" color={p.textMuted} />
       ) : !docs || docs.length === 0 ? (
-        <View className="py-4 items-center">
-          <Ionicons name="folder-open-outline" size={28} color="#d6d3d1" />
-          <Text className="text-stone-400 text-sm mt-2">
+        <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+          <Ionicons name="folder-open-outline" size={28} color={p.textFaint} />
+          <Text style={{ fontSize: 13, color: p.textMuted, marginTop: 8, textAlign: 'center' }}>
             No documents yet — add insurance, permits, or risk assessments
           </Text>
         </View>
@@ -108,13 +114,7 @@ export function DocumentsSection({ eventId }: Props) {
             key={doc.id}
             doc={doc}
             deleting={deleting && deletingVars?.documentId === doc.id}
-            onDelete={() =>
-              deleteDoc({
-                documentId: doc.id,
-                storagePath: doc.storage_path,
-                eventId,
-              })
-            }
+            onDelete={() => deleteDoc({ documentId: doc.id, storagePath: doc.storage_path, eventId })}
           />
         ))
       )}

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated } from 'react-native';
+import { useTheme } from '@/lib/themeContext';
 
 interface ActionProp {
   label: string;
@@ -16,39 +17,31 @@ interface Props {
 }
 
 export function EmptyState({ icon = '📋', title, description, action, secondaryAction, tip }: Props) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const opacity = useRef(new Animated.Value(0)).current;
   const iconScale = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.spring(iconScale, {
-        toValue: 1,
-        friction: 4,
-        tension: 110,
-        delay: 80,
-        useNativeDriver: true,
-      }),
+      Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.spring(iconScale, { toValue: 1, friction: 4, tension: 110, delay: 80, useNativeDriver: true }),
     ]).start();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <Animated.View className="flex-1 items-center justify-center px-8 py-16" style={{ opacity }}>
-      <Animated.Text className="text-6xl mb-4" style={{ transform: [{ scale: iconScale }] }}>
+    <Animated.View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, paddingVertical: 64, opacity }}>
+      <Animated.Text style={{ fontSize: 56, marginBottom: 16, transform: [{ scale: iconScale }] }}>
         {icon}
       </Animated.Text>
-      <Text className="text-lg font-semibold text-stone-700 text-center">{title}</Text>
+      <Text style={{ fontFamily: tokens.type.display, fontSize: 20, color: p.text, textAlign: 'center', marginBottom: 8 }}>{title}</Text>
       {description && (
-        <Text className="text-stone-500 text-center mt-2">{description}</Text>
+        <Text style={{ fontSize: 14, color: p.textMuted, textAlign: 'center', lineHeight: 20 }}>{description}</Text>
       )}
       {tip && (
-        <View className="mt-4 bg-amber-50 border border-amber-200 px-4 py-2.5 rounded-xl">
-          <Text className="text-amber-800 text-xs text-center">💡 {tip}</Text>
+        <View style={{ marginTop: 16, borderWidth: 1, borderColor: p.border, paddingHorizontal: 16, paddingVertical: 10 }}>
+          <Text style={{ fontSize: 12, color: p.textMuted, textAlign: 'center' }}>💡 {tip}</Text>
         </View>
       )}
       {action && (
@@ -56,9 +49,9 @@ export function EmptyState({ icon = '📋', title, description, action, secondar
           onPress={action.onPress}
           accessibilityRole="button"
           accessibilityLabel={action.label}
-          className="mt-6 bg-amber-700 px-6 py-3 rounded-xl"
+          style={{ marginTop: 24, borderWidth: 2, borderColor: p.text, paddingHorizontal: 24, paddingVertical: 12 }}
         >
-          <Text className="text-white font-semibold">{action.label}</Text>
+          <Text style={{ fontSize: 13, fontWeight: '700', letterSpacing: 0.5, color: p.text }}>{action.label.toUpperCase()}</Text>
         </TouchableOpacity>
       )}
       {secondaryAction && (
@@ -66,9 +59,9 @@ export function EmptyState({ icon = '📋', title, description, action, secondar
           onPress={secondaryAction.onPress}
           accessibilityRole="button"
           accessibilityLabel={secondaryAction.label}
-          className="mt-3 px-6 py-3"
+          style={{ marginTop: 12, paddingHorizontal: 24, paddingVertical: 12 }}
         >
-          <Text className="text-amber-700 font-medium">{secondaryAction.label}</Text>
+          <Text style={{ fontSize: 13, color: p.brand, fontWeight: '600' }}>{secondaryAction.label}</Text>
         </TouchableOpacity>
       )}
     </Animated.View>

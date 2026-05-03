@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TextInputProps } from 'react-native';
+import { useTheme } from '@/lib/themeContext';
 
 interface Props extends Omit<TextInputProps, 'value' | 'onChangeText'> {
   value: number;
@@ -17,6 +18,8 @@ export function CurrencyInput({
   currencySymbol = '£',
   ...props
 }: Props) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const [displayValue, setDisplayValue] = useState(value > 0 ? value.toString() : '');
 
   function handleChangeText(text: string) {
@@ -40,22 +43,34 @@ export function CurrencyInput({
 
   return (
     <View>
-      {label && <Text className="text-stone-600 text-sm font-medium mb-1">{label}</Text>}
-      <View className={`flex-row items-center bg-stone-50 border rounded-xl px-3 py-3 ${error ? 'border-red-400' : 'border-stone-200'}`}>
-        <Text className="text-stone-500 mr-1 text-base">{currencySymbol}</Text>
+      {label && (
+        <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.textMuted, marginBottom: 6 }}>
+          {label.toUpperCase()}
+        </Text>
+      )}
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: p.surface,
+        borderWidth: 1,
+        borderColor: error ? '#dc2626' : p.border,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+      }}>
+        <Text style={{ fontSize: 15, color: p.textMuted, marginRight: 4 }}>{currencySymbol}</Text>
         <TextInput
-          className="flex-1 text-stone-900 text-base"
+          style={{ flex: 1, fontSize: 15, color: p.text }}
           value={displayValue}
           onChangeText={handleChangeText}
           onBlur={handleBlur}
           onFocus={handleFocus}
           keyboardType="decimal-pad"
           placeholder="0.00"
-          placeholderTextColor="#a8a29e"
+          placeholderTextColor={p.textFaint}
           {...props}
         />
       </View>
-      {error && <Text className="text-red-500 text-xs mt-1">{error}</Text>}
+      {error && <Text style={{ fontSize: 11, color: '#dc2626', marginTop: 4 }}>{error}</Text>}
     </View>
   );
 }

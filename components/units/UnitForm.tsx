@@ -10,6 +10,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import { unitSchema } from '@/lib/validations/unit.schema';
 import { FormField } from '@/components/shared/FormField';
 import { WheelColumn } from '@/components/shared/WheelColumn';
+import { useTheme } from '@/lib/themeContext';
 import { UNIT_STATUSES, UNIT_STATUS_LABELS, UNIT_STATUS_COLORS } from '@/constants';
 import type { UnitFormValues } from '@/lib/validations/unit.schema';
 import type { UnitStatus } from '@/types';
@@ -109,6 +110,8 @@ function DimensionInput({
 }: {
   label: string; value: number | null; onChange: (v: number | null) => void;
 }) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const [text, setText] = useState(value != null ? value.toFixed(2) : '');
 
   useEffect(() => {
@@ -116,9 +119,7 @@ function DimensionInput({
   }, [value]);
 
   function handleChange(raw: string) {
-    // Allow digits and one decimal point only
     const cleaned = raw.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
-    // Limit to 2 decimal places
     const match = cleaned.match(/^(\d{0,2})(\.\d{0,2})?$/);
     const safe = match ? cleaned : text;
     setText(safe);
@@ -133,16 +134,16 @@ function DimensionInput({
 
   return (
     <View style={{ flex: 1 }}>
-      <Text style={{ color: '#475569', fontSize: 13, fontWeight: '600', marginBottom: 6 }}>{label}</Text>
+      <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.textMuted, marginBottom: 6 }}>{label.toUpperCase()}</Text>
       <View style={{
         flexDirection: 'row', alignItems: 'center',
-        borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12,
-        backgroundColor: '#ffffff', paddingHorizontal: 14, paddingVertical: 11,
+        borderWidth: 1, borderColor: p.border,
+        backgroundColor: p.surface, paddingHorizontal: 14, paddingVertical: 12,
       }}>
         <TextInput
-          style={{ flex: 1, fontSize: 15, color: '#0f172a', padding: 0 }}
+          style={{ flex: 1, fontSize: 15, color: p.text, padding: 0 }}
           placeholder="0.00"
-          placeholderTextColor="#94a3b8"
+          placeholderTextColor={p.textFaint}
           keyboardType="decimal-pad"
           value={text}
           onChangeText={handleChange}
@@ -150,7 +151,7 @@ function DimensionInput({
           maxLength={6}
           accessibilityLabel={`${label} in metres`}
         />
-        <Text style={{ color: '#94a3b8', fontSize: 14, fontWeight: '500', marginLeft: 4 }}>m</Text>
+        <Text style={{ color: p.textFaint, fontSize: 14, marginLeft: 4 }}>m</Text>
       </View>
     </View>
   );
@@ -161,6 +162,8 @@ function DatePickerButton({
 }: {
   label: string; value: string; onChange: (iso: string) => void; required?: boolean;
 }) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const [show, setShow] = useState(false);
   const displayText = value
     ? (() => { try { const d = parseISO(value); return isValid(d) ? format(d, 'd MMM yyyy') : value; } catch { return value; } })()
@@ -168,21 +171,21 @@ function DatePickerButton({
 
   return (
     <View>
-      <Text style={{ color: '#475569', fontSize: 14, fontWeight: '600', marginBottom: 6 }}>
-        {label}{required && <Text style={{ color: '#ef4444' }}> *</Text>}
+      <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.textMuted, marginBottom: 6 }}>
+        {label.toUpperCase()}{required && <Text style={{ color: '#dc2626' }}> *</Text>}
       </Text>
       <TouchableOpacity
         onPress={() => setShow(true)}
         style={{
           flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-          borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12,
-          paddingHorizontal: 14, paddingVertical: 12, backgroundColor: '#ffffff',
+          borderWidth: 1, borderColor: p.border,
+          paddingHorizontal: 14, paddingVertical: 12, backgroundColor: p.surface,
         }}
       >
-        <Text style={{ color: displayText ? '#0f172a' : '#94a3b8', fontSize: 15 }}>
+        <Text style={{ color: displayText ? p.text : p.textFaint, fontSize: 15 }}>
           {displayText || 'Select date'}
         </Text>
-        <Text style={{ fontSize: 16 }}>📅</Text>
+        <Text style={{ fontSize: 14 }}>📅</Text>
       </TouchableOpacity>
       {show && (
         <DatePickerModal
@@ -205,6 +208,8 @@ interface Props {
 export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }: Props) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { tokens } = useTheme();
+  const p = tokens.palette;
 
   const { control, handleSubmit, formState: { errors } } = useForm<UnitFormValues>({
     resolver: zodResolver(unitSchema) as Resolver<UnitFormValues>,
@@ -239,7 +244,7 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fafaf9' }}>
+    <View style={{ flex: 1, backgroundColor: p.bg }}>
       <ScrollView style={{ flex: 1, paddingHorizontal: 16, paddingTop: 16 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View style={{ gap: 16 }}>
 
@@ -281,7 +286,7 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
             name="vehicle_type"
             render={({ field }) => (
               <View>
-                <Text style={{ color: '#475569', fontSize: 14, fontWeight: '600', marginBottom: 8 }}>Vehicle Type</Text>
+                <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.textMuted, marginBottom: 8 }}>VEHICLE TYPE</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {VEHICLE_TYPES.map((vt) => {
                     const isSelected = field.value === vt;
@@ -290,13 +295,13 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
                         key={vt}
                         onPress={() => field.onChange(isSelected ? '' : vt)}
                         style={{
-                          paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1,
-                          backgroundColor: isSelected ? '#1c1917' : '#ffffff',
-                          borderColor: isSelected ? '#1c1917' : '#e7e5e4',
+                          paddingHorizontal: 14, paddingVertical: 8, borderWidth: isSelected ? 2 : 1,
+                          backgroundColor: isSelected ? p.text : p.surface,
+                          borderColor: isSelected ? p.text : p.border,
                         }}
                         activeOpacity={0.7}
                       >
-                        <Text style={{ fontSize: 13, fontWeight: '500', color: isSelected ? '#ffffff' : '#57534e' }}>
+                        <Text style={{ fontSize: 13, fontWeight: '500', color: isSelected ? p.bg : p.textMuted }}>
                           {vt}
                         </Text>
                       </TouchableOpacity>
@@ -309,7 +314,7 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
 
           {/* Dimensions */}
           <View>
-            <Text style={{ color: '#475569', fontSize: 14, fontWeight: '600', marginBottom: 8 }}>Dimensions (metres)</Text>
+            <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.textMuted, marginBottom: 8 }}>DIMENSIONS (METRES)</Text>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <Controller
                 control={control}
@@ -341,7 +346,7 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
             name="status"
             render={({ field }) => (
               <View>
-                <Text style={{ color: '#475569', fontSize: 14, fontWeight: '600', marginBottom: 8 }}>Status</Text>
+                <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.textMuted, marginBottom: 8 }}>STATUS</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   {UNIT_STATUSES.map((s) => {
                     const colors = UNIT_STATUS_COLORS[s as UnitStatus];
@@ -352,14 +357,14 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
                         onPress={() => field.onChange(s)}
                         style={{
                           flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                          paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1,
-                          backgroundColor: isSelected ? colors.bgHex : '#ffffff',
-                          borderColor: isSelected ? 'transparent' : '#e7e5e4',
+                          paddingHorizontal: 12, paddingVertical: 10, borderWidth: isSelected ? 2 : 1,
+                          backgroundColor: isSelected ? `${colors.dot}18` : p.surface,
+                          borderColor: isSelected ? colors.dot : p.border,
                         }}
                         activeOpacity={0.7}
                       >
-                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.dot, marginRight: 6 }} />
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: isSelected ? colors.textHex : '#78716c' }} numberOfLines={1}>
+                        <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: colors.dot, marginRight: 6 }} />
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: isSelected ? p.text : p.textMuted }} numberOfLines={1}>
                           {UNIT_STATUS_LABELS[s as UnitStatus]}
                         </Text>
                       </TouchableOpacity>
@@ -415,7 +420,7 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
             name="service_interval"
             render={({ field }) => (
               <View>
-                <Text style={{ color: '#475569', fontSize: 14, fontWeight: '600', marginBottom: 8 }}>Service Interval</Text>
+                <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.textMuted, marginBottom: 8 }}>SERVICE INTERVAL</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   {SERVICE_INTERVALS.map(({ value, label }) => {
                     const isSelected = field.value === value;
@@ -424,13 +429,13 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
                         key={value}
                         onPress={() => field.onChange(value)}
                         style={{
-                          flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1, alignItems: 'center',
-                          backgroundColor: isSelected ? '#1c1917' : '#ffffff',
-                          borderColor: isSelected ? '#1c1917' : '#e7e5e4',
+                          flex: 1, paddingVertical: 10, borderWidth: isSelected ? 2 : 1, alignItems: 'center',
+                          backgroundColor: isSelected ? p.text : p.surface,
+                          borderColor: isSelected ? p.text : p.border,
                         }}
                         activeOpacity={0.7}
                       >
-                        <Text style={{ fontSize: 13, fontWeight: '500', color: isSelected ? '#ffffff' : '#57534e' }}>
+                        <Text style={{ fontSize: 13, fontWeight: '500', color: isSelected ? p.bg : p.textMuted }}>
                           {label}
                         </Text>
                       </TouchableOpacity>
@@ -461,16 +466,16 @@ export function UnitForm({ defaultValues, onSubmit, submitLabel = 'Save Unit' }:
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <View style={{ paddingHorizontal: 16, paddingBottom: 24, paddingTop: 12, backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#f5f5f4' }}>
+      <View style={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 12, backgroundColor: p.bg, borderTopWidth: 1, borderTopColor: p.border }}>
         <TouchableOpacity
           onPress={handleSubmit(handleFormSubmit)}
-          style={{ backgroundColor: '#b45309', paddingVertical: 16, borderRadius: 12, alignItems: 'center' }}
+          style={{ backgroundColor: p.text, paddingVertical: 16, alignItems: 'center' }}
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={p.bg} />
           ) : (
-            <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 16 }}>{submitLabel}</Text>
+            <Text style={{ color: p.bg, fontWeight: '700', fontSize: 14, letterSpacing: 1 }}>{submitLabel.toUpperCase()}</Text>
           )}
         </TouchableOpacity>
       </View>

@@ -217,23 +217,23 @@ export function WeatherCard({
   }, [location, startDate, endDate, eventId]);
 
   if (loading) return (
-    <View className="bg-white rounded-2xl p-4 border border-stone-100 items-center">
+    <View style={{ backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e7e5e4', padding: 16, alignItems: 'center' }}>
       <ActivityIndicator size="small" color="#b45309" />
-      <Text className="text-stone-400 text-xs mt-2">Fetching forecast…</Text>
+      <Text style={{ fontSize: 12, color: '#a8a29e', marginTop: 8 }}>Fetching forecast…</Text>
     </View>
   );
 
   if (outOfRange) return (
-    <View className="bg-white rounded-2xl p-4 border border-stone-100">
-      <Text className="font-bold text-stone-900 text-sm mb-1">🌤️ Weather Forecast</Text>
-      <Text className="text-stone-400 text-xs">Forecast available within 14 days of event.</Text>
+    <View style={{ backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e7e5e4', padding: 16 }}>
+      <Text style={{ fontWeight: '700', color: '#1c1917', fontSize: 13, marginBottom: 4 }}>🌤️ Weather Forecast</Text>
+      <Text style={{ fontSize: 12, color: '#a8a29e' }}>Forecast available within 14 days of event.</Text>
     </View>
   );
 
   if (!days || days.length === 0) return (
-    <View className="bg-white rounded-2xl p-4 border border-stone-100">
-      <Text className="font-bold text-stone-900 text-sm mb-1">🌤️ Weather Forecast</Text>
-      <Text className="text-stone-400 text-xs">
+    <View style={{ backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e7e5e4', padding: 16 }}>
+      <Text style={{ fontWeight: '700', color: '#1c1917', fontSize: 13, marginBottom: 4 }}>🌤️ Weather Forecast</Text>
+      <Text style={{ fontSize: 12, color: '#a8a29e' }}>
         Forecast unavailable — we couldn't match "{location}" or the providers didn't return data.
       </Text>
     </View>
@@ -244,10 +244,10 @@ export function WeatherCard({
   const hasST = days.some((d) => d.st !== null);
 
   return (
-    <View className="bg-white rounded-2xl p-4 border border-stone-100">
-      <Text className="font-bold text-stone-900 text-base mb-1">🌤️ Weather Forecast</Text>
+    <View style={{ backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e7e5e4', padding: 16 }}>
+      <Text style={{ fontWeight: '700', color: '#1c1917', fontSize: 14, marginBottom: 4 }}>🌤️ Weather Forecast</Text>
       {hasOM && hasST && (
-        <Text className="text-stone-400 text-xs mb-3">Two independent sources — ✅ agree · ⚠️ differ</Text>
+        <Text style={{ fontSize: 11, color: '#a8a29e', marginBottom: 12 }}>Two independent sources — ✅ agree · ⚠️ differ</Text>
       )}
 
       {/* Per-day dual grid */}

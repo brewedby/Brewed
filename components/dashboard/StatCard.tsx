@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import { useTheme } from '@/lib/themeContext';
 
 interface Props {
   title: string;
@@ -12,8 +13,15 @@ interface Props {
 }
 
 const ACCENT_HEX = {
-  default: '#d6d3d1',
-  green: '#16a34a',
+  default: '#a8a29e',
+  green: '#22c55e',
+  amber: '#d97706',
+  red: '#dc2626',
+};
+
+const VALUE_COLOR = {
+  default: null,
+  green: '#22c55e',
   amber: '#d97706',
   red: '#dc2626',
 };
@@ -21,34 +29,33 @@ const ACCENT_HEX = {
 export const StatCard = React.memo(function StatCard({
   title, value, subtext, subtitle, icon, trendValue, colorScheme = 'default',
 }: Props) {
-  const valueColors = {
-    default: 'text-stone-900',
-    green: 'text-green-700',
-    amber: 'text-amber-700',
-    red: 'text-red-600',
-  };
+  const { tokens } = useTheme();
+  const p = tokens.palette;
+  const accent = ACCENT_HEX[colorScheme];
+  const valueColor = VALUE_COLOR[colorScheme] ?? p.text;
 
   return (
-    <View
-      className="bg-white rounded-2xl border border-stone-100 flex-1 overflow-hidden"
-      style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }}
-    >
-      <View style={{ height: 3, backgroundColor: ACCENT_HEX[colorScheme] }} />
-      <View className="p-4">
-        <View className="flex-row items-center justify-between mb-2 min-h-[20px]">
-          {icon ? <Text className="text-xl">{icon}</Text> : <View />}
+    <View style={{ flex: 1, backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, overflow: 'hidden' }}>
+      <View style={{ height: 3, backgroundColor: accent }} />
+      <View style={{ padding: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, minHeight: 20 }}>
+          {icon ? <Text style={{ fontSize: 18 }}>{icon}</Text> : <View />}
           {trendValue !== undefined && (
-            <View className={`flex-row items-center px-1.5 py-0.5 rounded-full ${trendValue >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-              <Text className={`text-xs font-medium ${trendValue >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+            <View style={{
+              flexDirection: 'row', alignItems: 'center',
+              paddingHorizontal: 6, paddingVertical: 2,
+              backgroundColor: trendValue >= 0 ? 'rgba(34,197,94,0.1)' : 'rgba(220,38,38,0.1)',
+            }}>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: trendValue >= 0 ? '#22c55e' : '#dc2626' }}>
                 {trendValue >= 0 ? '↑' : '↓'} {Math.abs(trendValue).toFixed(0)}%
               </Text>
             </View>
           )}
         </View>
-        <Text className={`text-xl font-bold ${valueColors[colorScheme]}`} numberOfLines={1}>{value}</Text>
-        <Text className="text-stone-500 text-xs mt-0.5">{title}</Text>
-        {subtext && <Text className="text-stone-400 text-xs mt-1">{subtext}</Text>}
-        {subtitle && <Text className="text-stone-400 text-xs mt-1">{subtitle}</Text>}
+        <Text style={{ fontFamily: tokens.type.display, fontSize: 22, color: valueColor }} numberOfLines={1}>{value}</Text>
+        <Text style={{ fontSize: 11, color: p.textMuted, marginTop: 2, letterSpacing: 0.5 }}>{title}</Text>
+        {subtext && <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 4 }}>{subtext}</Text>}
+        {subtitle && <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 4 }}>{subtitle}</Text>}
       </View>
     </View>
   );

@@ -1,12 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import { View, ActivityIndicator, Text, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/lib/themeContext';
 
 interface Props {
   message?: string;
 }
 
 export function LoadingSpinner({ message }: Props) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const bob = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -22,18 +25,16 @@ export function LoadingSpinner({ message }: Props) {
   }, []);
 
   return (
-    <View className="flex-1 items-center justify-center">
-      <Animated.View style={{ transform: [{ translateY: bob }] }} className="mb-3">
-        <View className="w-14 h-14 rounded-2xl bg-amber-100 items-center justify-center">
-          <Ionicons name="cafe" size={30} color="#b45309" />
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: p.bg }}>
+      <Animated.View style={{ transform: [{ translateY: bob }], marginBottom: 12 }}>
+        <View style={{ width: 56, height: 56, borderWidth: 2, borderColor: p.border, alignItems: 'center', justifyContent: 'center', backgroundColor: p.surface }}>
+          <Ionicons name="cafe" size={28} color={p.brand} />
         </View>
       </Animated.View>
-      <ActivityIndicator size="small" color="#f59e0b" />
-      {message ? (
-        <Text className="text-stone-500 text-sm mt-2">{message}</Text>
-      ) : (
-        <Text className="text-stone-400 text-xs mt-2 font-medium">Loading…</Text>
-      )}
+      <ActivityIndicator size="small" color={p.brand} />
+      <Text style={{ fontSize: 13, color: p.textMuted, marginTop: 8 }}>
+        {message ?? 'Loading…'}
+      </Text>
     </View>
   );
 }

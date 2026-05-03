@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { formatCurrency, formatPercent } from '@/lib/formatters';
+import { useTheme } from '@/lib/themeContext';
 import type { EventFinancials, EventCalculations } from '@/types';
 
 interface Props {
@@ -11,22 +12,18 @@ interface Props {
 function Row({ label, value, bold, color, indent }: {
   label: string; value: string; bold?: boolean; color?: string; indent?: boolean;
 }) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 7 }}>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 }}>
       <Text style={{
-        fontSize: 14,
-        color: indent ? '#a8a29e' : bold ? '#1c1917' : '#78716c',
-        paddingLeft: indent ? 12 : 0,
-        fontWeight: bold ? '600' : '400',
+        fontSize: 14, color: indent ? p.textFaint : bold ? p.text : p.textMuted,
+        paddingLeft: indent ? 12 : 0, fontWeight: bold ? '600' : '400',
         flex: 1, marginRight: 8,
       }}>
         {label}
       </Text>
-      <Text style={{
-        fontSize: 14,
-        fontWeight: bold ? '700' : '500',
-        color: color ?? (bold ? '#1c1917' : '#78716c'),
-      }}>
+      <Text style={{ fontSize: 14, fontWeight: bold ? '700' : '500', color: color ?? (bold ? p.text : p.textMuted) }}>
         {value}
       </Text>
     </View>
@@ -34,46 +31,46 @@ function Row({ label, value, bold, color, indent }: {
 }
 
 function Divider() {
-  return <View style={{ height: 1, backgroundColor: '#f5f5f4', marginVertical: 6 }} />;
+  const { tokens } = useTheme();
+  const p = tokens.palette;
+  return <View style={{ height: 1, backgroundColor: p.border, marginVertical: 6, borderStyle: 'dashed' }} />;
 }
 
 function SectionLabel({ title }: { title: string }) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   return (
-    <Text style={{
-      fontSize: 10, fontWeight: '700', color: '#a8a29e',
-      textTransform: 'uppercase', letterSpacing: 0.8,
-      marginTop: 14, marginBottom: 4,
-    }}>
+    <Text style={{ fontSize: 10, fontWeight: '700', color: p.textFaint, textTransform: 'uppercase', letterSpacing: 1, marginTop: 14, marginBottom: 4 }}>
       {title}
     </Text>
   );
 }
 
 export function FinancialsCard({ financials: f, calculations: c }: Props) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
   const hasVatBreakdown    = (f.zero_rated_sales ?? 0) > 0 || (f.standard_rated_sales ?? 0) > 0;
   const hasCommission      = (f.concessions_commission_pct ?? 0) > 0 || (f.pitch_fee_refund_pct ?? 0) > 0;
   const hasPowerFee        = (f.power_fee ?? 0) > 0;
   const hasSiteCostSection = hasCommission || hasPowerFee;
   const hasMilk            = (f.fresh_milk_litres ?? 0) > 0 || (f.alt_milk_litres ?? 0) > 0;
-
   const isProfit = c.netProfit >= 0;
 
   return (
-    <View style={{ backgroundColor: '#ffffff', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#f5f5f4' }}>
+    <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, padding: 16 }}>
       {/* Header row with net profit badge */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <Text style={{ fontWeight: '700', color: '#1c1917', fontSize: 16 }}>Financials</Text>
+        <Text style={{ fontFamily: tokens.type.display, fontSize: 18, color: p.text }}>Financials</Text>
         <View style={{
-          backgroundColor: isProfit ? '#dcfce7' : '#fee2e2',
-          paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
+          borderWidth: 1, borderColor: isProfit ? '#22c55e' : '#dc2626',
+          paddingHorizontal: 10, paddingVertical: 3,
         }}>
-          <Text style={{ color: isProfit ? '#166534' : '#991b1b', fontWeight: '700', fontSize: 13 }}>
+          <Text style={{ color: isProfit ? '#22c55e' : '#dc2626', fontWeight: '700', fontSize: 13 }}>
             {isProfit ? '+' : ''}{formatCurrency(c.netProfit)}
           </Text>
         </View>
       </View>
 
-      {/* ── SALES ── */}
       <SectionLabel title="Sales" />
       {hasVatBreakdown ? (
         <>
@@ -88,7 +85,6 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
         <Row label="Gross Sales" value={formatCurrency(f.gross_sales)} bold />
       )}
 
-      {/* ── PITCH FEE & COMMISSION ── */}
       {hasSiteCostSection && (
         <>
           <SectionLabel title="Pitch Fee & Commission" />
@@ -103,7 +99,7 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
                    value={`−${formatCurrency(c.commissionAmount)}`} indent />
               <Row label="Net refund received"
                    value={formatCurrency(Math.max(0, c.netRefund))} indent
-                   color={c.netRefund >= 0 ? '#16a34a' : '#dc2626'} />
+                   color={c.netRefund >= 0 ? '#22c55e' : '#dc2626'} />
             </>
           )}
           {hasPowerFee && (
@@ -114,7 +110,6 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
         </>
       )}
 
-      {/* ── YOUR COSTS ── */}
       <SectionLabel title="Your Costs" />
       <Row label="Cost of Goods"    value={formatCurrency(f.cost_of_goods)} />
       {!hasSiteCostSection && (f.pitch_fee ?? 0) > 0 && (
@@ -130,7 +125,6 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
         <Row label="Other"          value={formatCurrency(f.other_costs ?? 0)} />
       )}
 
-      {/* ── MILK ── */}
       {hasMilk && (
         <>
           <SectionLabel title="Milk Used" />
@@ -143,12 +137,11 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
         </>
       )}
 
-      {/* ── TOTALS ── */}
       <Divider />
       <Row label="Total Costs" value={formatCurrency(c.totalCosts)} bold />
       <Divider />
-      <Row label="Net Profit"   value={formatCurrency(c.netProfit)}   bold color={isProfit ? '#16a34a' : '#dc2626'} />
-      <Row label="Profit Margin" value={formatPercent(c.profitMargin)} bold color={c.profitMargin >= 0 ? '#16a34a' : '#dc2626'} />
+      <Row label="Net Profit"   value={formatCurrency(c.netProfit)}   bold color={isProfit ? '#22c55e' : '#dc2626'} />
+      <Row label="Profit Margin" value={formatPercent(c.profitMargin)} bold color={c.profitMargin >= 0 ? '#22c55e' : '#dc2626'} />
     </View>
   );
 }

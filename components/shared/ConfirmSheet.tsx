@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal, Pressable } from 'react-native';
+import { useTheme } from '@/lib/themeContext';
 
 interface Props {
   visible: boolean;
@@ -16,26 +17,32 @@ export function ConfirmSheet({
   visible, title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel',
   destructive = false, onConfirm, onCancel,
 }: Props) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <Pressable className="flex-1 bg-black/50 justify-end" onPress={onCancel}>
+      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} onPress={onCancel}>
         <Pressable>
-          <View className="bg-white rounded-t-3xl px-6 pt-6 pb-10">
-            <View className="w-12 h-1 bg-stone-300 rounded-full self-center mb-6" />
-            <Text className="text-lg font-bold text-stone-900 mb-2">{title}</Text>
-            <Text className="text-stone-600 mb-6">{message}</Text>
-            <View className="gap-3">
+          <View style={{ backgroundColor: p.surface, paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40, borderTopWidth: 2, borderTopColor: p.text }}>
+            <View style={{ width: 40, height: 3, backgroundColor: p.border, alignSelf: 'center', marginBottom: 20 }} />
+            <Text style={{ fontFamily: tokens.type.display, fontSize: 20, color: p.text, marginBottom: 8 }}>{title}</Text>
+            <Text style={{ fontSize: 14, color: p.textMuted, marginBottom: 24, lineHeight: 20 }}>{message}</Text>
+            <View style={{ gap: 12 }}>
               <TouchableOpacity
-                className={`py-4 rounded-xl items-center ${destructive ? 'bg-red-600' : 'bg-amber-700'}`}
                 onPress={onConfirm}
+                style={{
+                  paddingVertical: 16, alignItems: 'center',
+                  backgroundColor: destructive ? '#dc2626' : p.text,
+                }}
               >
-                <Text className="text-white font-semibold">{confirmLabel}</Text>
+                <Text style={{ color: p.bg, fontWeight: '700', fontSize: 14, letterSpacing: 0.5 }}>{confirmLabel.toUpperCase()}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                className="py-4 rounded-xl items-center bg-stone-100"
                 onPress={onCancel}
+                style={{ paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: p.border }}
               >
-                <Text className="text-stone-700 font-semibold">{cancelLabel}</Text>
+                <Text style={{ color: p.textMuted, fontWeight: '600', fontSize: 14 }}>{cancelLabel}</Text>
               </TouchableOpacity>
             </View>
           </View>

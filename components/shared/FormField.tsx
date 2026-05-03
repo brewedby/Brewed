@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, TextInputProps } from 'react-native';
+import { useTheme } from '@/lib/themeContext';
 
 interface Props extends TextInputProps {
   label?: string;
@@ -7,23 +8,32 @@ interface Props extends TextInputProps {
   required?: boolean;
 }
 
-export function FormField({ label, error, required, ...props }: Props) {
+export function FormField({ label, error, required, style, ...props }: Props) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
+
   return (
     <View>
       {label && (
-        <Text className="text-stone-600 text-sm font-medium mb-1">
-          {label}
-          {required && <Text className="text-red-500"> *</Text>}
+        <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.textMuted, marginBottom: 6 }}>
+          {label.toUpperCase()}
+          {required && <Text style={{ color: '#dc2626' }}> *</Text>}
         </Text>
       )}
       <TextInput
-        className={`bg-stone-50 border rounded-xl px-4 py-3 text-stone-900 text-base ${
-          error ? 'border-red-400' : 'border-stone-200'
-        }`}
-        placeholderTextColor="#a8a29e"
+        style={[{
+          backgroundColor: p.surface,
+          borderWidth: 1,
+          borderColor: error ? '#dc2626' : p.border,
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+          fontSize: 15,
+          color: p.text,
+        }, style]}
+        placeholderTextColor={p.textFaint}
         {...props}
       />
-      {error && <Text className="text-red-500 text-xs mt-1">{error}</Text>}
+      {error && <Text style={{ fontSize: 11, color: '#dc2626', marginTop: 4 }}>{error}</Text>}
     </View>
   );
 }
