@@ -85,7 +85,9 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
     const withPrice = products.filter((prod) => prod.selling_price > 0);
     if (withPrice.length === 0) return null;
     const avg = withPrice.reduce((sum, prod) => {
-      const netPrice = prod.category === 'hot_drinks' ? prod.selling_price / 1.2 : prod.selling_price;
+      // Use first tier (default) price for the summary margin
+      const defaultPrice = prod.price_tiers?.[0]?.price ?? prod.selling_price;
+      const netPrice = prod.category === 'hot_drinks' ? defaultPrice / 1.2 : defaultPrice;
       return sum + ((netPrice - prod.unit_cost) / netPrice) * 100;
     }, 0) / withPrice.length;
     return avg;
@@ -93,72 +95,99 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
 
   function renderProduct({ item }: { item: ProductCatalogItem }) {
     const isVatable = item.category === 'hot_drinks';
-    const netPrice = isVatable ? item.selling_price / 1.2 : item.selling_price;
-    const grossMargin = item.selling_price > 0
-      ? ((netPrice - item.unit_cost) / netPrice) * 100
+    const tiers = item.price_tiers?.length ? item.price_tiers : [{ label: 'Standard', price: item.selling_price }];
+    const defaultPrice = tiers[0].price;
+    const netDefaultPrice = isVatable ? defaultPrice / 1.2 : defaultPrice;
+    const grossMargin = defaultPrice > 0
+      ? ((netDefaultPrice - item.unit_cost) / netDefaultPrice) * 100
       : null;
 
     return (
       <View style={{
-        flexDirection: 'row', alignItems: 'center',
         backgroundColor: p.surface, borderWidth: 1, borderColor: p.border,
-        padding: 12, marginBottom: 6, gap: 6,
+        padding: 12, marginBottom: 6,
       }}>
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontSize: 14, fontWeight: '600', color: p.text }}>{item.name}</Text>
-            {!item.is_active && (
-              <View style={{ borderWidth: 1, borderColor: p.border, paddingHorizontal: 5, paddingVertical: 1 }}>
-                <Text style={{ fontSize: 9, color: p.textFaint, textTransform: 'uppercase', letterSpacing: 0.5 }}>inactive</Text>
-              </View>
-            )}
+        {/* Top row: name + edit/delete */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: p.text }}>{item.name}</Text>
+              {!item.is_active && (
+                <View style={{ borderWidth: 1, borderColor: p.border, paddingHorizontal: 5, paddingVertical: 1 }}>
+                  <Text style={{ fontSize: 9, color: p.textFaint, textTransform: 'uppercase', letterSpacing: 0.5 }}>inactive</Text>
+                </View>
+              )}
+            </View>
+            {item.sku ? <Text style={{ fontSize: 10, color: p.textFaint }}>SKU: {item.sku}</Text> : null}
           </View>
-          {item.sku ? <Text style={{ fontSize: 10, color: p.textFaint, marginTop: 1 }}>SKU: {item.sku}</Text> : null}
+          <View style={{ flexDirection: 'row' }}>
+            <TouchableOpacity
+              onPress={() => { setEditing(item); setView('edit'); }}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${item.name}`}
+              style={{ padding: 8 }}
+            >
+              <Text style={{ fontSize: 15, color: p.textMuted }}>✎</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => confirmDelete(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove ${item.name}`}
+              style={{ padding: 8 }}
+            >
+              <Text style={{ fontSize: 15, color: '#dc2626' }}>✕</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Price | COGS | Margin */}
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={{ width: 52, alignItems: 'center' }}>
-            <Text style={{ fontSize: 9, color: p.textFaint, fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 }}>Price</Text>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: p.text }}>£{item.selling_price.toFixed(2)}</Text>
-            {isVatable && <Text style={{ fontSize: 8, color: p.textFaint, textAlign: 'center' }}>inc. VAT</Text>}
+        {/* Price tiers row */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+          {tiers.map((tier, i) => (
+            <View
+              key={i}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 4,
+                borderWidth: 1,
+                borderColor: i === 0 ? p.borderStrong : p.border,
+                paddingHorizontal: 8, paddingVertical: 4,
+                backgroundColor: i === 0 ? p.surfaceAlt : 'transparent',
+              }}
+            >
+              <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 0.8, color: p.textFaint, textTransform: 'uppercase' }}>
+                {tier.label}
+              </Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: p.text }}>
+                £{tier.price.toFixed(2)}
+              </Text>
+              {isVatable && i === 0 && (
+                <Text style={{ fontSize: 8, color: p.textFaint }}>inc.VAT</Text>
+              )}
+            </View>
+          ))}
+        </View>
+
+        {/* COGS | Margin strip */}
+        <View style={{
+          flexDirection: 'row', borderTopWidth: 1, borderTopColor: p.border,
+          paddingTop: 8, gap: 0,
+        }}>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={{ fontSize: 9, color: p.textFaint, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 2 }}>COGS</Text>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: p.brand }}>£{item.unit_cost.toFixed(2)}</Text>
           </View>
-          <View style={{ width: 1, height: 32, backgroundColor: p.border, marginHorizontal: 2 }} />
-          <View style={{ width: 52, alignItems: 'center' }}>
-            <Text style={{ fontSize: 9, color: p.textFaint, fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 }}>COGS</Text>
-            <Text style={{ fontSize: 14, fontWeight: '600', color: p.brand }}>£{item.unit_cost.toFixed(2)}</Text>
-          </View>
-          <View style={{ width: 1, height: 32, backgroundColor: p.border, marginHorizontal: 2 }} />
-          <View style={{ width: 52, alignItems: 'center' }}>
-            <Text style={{ fontSize: 9, color: p.textFaint, fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 }}>Margin</Text>
+          <View style={{ width: 1, backgroundColor: p.border }} />
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={{ fontSize: 9, color: p.textFaint, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 2 }}>
+              Margin{tiers.length > 1 ? ' (default)' : ''}
+            </Text>
             {grossMargin !== null ? (
-              <Text style={{ fontSize: 14, fontWeight: '700', color: marginColor(grossMargin, p.brand) }}>
-                {grossMargin.toFixed(0)}%
+              <Text style={{ fontSize: 13, fontWeight: '700', color: marginColor(grossMargin, p.brand) }}>
+                {grossMargin.toFixed(0)}%{isVatable ? ' ex-VAT' : ''}
               </Text>
             ) : (
-              <Text style={{ fontSize: 14, color: p.textFaint }}>—</Text>
+              <Text style={{ fontSize: 13, color: p.textFaint }}>—</Text>
             )}
-            {isVatable && <Text style={{ fontSize: 8, color: p.textFaint, textAlign: 'center' }}>ex-VAT</Text>}
           </View>
-        </View>
-
-        <View style={{ flexDirection: 'row', gap: 0 }}>
-          <TouchableOpacity
-            onPress={() => { setEditing(item); setView('edit'); }}
-            accessibilityRole="button"
-            accessibilityLabel={`Edit ${item.name}`}
-            style={{ padding: 8 }}
-          >
-            <Text style={{ fontSize: 15, color: p.textMuted }}>✎</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => confirmDelete(item)}
-            accessibilityRole="button"
-            accessibilityLabel={`Remove ${item.name}`}
-            style={{ padding: 8 }}
-          >
-            <Text style={{ fontSize: 15, color: '#dc2626' }}>✕</Text>
-          </TouchableOpacity>
         </View>
       </View>
     );
@@ -176,20 +205,10 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
   }
 
   const menuColumnHeader = (
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 2, paddingTop: 14, paddingBottom: 4 }}>
-      <Text style={{ flex: 1, fontSize: 10, fontWeight: '700', color: p.textFaint, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-        Product
+    <View style={{ paddingHorizontal: 2, paddingTop: 14, paddingBottom: 4 }}>
+      <Text style={{ fontSize: 10, fontWeight: '700', color: p.textFaint, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        Products — prices, COGS &amp; margin per item
       </Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        {['Price', 'COGS', 'Margin'].map((label, i) => (
-          <View key={label} style={{ width: i === 1 ? 56 : 52, alignItems: 'center' }}>
-            <Text style={{ fontSize: 10, fontWeight: '700', color: p.textFaint, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              {label}
-            </Text>
-          </View>
-        ))}
-      </View>
-      <View style={{ width: 72 }} />
     </View>
   );
 

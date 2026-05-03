@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity,
   ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTheme } from '@/lib/themeContext';
 import { productSchema, type ProductFormValues } from '@/lib/validations/product.schema';
@@ -14,6 +14,14 @@ interface ProductFormProps {
   onSubmit: (values: ProductFormValues) => Promise<void>;
   onCancel: () => void;
   submitting: boolean;
+}
+
+function defaultTiers(item?: ProductCatalogItem) {
+  if (item?.price_tiers?.length) return item.price_tiers;
+  if (item?.selling_price != null && item.selling_price > 0) {
+    return [{ label: 'Standard', price: item.selling_price }];
+  }
+  return [{ label: 'Standard', price: 0 }];
 }
 
 export function ProductForm({ initial, onSubmit, onCancel, submitting }: ProductFormProps) {
@@ -27,15 +35,17 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting }: Product
   } = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema) as never,
     defaultValues: {
-      name:          initial?.name          ?? '',
-      sku:           initial?.sku           ?? '',
-      selling_price: initial?.selling_price ?? 0,
-      unit_cost:     initial?.unit_cost     ?? 0,
-      unit:          initial?.unit          ?? 'cup',
-      category:      initial?.category      ?? 'hot_drinks',
-      is_active:     initial?.is_active     ?? true,
+      name:        initial?.name      ?? '',
+      sku:         initial?.sku       ?? '',
+      price_tiers: defaultTiers(initial),
+      unit_cost:   initial?.unit_cost ?? 0,
+      unit:        initial?.unit      ?? 'cup',
+      category:    initial?.category  ?? 'hot_drinks',
+      is_active:   initial?.is_active ?? true,
     },
   });
+
+  const { fields, append, remove } = useFieldArray({ control, name: 'price_tiers' });
 
   const isEdit = !!initial;
 
@@ -77,57 +87,143 @@ export function ProductForm({ initial, onSubmit, onCancel, submitting }: Product
         />
         {errors.name && <Text style={{ fontSize: 11, color: '#dc2626', marginBottom: 4 }}>{errors.name.message}</Text>}
 
-        {/* Two-column: Selling Price | COGS */}
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <View style={{ flex: 1 }}>
-            {fieldLabel('Selling price (£)', true)}
-            <Text style={{ fontSize: 11, color: p.textFaint, marginBottom: 8 }}>What you charge the customer</Text>
-            <Controller
-              control={control}
-              name="selling_price"
-              render={({ field }) => (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <Text style={{ fontSize: 18, color: p.textMuted, fontWeight: '600' }}>£</Text>
-                  <TextInput
-                    value={field.value === 0 ? '' : String(field.value)}
-                    onChangeText={field.onChange}
-                    onBlur={field.onBlur}
-                    style={[inputStyle(!!errors.selling_price), { flex: 1, marginBottom: 0 }]}
-                    keyboardType="decimal-pad"
-                    placeholder="3.50"
-                    placeholderTextColor={p.textFaint}
-                    accessibilityLabel="Selling price in pounds"
-                  />
-                </View>
-              )}
-            />
-            {errors.selling_price && <Text style={{ fontSize: 11, color: '#dc2626', marginBottom: 4 }}>{errors.selling_price.message}</Text>}
-          </View>
+        {/* ── Price Tiers ── */}
+        {fieldLabel('Selling prices', true)}
+        <Text style={{ fontSize: 11, color: p.textFaint, marginBottom: 10 }}>
+          Add a price for each venue type (e.g. Standard, Festival, Market). The first is used as the default.
+        </Text>
 
-          <View style={{ flex: 1 }}>
-            {fieldLabel('Cost to make (£)', true)}
-            <Text style={{ fontSize: 11, color: p.textFaint, marginBottom: 8 }}>Your actual cost per unit</Text>
-            <Controller
-              control={control}
-              name="unit_cost"
-              render={({ field }) => (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <Text style={{ fontSize: 18, color: p.textMuted, fontWeight: '600' }}>£</Text>
-                  <TextInput
-                    value={field.value === 0 ? '' : String(field.value)}
-                    onChangeText={field.onChange}
-                    onBlur={field.onBlur}
-                    style={[inputStyle(!!errors.unit_cost), { flex: 1, marginBottom: 0 }]}
-                    keyboardType="decimal-pad"
-                    placeholder="0.65"
-                    placeholderTextColor={p.textFaint}
-                    accessibilityLabel="Unit cost in pounds"
+        {fields.map((field, index) => {
+          const tierError = errors.price_tiers?.[index];
+          const isOnly = fields.length === 1;
+          return (
+            <View key={field.id} style={{ marginBottom: 8 }}>
+              <View style={{
+                flexDirection: 'row', gap: 8, alignItems: 'flex-start',
+                borderWidth: 1, borderColor: index === 0 ? p.borderStrong : p.border,
+                backgroundColor: index === 0 ? p.surface : p.bg,
+                padding: 10,
+              }}>
+                {/* Label */}
+                <Controller
+                  control={control}
+                  name={`price_tiers.${index}.label`}
+                  render={({ field: f }) => (
+                    <TextInput
+                      {...f}
+                      onChangeText={f.onChange}
+                      placeholder="e.g. Standard"
+                      placeholderTextColor={p.textFaint}
+                      accessibilityLabel={`Price tier ${index + 1} label`}
+                      style={{
+                        flex: 1,
+                        borderWidth: 1,
+                        borderColor: tierError?.label ? '#dc2626' : p.border,
+                        paddingHorizontal: 10,
+                        paddingVertical: 8,
+                        fontSize: 14,
+                        color: p.text,
+                        backgroundColor: p.bg,
+                      }}
+                    />
+                  )}
+                />
+                {/* Price */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={{ fontSize: 16, color: p.textMuted, fontWeight: '600' }}>£</Text>
+                  <Controller
+                    control={control}
+                    name={`price_tiers.${index}.price`}
+                    render={({ field: f }) => (
+                      <TextInput
+                        value={f.value === 0 ? '' : String(f.value)}
+                        onChangeText={f.onChange}
+                        onBlur={f.onBlur}
+                        keyboardType="decimal-pad"
+                        placeholder="0.00"
+                        placeholderTextColor={p.textFaint}
+                        accessibilityLabel={`Price tier ${index + 1} price`}
+                        style={{
+                          width: 72,
+                          borderWidth: 1,
+                          borderColor: tierError?.price ? '#dc2626' : p.border,
+                          paddingHorizontal: 10,
+                          paddingVertical: 8,
+                          fontSize: 14,
+                          color: p.text,
+                          backgroundColor: p.bg,
+                        }}
+                      />
+                    )}
                   />
                 </View>
+                {/* Remove */}
+                <TouchableOpacity
+                  onPress={() => !isOnly && remove(index)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove price tier ${index + 1}`}
+                  style={{
+                    width: 36, height: 36,
+                    alignItems: 'center', justifyContent: 'center',
+                    borderWidth: 1,
+                    borderColor: isOnly ? p.border : '#dc2626',
+                    opacity: isOnly ? 0.3 : 1,
+                  }}
+                >
+                  <Text style={{ fontSize: 14, color: isOnly ? p.textFaint : '#dc2626', fontWeight: '700' }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              {(tierError?.label || tierError?.price) && (
+                <Text style={{ fontSize: 11, color: '#dc2626', marginTop: 2 }}>
+                  {tierError?.label?.message ?? tierError?.price?.message}
+                </Text>
               )}
-            />
-            {errors.unit_cost && <Text style={{ fontSize: 11, color: '#dc2626', marginBottom: 4 }}>{errors.unit_cost.message}</Text>}
-          </View>
+            </View>
+          );
+        })}
+
+        <TouchableOpacity
+          onPress={() => append({ label: '', price: 0 })}
+          accessibilityRole="button"
+          accessibilityLabel="Add price tier"
+          style={{
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+            paddingVertical: 10,
+            borderWidth: 1, borderColor: p.border,
+            borderStyle: 'dashed',
+            marginBottom: 4,
+          }}
+        >
+          <Text style={{ fontSize: 12, color: p.brand, fontWeight: '700', letterSpacing: 0.5 }}>+ ADD PRICE TIER</Text>
+        </TouchableOpacity>
+        {errors.price_tiers?.root && (
+          <Text style={{ fontSize: 11, color: '#dc2626', marginBottom: 4 }}>{errors.price_tiers.root.message}</Text>
+        )}
+
+        {/* ── Cost to make ── */}
+        <View style={{ marginTop: 4 }}>
+          {fieldLabel('Cost to make (£)', true)}
+          <Text style={{ fontSize: 11, color: p.textFaint, marginBottom: 8 }}>Your actual ingredient cost per unit</Text>
+          <Controller
+            control={control}
+            name="unit_cost"
+            render={({ field }) => (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <Text style={{ fontSize: 18, color: p.textMuted, fontWeight: '600' }}>£</Text>
+                <TextInput
+                  value={field.value === 0 ? '' : String(field.value)}
+                  onChangeText={field.onChange}
+                  onBlur={field.onBlur}
+                  style={[inputStyle(!!errors.unit_cost), { flex: 1, marginBottom: 0 }]}
+                  keyboardType="decimal-pad"
+                  placeholder="0.65"
+                  placeholderTextColor={p.textFaint}
+                  accessibilityLabel="Unit cost in pounds"
+                />
+              </View>
+            )}
+          />
+          {errors.unit_cost && <Text style={{ fontSize: 11, color: '#dc2626', marginBottom: 4 }}>{errors.unit_cost.message}</Text>}
         </View>
 
         {fieldLabel('Unit', true)}

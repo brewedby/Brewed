@@ -20,12 +20,14 @@ export function useCreateProduct() {
       data: ProductFormValues;
       userId: string;
     }): Promise<ProductCatalogItem> => {
+      const defaultPrice = data.price_tiers[0]?.price ?? 0;
       const { data: created, error } = await catalogTable()
         .insert({
           user_id:       userId,
           name:          data.name,
           sku:           data.sku || null,
-          selling_price: data.selling_price,
+          selling_price: defaultPrice,
+          price_tiers:   data.price_tiers,
           unit_cost:     data.unit_cost,
           unit:          data.unit,
           category:      data.category,
@@ -50,11 +52,13 @@ export function useUpdateProduct() {
       id: string;
       data: ProductFormValues;
     }) => {
+      const defaultPrice = data.price_tiers[0]?.price ?? 0;
       const { error } = await catalogTable()
         .update({
           name:          data.name,
           sku:           data.sku || null,
-          selling_price: data.selling_price,
+          selling_price: defaultPrice,
+          price_tiers:   data.price_tiers,
           unit_cost:     data.unit_cost,
           unit:          data.unit,
           category:      data.category,

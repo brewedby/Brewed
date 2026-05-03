@@ -7,13 +7,19 @@
 export type ProductCategory = 'hot_drinks' | 'cold_drinks' | 'specials' | 'food' | 'other';
 export type SalesReportStatus = 'pending' | 'parsed' | 'error';
 
+export interface PriceTier {
+  label: string;
+  price: number;
+}
+
 export interface ProductCatalogItem {
   id: string;
   user_id: string;
   name: string;
   sku: string | null;
   unit_cost: number;
-  selling_price: number;
+  selling_price: number;   // mirrors price_tiers[0].price — kept for COGS scanning compat
+  price_tiers: PriceTier[];
   unit: string;
   category: ProductCategory;
   is_active: boolean;
