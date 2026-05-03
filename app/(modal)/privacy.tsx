@@ -12,21 +12,21 @@ const SECTIONS = [
   {
     eyebrow: 'YOUR FINANCIAL DATA',
     title: 'Stays where it belongs.',
-    body: 'Gross sales, costs, margins, staffing rates and supplier prices are stored in your account on our cloud database (Supabase, hosted in the EU). They are never sold, shared with advertisers, or used for marketing. They are not analysed by us for any purpose other than syncing your devices and producing your reports.',
+    body: 'Gross sales, costs, margins, staffing rates and supplier prices are stored in your account on our cloud database (Supabase, hosted in the EU). Never sold, shared with advertisers, or used for marketing. Not analysed by us for any purpose other than syncing your devices and producing your reports.',
   },
   {
     eyebrow: 'PAYMENTS',
-    title: "Apple handles the money.",
+    title: 'Apple handles the money.',
     body: 'Your Brewed Pro subscription is processed by Apple via the App Store. We never see your card number, billing address or full payment details — only a confirmation that your subscription is active.',
   },
   {
     eyebrow: 'BREWED DISCOVER',
     title: 'Public events only.',
-    body: 'The Discover tab uses Brave Search to find publicly listed UK festivals and concessions companies. Your personal financial data is never sent to Brave. Search queries are generic (e.g. "UK street food market 2025"), not personalised.',
+    body: 'The Discover tab uses Brave Search to find publicly listed UK festivals and concessions companies. Your personal financial data is never sent to Brave. Search queries are generic ("UK street food market 2025"), not personalised.',
   },
   {
     eyebrow: 'WHAT WE DO COLLECT',
-    title: 'Your account, and that\'s it.',
+    title: 'Your account, and that’s it.',
     body: 'Email address (for sign-in), business name (for the dashboard), and the events / financials / fleet / documents you choose to enter. No analytics, no crash trackers, no advertising IDs, no location tracking, no device fingerprinting.',
   },
   {
@@ -77,37 +77,71 @@ export default function PrivacySummaryScreen() {
           </Text>
         </View>
 
-        {/* ── Sections ── */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+        {/* ── INSIDE — table of contents strip ── */}
+        <View style={{
+          paddingHorizontal: 20, paddingVertical: 14,
+          borderBottomWidth: 1, borderBottomColor: p.borderStrong,
+          backgroundColor: p.surface,
+        }}>
+          <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 8 }}>
+            {'INSIDE'}
+          </Text>
           {SECTIONS.map((s, i) => (
-            <View
-              key={s.eyebrow}
-              style={{
-                paddingVertical: 18,
-                borderBottomWidth: i === SECTIONS.length - 1 ? 0 : 1,
-                borderBottomColor: p.border,
-                borderStyle: 'dashed',
-              }}
-            >
-              <Text style={{ fontSize: 9, color: p.brand, letterSpacing: 1.8, fontWeight: '700' }}>
-                {s.eyebrow}
+            <View key={s.eyebrow} style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingVertical: 4 }}>
+              <Text style={{ fontFamily: tokens.type.mono, fontSize: 10, color: p.textFaint, minWidth: 22 }}>
+                {String(i + 1).padStart(2, '0')}
               </Text>
+              <Text style={{ flex: 1, fontSize: 12, color: p.text }}>{s.title}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* ── Sections with § rules and drop cap on the first ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
+          {SECTIONS.map((s, i) => (
+            <View key={s.eyebrow} style={{ marginBottom: 28 }}>
+              {/* § rule */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <Text style={{ fontFamily: tokens.type.mono, fontSize: 10, color: p.textMuted, fontWeight: '700' }}>
+                  {`§ ${String(i + 1).padStart(2, '0')}`}
+                </Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: p.borderStrong }} />
+                <Text style={{ fontSize: 9, color: p.brand, letterSpacing: 1.6, fontWeight: '700' }}>
+                  {s.eyebrow}
+                </Text>
+              </View>
               <Text style={{
                 fontFamily: tokens.type.display,
-                fontSize: 22, lineHeight: 26,
+                fontSize: 22, lineHeight: 26, letterSpacing: -0.3,
                 color: p.text, marginTop: 4,
               }}>
                 {s.title}
               </Text>
-              <Text style={{ fontSize: 13, color: p.text, marginTop: 8, lineHeight: 20 }}>
-                {s.body}
-              </Text>
+              {/* Drop cap on the first section only */}
+              {i === 0 ? (
+                <View style={{ marginTop: 8, flexDirection: 'row' }}>
+                  <Text style={{
+                    fontFamily: tokens.type.display,
+                    fontSize: 38, lineHeight: 32,
+                    color: p.text, paddingRight: 6, paddingTop: 2,
+                  }}>
+                    {s.body.charAt(0)}
+                  </Text>
+                  <Text style={{ flex: 1, fontSize: 13, color: p.text, lineHeight: 20 }}>
+                    {s.body.slice(1)}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={{ fontSize: 13, color: p.text, marginTop: 8, lineHeight: 20 }}>
+                  {s.body}
+                </Text>
+              )}
             </View>
           ))}
         </View>
 
         {/* ── Closing stamp ── */}
-        <View style={{ alignItems: 'center', marginTop: 22 }}>
+        <View style={{ alignItems: 'center', marginTop: 8, marginBottom: 24 }}>
           <View style={{
             borderWidth: 2, borderColor: p.brand,
             paddingHorizontal: 16, paddingVertical: 8,
@@ -117,17 +151,14 @@ export default function PrivacySummaryScreen() {
             <Text style={{ fontSize: 9, color: p.brand, letterSpacing: 2, fontWeight: '700' }}>
               {'BREWED · IN TRUST'}
             </Text>
-            <Text style={{
-              fontFamily: tokens.type.display,
-              fontSize: 14, color: p.brand, marginTop: 1,
-            }}>
+            <Text style={{ fontFamily: tokens.type.display, fontSize: 14, color: p.brand, marginTop: 1 }}>
               Your books, your business.
             </Text>
           </View>
         </View>
 
         {/* ── Links ── */}
-        <View style={{ paddingHorizontal: 20, marginTop: 32, gap: 12 }}>
+        <View style={{ paddingHorizontal: 20, marginTop: 8, gap: 12 }}>
           <TouchableOpacity
             onPress={() => Linking.openURL(FULL_POLICY_URL)}
             accessibilityRole="link"

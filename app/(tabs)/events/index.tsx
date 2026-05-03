@@ -11,7 +11,7 @@ import { QueryError } from '@/components/shared/QueryError';
 import { FarMasthead } from '@/components/far/Masthead';
 import { FarSectionRule } from '@/components/far/SectionRule';
 import { useTheme } from '@/lib/themeContext';
-import { STATUS_DOT, TONE } from '@/lib/theme';
+import { STATUS_DOT, farStatus } from '@/lib/theme';
 import { formatDateRange, toISODateString } from '@/lib/formatters';
 import { STATUSES, STATUS_LABELS } from '@/constants';
 import type { ApplicationStatus, EventWithFinancials, CompanyWithStats } from '@/types';
@@ -34,8 +34,9 @@ function OverlapBanner({ a, b, companyMap }: {
   b: EventWithFinancials;
   companyMap: Map<string, CompanyWithStats>;
 }) {
-  const { tokens } = useTheme();
+  const { tokens, isDark } = useTheme();
   const p = tokens.palette;
+  const S = farStatus(isDark);
   const compA = a.company_id ? companyMap.get(a.company_id) : null;
   const compB = b.company_id ? companyMap.get(b.company_id) : null;
   const hasA = compA != null && compA.avgProfitMargin != null && compA.completedEventCount > 0;
@@ -51,8 +52,8 @@ function OverlapBanner({ a, b, companyMap }: {
   }
 
   return (
-    <View style={{ borderWidth: 2, borderColor: TONE.bad, padding: 12, marginBottom: 12, backgroundColor: 'rgba(220,38,38,0.04)' }}>
-      <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: TONE.bad }}>
+    <View style={{ borderWidth: 2, borderColor: S.red, padding: 12, marginBottom: 12, backgroundColor: S.redBg }}>
+      <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: S.red }}>
         {'● CLASH · ' + formatDateRange(a.date, a.end_date)}
       </Text>
       <Text style={{ fontFamily: tokens.type.display, fontSize: 17, marginTop: 6, lineHeight: 22 }}>
@@ -65,7 +66,7 @@ function OverlapBanner({ a, b, companyMap }: {
         </View>
       )}
       {recommendation ? (
-        <Text style={{ fontSize: 12, color: TONE.bad, fontWeight: '600', marginTop: 8 }}>→ {recommendation}</Text>
+        <Text style={{ fontSize: 12, color: S.red, fontWeight: '600', marginTop: 8 }}>→ {recommendation}</Text>
       ) : null}
     </View>
   );
@@ -73,8 +74,9 @@ function OverlapBanner({ a, b, companyMap }: {
 
 function FarEventRow({ event }: { event: EventWithFinancials }) {
   const router = useRouter();
-  const { tokens } = useTheme();
+  const { tokens, isDark } = useTheme();
   const p = tokens.palette;
+  const S = farStatus(isDark);
 
   const dateStr = event.date;
   const [, mm, dd] = dateStr.split('-');
@@ -108,7 +110,7 @@ function FarEventRow({ event }: { event: EventWithFinancials }) {
             {'● ' + event.status.toUpperCase()}
           </Text>
           {net !== null && (
-            <Text style={{ fontSize: 11, color: net >= 0 ? TONE.good : TONE.bad, fontFamily: tokens.type.mono, fontVariant: ['tabular-nums'], lineHeight: 14 }}>
+            <Text style={{ fontSize: 11, color: net >= 0 ? S.green : S.red, fontFamily: tokens.type.mono, fontVariant: ['tabular-nums'], lineHeight: 14 }}>
               {net >= 0 ? '+' : ''}£{Math.abs(net).toFixed(0)}
             </Text>
           )}
@@ -123,7 +125,7 @@ function FarEventRow({ event }: { event: EventWithFinancials }) {
 
       {event.url_changed && (
         <View style={{ alignSelf: 'flex-start', paddingTop: 2 }}>
-          <Text style={{ fontSize: 9, fontWeight: '700', color: TONE.caution, letterSpacing: 0.5 }}>UPDATED</Text>
+          <Text style={{ fontSize: 9, fontWeight: '700', color: S.amber, letterSpacing: 0.5 }}>UPDATED</Text>
         </View>
       )}
     </TouchableOpacity>

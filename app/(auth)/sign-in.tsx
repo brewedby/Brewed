@@ -16,6 +16,12 @@ import {
 
 const CURRENT_YEAR = new Date().getFullYear();
 
+function formatDateline(d: Date): string {
+  const day = d.toLocaleDateString('en-GB', { weekday: 'long' }).toUpperCase();
+  const month = d.toLocaleDateString('en-GB', { month: 'long' }).toUpperCase();
+  return `${day} · ${month} ${d.getDate()}`;
+}
+
 export default function SignInScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -31,6 +37,7 @@ export default function SignInScreen() {
   const [biometricType, setBiometricType] = useState<'face' | 'touch' | 'none'>('none');
   const [biometricLoading, setBiometricLoading] = useState(false);
   const passwordRef = useRef<TextInput>(null);
+  const dateline = formatDateline(new Date());
 
   useEffect(() => {
     async function checkBiometrics() {
@@ -102,14 +109,18 @@ export default function SignInScreen() {
       >
         {/* ── Top masthead ── */}
         <View style={{ paddingHorizontal: 24, paddingTop: 32, paddingBottom: 18, borderBottomWidth: 2, borderBottomColor: p.text, alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignSelf: 'stretch', marginBottom: 14 }}>
+            <Text style={{ fontSize: 8, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700' }}>{dateline}</Text>
+            <Text style={{ fontSize: 8, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700' }}>{`VOL. ${CURRENT_YEAR}`}</Text>
+          </View>
           <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 3, fontWeight: '700' }}>
-            {`EST. 2024 · VOL. ${CURRENT_YEAR}`}
+            {'EST. 2024'}
           </Text>
           <Text style={{
             fontFamily: tokens.type.display,
             fontWeight: tokens.type.displayWeight,
             fontSize: 56, letterSpacing: -1.7, lineHeight: 56,
-            marginTop: 6,
+            marginTop: 4,
             color: p.text,
           }}>
             Brewed

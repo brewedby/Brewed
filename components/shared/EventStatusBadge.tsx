@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { STATUS_COLORS, STATUS_LABELS } from '@/constants';
+import { useTheme } from '@/lib/themeContext';
+import { STATUS_DOT } from '@/lib/theme';
+import { STATUS_LABELS } from '@/constants';
 import type { ApplicationStatus } from '@/types';
 
 interface Props {
@@ -9,19 +11,20 @@ interface Props {
 }
 
 export function EventStatusBadge({ status, size = 'md' }: Props) {
-  const colors = STATUS_COLORS[status];
+  const { tokens } = useTheme();
+  const p = tokens.palette;
+  const color = STATUS_DOT[status] ?? p.textFaint;
   const label = STATUS_LABELS[status];
   const isSmall = size === 'sm';
 
   return (
-    <View
-      style={{ backgroundColor: colors.bgHex, paddingVertical: isSmall ? 2 : 4, paddingHorizontal: 10, borderRadius: 999, flexDirection: 'row', alignItems: 'center' }}
-    >
-      <View
-        style={{ backgroundColor: colors.dot, width: isSmall ? 5 : 6, height: isSmall ? 5 : 6, borderRadius: 3, marginRight: 6 }}
-      />
-      <Text style={{ color: colors.textHex, fontWeight: '500', fontSize: 12 }}>
-        {label}
+    <View style={{
+      borderWidth: 1, borderColor: color,
+      paddingHorizontal: isSmall ? 6 : 8, paddingVertical: 2,
+      alignSelf: 'flex-start',
+    }}>
+      <Text style={{ fontSize: isSmall ? 8 : 9, fontWeight: '700', letterSpacing: 1, color }}>
+        {'● ' + label.toUpperCase()}
       </Text>
     </View>
   );

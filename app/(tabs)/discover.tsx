@@ -15,7 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { toISODateString } from '@/lib/formatters';
 import { FarMasthead } from '@/components/far/Masthead';
 import { useTheme } from '@/lib/themeContext';
-import { TONE } from '@/lib/theme';
+import { farStatus } from '@/lib/theme';
 import type { DiscoveredEvent } from '@/types';
 
 const REGIONS = ['All UK', 'London', 'South East', 'South West', 'East of England', 'Midlands', 'West Midlands', 'North West', 'Yorkshire', 'North East', 'Scotland', 'Wales', 'National'];
@@ -47,8 +47,9 @@ function DiscoverEventCard({
   isApplied: boolean;
   onToggleApplied: (id: string) => void;
 }) {
-  const { tokens } = useTheme();
+  const { tokens, isDark } = useTheme();
   const p = tokens.palette;
+  const S = farStatus(isDark);
 
   return (
     <View style={{
@@ -115,12 +116,12 @@ function DiscoverEventCard({
             flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
             paddingVertical: 10, paddingHorizontal: isApplied ? 14 : 0,
             borderWidth: 1,
-            borderColor: isApplied ? p.borderStrong : TONE.good,
+            borderColor: isApplied ? p.borderStrong : S.green,
             backgroundColor: isApplied ? 'transparent' : 'transparent',
           }}
         >
-          <Ionicons name={isApplied ? 'close-circle-outline' : 'checkmark-circle-outline'} size={14} color={isApplied ? p.textFaint : TONE.good} />
-          <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 0.5, color: isApplied ? p.textFaint : TONE.good }}>
+          <Ionicons name={isApplied ? 'close-circle-outline' : 'checkmark-circle-outline'} size={14} color={isApplied ? p.textFaint : S.green} />
+          <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 0.5, color: isApplied ? p.textFaint : S.green }}>
             {isApplied ? 'UNDO' : 'APPLIED'}
           </Text>
         </TouchableOpacity>
@@ -145,10 +146,11 @@ function DiscoverEventCard({
 }
 
 function DiscoverCompanyCard({ company }: { company: DiscoveredEvent }) {
-  const { tokens } = useTheme();
+  const { tokens, isDark } = useTheme();
   const p = tokens.palette;
+  const S = farStatus(isDark);
   const days = daysSince(company.lastVerifiedAt);
-  const verifiedColor = days === null ? p.textFaint : days <= 7 ? TONE.good : days > 30 ? TONE.caution : p.textMuted;
+  const verifiedColor = days === null ? p.textFaint : days <= 7 ? S.green : days > 30 ? S.amber : p.textMuted;
 
   return (
     <View style={{ borderWidth: 1, borderColor: p.borderStrong, backgroundColor: p.surface, padding: 14, marginBottom: 12 }}>
@@ -158,7 +160,7 @@ function DiscoverCompanyCard({ company }: { company: DiscoveredEvent }) {
             <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: p.brand, marginBottom: 4 }}>{'★ MAJOR'}</Text>
           )}
           {company.applicationChanged && (
-            <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1, color: TONE.good, marginBottom: 4 }}>{'🆕 PAGE UPDATED'}</Text>
+            <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1, color: S.green, marginBottom: 4 }}>{'🆕 PAGE UPDATED'}</Text>
           )}
           <Text style={{ fontFamily: tokens.type.display, fontSize: 20, lineHeight: 24, color: p.text }}>{company.title}</Text>
         </View>
