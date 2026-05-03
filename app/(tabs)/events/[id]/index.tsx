@@ -15,29 +15,34 @@ import { StaffingList } from '@/components/events/StaffingList';
 import { InfrastructureList } from '@/components/events/InfrastructureList';
 import { DocumentsSection } from '@/components/events/DocumentsSection';
 import { CogsSection } from '@/components/cogs/CogsSection';
-import { EventStatusBadge } from '@/components/shared/EventStatusBadge';
+import { FarSectionRule } from '@/components/far/SectionRule';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
-import { formatDateRange, formatDate, formatCurrency, toISODateString } from '@/lib/formatters';
-import { STATUS_COLORS, STATUSES, STATUS_LABELS } from '@/constants';
+import { useTheme } from '@/lib/themeContext';
+import { farStatus, STATUS_DOT } from '@/lib/theme';
+import { formatDateRange, formatDate, toISODateString } from '@/lib/formatters';
+import { STATUSES, STATUS_LABELS } from '@/constants';
 import type { ApplicationStatus } from '@/types';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 
-// Application journey — ordered steps
 const STATUS_JOURNEY: { status: ApplicationStatus; label: string }[] = [
-  { status: 'pending',   label: 'Applied' },
+  { status: 'pending',    label: 'Applied' },
   { status: 'waitlisted', label: 'Waitlisted' },
-  { status: 'accepted',  label: 'Accepted' },
+  { status: 'accepted',   label: 'Accepted' },
 ];
 
 function ApplicationTimeline({ currentStatus }: { currentStatus: ApplicationStatus }) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
+  const dotColor = STATUS_DOT[currentStatus] ?? p.textFaint;
+
   if (currentStatus === 'rejected' || currentStatus === 'withdrawn') {
     return (
-      <View className="bg-white rounded-2xl p-4 border border-slate-100 mb-4">
-        <Text className="font-bold text-slate-700 mb-3">Application Journey</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, backgroundColor: STATUS_COLORS[currentStatus].bgHex }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: STATUS_COLORS[currentStatus].dot, marginRight: 8 }} />
-          <Text style={{ fontWeight: '600', fontSize: 14, color: STATUS_COLORS[currentStatus].textHex }}>
+      <View style={{ borderWidth: 1, borderColor: p.borderStrong, backgroundColor: p.surface, padding: 14, marginBottom: 16 }}>
+        <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 10 }}>APPLICATION JOURNEY</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ width: 8, height: 8, backgroundColor: dotColor }} />
+          <Text style={{ fontFamily: tokens.type.display, fontSize: 16, color: p.text }}>
             Application {STATUS_LABELS[currentStatus]}
           </Text>
         </View>
@@ -48,31 +53,38 @@ function ApplicationTimeline({ currentStatus }: { currentStatus: ApplicationStat
   const currentIdx = STATUS_JOURNEY.findIndex((s) => s.status === currentStatus);
 
   return (
-    <View className="bg-white rounded-2xl p-4 border border-slate-100 mb-4">
-      <Text className="font-bold text-slate-700 mb-3">Application Journey</Text>
-      <View className="flex-row items-center">
+    <View style={{ borderWidth: 1, borderColor: p.borderStrong, backgroundColor: p.surface, padding: 14, marginBottom: 16 }}>
+      <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 14 }}>APPLICATION JOURNEY</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
         {STATUS_JOURNEY.map((step, i) => {
           const done = i <= currentIdx;
           const isCurrent = i === currentIdx;
           const isLast = i === STATUS_JOURNEY.length - 1;
           return (
             <React.Fragment key={step.status}>
-              <View className="items-center">
-                <View
-                  className={`w-9 h-9 rounded-full items-center justify-center border-2 ${done ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-200'}`}
-                >
-                  {done ? (
-                    <Text className="text-white font-bold text-sm">{isCurrent ? '●' : '✓'}</Text>
-                  ) : (
-                    <Text className="text-slate-300 text-xs">{i + 1}</Text>
-                  )}
+              <View style={{ alignItems: 'center' }}>
+                <View style={{
+                  width: 20, height: 20,
+                  borderWidth: 1,
+                  borderColor: done ? p.text : p.borderStrong,
+                  backgroundColor: isCurrent ? p.text : done ? p.textMuted : 'transparent',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {done && !isCurrent && <Ionicons name="checkmark" size={11} color={p.bg} />}
+                  {isCurrent && <View style={{ width: 8, height: 8, backgroundColor: p.bg }} />}
                 </View>
-                <Text className={`text-xs mt-1 font-medium ${isCurrent ? 'text-emerald-600' : done ? 'text-slate-600' : 'text-slate-300'}`}>
-                  {step.label}
+                <Text style={{
+                  fontSize: 9, marginTop: 5, fontWeight: '700', letterSpacing: 0.5,
+                  color: isCurrent ? p.text : done ? p.textMuted : p.textFaint,
+                }}>
+                  {step.label.toUpperCase()}
                 </Text>
               </View>
               {!isLast && (
-                <View className={`flex-1 h-0.5 mx-1 mb-4 ${i < currentIdx ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                <View style={{
+                  flex: 1, height: 1, marginTop: 10, marginHorizontal: 4,
+                  backgroundColor: i < currentIdx ? p.textMuted : p.borderStrong,
+                }} />
               )}
             </React.Fragment>
           );
@@ -88,6 +100,10 @@ export default function EventDetailScreen() {
   const router = useRouter();
   const qc = useQueryClient();
   const { user } = useAuth();
+  const { tokens, isDark } = useTheme();
+  const p = tokens.palette;
+  const S = farStatus(isDark);
+
   const { data: event, isLoading, refetch } = useEvent(id);
   const deleteEvent = useDeleteEvent();
   const createEvent = useCreateEvent();
@@ -193,77 +209,91 @@ export default function EventDetailScreen() {
 
   if (isLoading) return <LoadingSpinner message="Loading application..." />;
   if (!event) return (
-    <View className="flex-1 items-center justify-center">
-      <Text className="text-slate-500">Event not found</Text>
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: p.bg }}>
+      <Text style={{ color: p.textMuted }}>Event not found</Text>
     </View>
   );
 
-  const dotColor = STATUS_COLORS[event.status]?.dot ?? '#94a3b8';
+  const dotColor = STATUS_DOT[event.status] ?? p.textFaint;
 
   return (
-    <View className="flex-1 bg-slate-50" style={{ paddingTop: insets.top }}>
-      {/* Header */}
-      <View className="bg-white border-b border-slate-100">
-        <View style={{ height: 4, backgroundColor: dotColor }} />
-        <View className="px-4 pt-3 pb-4">
-          <View className="flex-row items-center justify-between mb-2">
-            <TouchableOpacity
-              onPress={() => router.back()}
-              accessibilityRole="button"
-              accessibilityLabel="Back to applications"
-              className="flex-row items-center"
-            >
-              <Text className="text-amber-500 font-semibold text-sm">‹ Applications</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push(`/(tabs)/events/${id}/edit`)}
-              accessibilityRole="button"
-              accessibilityLabel="Edit event"
-              className="bg-slate-900 px-4 py-1.5 rounded-xl"
-            >
-              <Text className="text-white font-semibold text-sm">Edit</Text>
-            </TouchableOpacity>
-          </View>
+    <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+      {/* ── Top nav ── */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Back to applications"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 16 }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 36 }}
+        >
+          <Ionicons name="chevron-back" size={14} color={p.brand} />
+          <Text style={{ color: p.brand, fontSize: 13, fontWeight: '600' }}>Applications</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push(`/(tabs)/events/${id}/edit`)}
+          accessibilityRole="button"
+          accessibilityLabel="Edit event"
+          style={{ backgroundColor: p.text, paddingHorizontal: 14, paddingVertical: 6, minHeight: 36, justifyContent: 'center' }}
+        >
+          <Text style={{ color: p.bg, fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>EDIT</Text>
+        </TouchableOpacity>
+      </View>
 
-          <Text className="text-xl font-bold text-slate-900 mb-2 leading-snug">{event.name}</Text>
-
-          <View className="flex-row items-center flex-wrap gap-2 mb-1">
-            <EventStatusBadge status={event.status} />
-            <View className="flex-row items-center">
-              <Ionicons name="calendar-outline" size={13} color="#64748b" />
-              <Text className="text-slate-500 text-sm ml-1.5">{formatDateRange(event.date, event.end_date)}</Text>
-            </View>
+      {/* ── Title block ── */}
+      <View style={{ paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 2, borderBottomColor: p.text }}>
+        <View style={{ borderWidth: 1, borderColor: dotColor, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start', marginBottom: 8 }}>
+          <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1, color: dotColor }}>
+            {'● ' + event.status.toUpperCase()}
+          </Text>
+        </View>
+        <Text style={{ fontFamily: tokens.type.display, fontSize: 36, letterSpacing: -0.9, lineHeight: 38, color: p.text }}>
+          {event.name}
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, rowGap: 6, marginTop: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="calendar-outline" size={12} color={p.textMuted} />
+            <Text style={{ fontSize: 12, color: p.textMuted }}>{formatDateRange(event.date, event.end_date)}</Text>
           </View>
-          <View className="flex-row items-center mt-1">
-            <Ionicons name="location-outline" size={13} color="#64748b" />
-            <Text className="text-slate-500 text-sm ml-1.5">{event.location}</Text>
+          <Text style={{ color: p.border, fontSize: 12 }}>·</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="location-outline" size={12} color={p.textMuted} />
+            <Text style={{ fontSize: 12, color: p.textMuted }}>{event.location}</Text>
           </View>
           {event.concessions_companies && (
-            <View className="flex-row items-center mt-1">
-              <Ionicons name="business-outline" size={12} color="#94a3b8" />
-              <Text className="text-slate-400 text-xs ml-1.5">{event.concessions_companies.name}</Text>
-            </View>
+            <>
+              <Text style={{ color: p.border, fontSize: 12 }}>·</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="business-outline" size={12} color={p.textMuted} />
+                <Text style={{ fontSize: 12, color: p.textMuted }}>{event.concessions_companies.name}</Text>
+              </View>
+            </>
           )}
           {event.units?.length > 0 && (
-            <View className="flex-row items-center mt-1">
-              <Ionicons name="car-outline" size={12} color="#94a3b8" />
-              <Text className="text-slate-400 text-xs ml-1.5">{event.units.map((u) => u.name).join(' · ')}</Text>
-            </View>
+            <>
+              <Text style={{ color: p.border, fontSize: 12 }}>·</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="car-outline" size={12} color={p.textMuted} />
+                <Text style={{ fontSize: 12, color: p.textMuted }}>{event.units.map((u) => u.name).join(' · ')}</Text>
+              </View>
+            </>
           )}
         </View>
       </View>
 
       <ScrollView
-        className="flex-1 px-4 pt-4"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" colors={['#f59e0b']} />}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 40 + insets.bottom }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={p.brand} />}
+        keyboardDismissMode="on-drag"
       >
-        {/* URL change alert */}
+        {/* ── URL change alert ── */}
         {event.url_changed && (
-          <View className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-4">
-            <View className="flex-row items-start justify-between">
-              <View className="flex-1 mr-3">
-                <Text className="font-bold text-orange-800 text-sm mb-1">⚡ Application page changed!</Text>
-                <Text className="text-orange-700 text-xs leading-relaxed">
+          <View style={{ borderWidth: 2, borderColor: S.amber, backgroundColor: S.amberBg, padding: 14, marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1.5, color: S.amber, marginBottom: 4 }}>⚡ APPLICATION PAGE CHANGED</Text>
+                <Text style={{ fontSize: 12, color: p.text, lineHeight: 18 }}>
                   The application page was updated since your last check. It might show your acceptance or rejection decision.
                 </Text>
               </View>
@@ -271,75 +301,67 @@ export default function EventDetailScreen() {
                 onPress={handleAcknowledgeChange}
                 accessibilityRole="button"
                 accessibilityLabel="Dismiss page changed alert"
-                className="bg-orange-100 px-2.5 py-1 rounded-lg"
+                style={{ borderWidth: 1, borderColor: S.amber, paddingHorizontal: 8, paddingVertical: 4 }}
               >
-                <Text className="text-orange-700 text-xs font-semibold">Dismiss</Text>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: S.amber }}>DISMISS</Text>
               </TouchableOpacity>
             </View>
             {event.application_url && (
               <TouchableOpacity
                 onPress={() => event.application_url && Linking.openURL(event.application_url)}
-                className="mt-3 bg-orange-500 py-2.5 rounded-xl items-center"
+                style={{ marginTop: 10, borderWidth: 1, borderColor: S.amber, paddingVertical: 10, alignItems: 'center' }}
               >
-                <Text className="text-white font-semibold text-sm">Open Application Page ↗</Text>
+                <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: S.amber }}>OPEN APPLICATION PAGE ↗</Text>
               </TouchableOpacity>
             )}
           </View>
         )}
 
-        {/* Post-event completion prompt */}
+        {/* ── Post-event prompt ── */}
         {event.status === 'accepted' &&
           event.date < toISODateString(new Date()) &&
           (!event.event_financials || event.event_financials.gross_sales === 0) && (
-          <View style={{ backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fcd34d', borderRadius: 16, padding: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Text style={{ fontSize: 20 }}>📋</Text>
+          <View style={{ borderWidth: 1, borderColor: p.brand, padding: 14, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: '700', color: '#92400e', fontSize: 14 }}>Event has passed</Text>
-              <Text style={{ color: '#b45309', fontSize: 12, marginTop: 2 }}>No sales figures entered yet — add the actuals to keep your reports accurate.</Text>
+              <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1.5, color: p.brand, marginBottom: 4 }}>EVENT HAS PASSED</Text>
+              <Text style={{ fontSize: 12, color: p.text, lineHeight: 18 }}>No sales figures entered yet — add the actuals to keep your reports accurate.</Text>
             </View>
             <TouchableOpacity
               onPress={() => router.push(`/(tabs)/events/${id}/edit`)}
               accessibilityRole="button"
               accessibilityLabel="Add sales figures"
-              style={{ backgroundColor: '#b45309', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 }}
+              style={{ backgroundColor: p.brand, paddingHorizontal: 12, paddingVertical: 8 }}
             >
-              <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>Add →</Text>
+              <Text style={{ color: p.bg, fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>ADD →</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Application journey */}
+        {/* ── Application journey ── */}
         <ApplicationTimeline currentStatus={event.status} />
 
-        {/* Quick status update */}
-        <View className="bg-white rounded-2xl p-4 border border-slate-100 mb-4" style={{ overflow: 'hidden' }}>
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="font-bold text-slate-700">Update Status</Text>
+        {/* ── Update status ── */}
+        <View style={{ borderWidth: 1, borderColor: p.borderStrong, backgroundColor: p.surface, padding: 14, marginBottom: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700' }}>UPDATE STATUS</Text>
             {justChanged && (
-              <Animated.View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  backgroundColor: '#dcfce7',
-                  paddingHorizontal: 10,
-                  paddingVertical: 4,
-                  borderRadius: 999,
-                  transform: [{ scale: confirmScale }],
-                  opacity: confirmScale,
-                }}
-              >
-                <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
-                <Text style={{ color: '#166534', fontSize: 11, fontWeight: '700' }}>
-                  Set to {STATUS_LABELS[justChanged]}
+              <Animated.View style={{
+                flexDirection: 'row', alignItems: 'center', gap: 4,
+                borderWidth: 1, borderColor: S.green,
+                paddingHorizontal: 8, paddingVertical: 3,
+                transform: [{ scale: confirmScale }], opacity: confirmScale,
+              }}>
+                <Ionicons name="checkmark" size={11} color={S.green} />
+                <Text style={{ color: S.green, fontSize: 10, fontWeight: '700', letterSpacing: 0.5 }}>
+                  {STATUS_LABELS[justChanged].toUpperCase()}
                 </Text>
               </Animated.View>
             )}
           </View>
-          <View className="flex-row flex-wrap gap-2">
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             {STATUSES.map((s) => {
-              const colors = STATUS_COLORS[s];
               const active = event.status === s;
+              const color = STATUS_DOT[s] ?? p.textFaint;
               return (
                 <TouchableOpacity
                   key={s}
@@ -349,158 +371,163 @@ export default function EventDetailScreen() {
                   accessibilityLabel={`Set status to ${STATUS_LABELS[s]}`}
                   accessibilityState={{ selected: active, disabled: updatingStatus || active }}
                   style={{
-                    flexDirection: 'row', alignItems: 'center',
-                    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1,
-                    backgroundColor: active ? colors.textHex : '#ffffff',
-                    borderColor: active ? colors.textHex : '#e2e8f0',
+                    flexDirection: 'row', alignItems: 'center', gap: 6,
+                    paddingHorizontal: 10, paddingVertical: 6,
+                    borderWidth: 1,
+                    backgroundColor: active ? color : 'transparent',
+                    borderColor: active ? color : p.borderStrong,
+                    opacity: updatingStatus && !active ? 0.5 : 1,
                   }}
                 >
-                  <View style={{ backgroundColor: active ? '#ffffff' : colors.dot, width: 7, height: 7, borderRadius: 4, marginRight: 6 }} />
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: active ? '#ffffff' : '#4b5563' }}>{STATUS_LABELS[s]}</Text>
+                  <View style={{ width: 6, height: 6, backgroundColor: active ? p.bg : color }} />
+                  <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.5, color: active ? p.bg : p.text }}>
+                    {STATUS_LABELS[s].toUpperCase()}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
           </View>
         </View>
 
-        {/* Application URL quick access */}
+        {/* ── Application URL ── */}
         {event.application_url && (
           <TouchableOpacity
             onPress={() => event.application_url && Linking.openURL(event.application_url)}
-            className="bg-white rounded-2xl p-4 border border-slate-100 mb-4 flex-row items-center"
             activeOpacity={0.7}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: p.borderStrong, backgroundColor: p.surface, padding: 14, marginBottom: 16 }}
           >
-            <Text className="text-2xl mr-3">🔗</Text>
-            <View className="flex-1">
-              <Text className="font-semibold text-slate-800 text-sm">Application Portal</Text>
-              <Text className="text-slate-400 text-xs mt-0.5" numberOfLines={1}>
+            <Ionicons name="link-outline" size={16} color={p.brand} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.5, color: p.brand }}>APPLICATION PORTAL</Text>
+              <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 2 }} numberOfLines={1}>
                 {event.application_url}
               </Text>
             </View>
-            <Text className="text-amber-500 font-semibold text-sm">Open ↗</Text>
+            <Ionicons name="open-outline" size={14} color={p.textFaint} />
           </TouchableOpacity>
         )}
 
-        {/* Weather forecast */}
+        {/* ── Weather ── */}
         {event.location && event.date && (
-          <View className="mb-4">
-            <WeatherCard
-              location={event.location}
-              startDate={event.date}
-              endDate={event.end_date}
-              eventId={event.id}
-              onTempFetched={setForecastTemp}
-            />
+          <View style={{ marginBottom: 16 }}>
+            <FarSectionRule label="Weather forecast" />
+            <View style={{ marginTop: 12 }}>
+              <WeatherCard
+                location={event.location}
+                startDate={event.date}
+                endDate={event.end_date}
+                eventId={event.id}
+                onTempFetched={setForecastTemp}
+              />
+            </View>
           </View>
         )}
 
-        {/* Drink split prediction (when forecast available) */}
+        {/* ── Drink split ── */}
         {forecastTemp !== null && (
-          <View className="mb-4">
-            <DrinkSplitInsightCard forecastTempC={forecastTemp} />
+          <View style={{ marginBottom: 16 }}>
+            <FarSectionRule label="Drink split prediction" />
+            <View style={{ marginTop: 12 }}>
+              <DrinkSplitInsightCard forecastTempC={forecastTemp} />
+            </View>
           </View>
         )}
 
-        {/* Financials */}
+        {/* ── Financials ── */}
         {event.event_financials && (
-          <View className="mb-4">
-            <FinancialsCard financials={event.event_financials} calculations={event.calculations} />
+          <View style={{ marginBottom: 16 }}>
+            <FarSectionRule label="Financials" />
+            <View style={{ marginTop: 12 }}>
+              <FinancialsCard financials={event.event_financials} calculations={event.calculations} />
+            </View>
           </View>
         )}
 
-        {/* Daily takings summary — multi-day events only, read-only view */}
+        {/* ── Daily takings ── */}
         {event.end_date && event.end_date !== event.date && (
-          <View className="mb-4">
-            <DailyTakingsCard
-              eventId={event.id}
-              startDate={event.date}
-              endDate={event.end_date}
-              readOnly
-            />
+          <View style={{ marginBottom: 16 }}>
+            <DailyTakingsCard eventId={event.id} startDate={event.date} endDate={event.end_date} readOnly />
           </View>
         )}
 
-        {/* Staffing */}
+        {/* ── Staffing ── */}
         {event.staffing_entries?.length > 0 && (
-          <View className="mb-4">
+          <View style={{ marginBottom: 16 }}>
             <StaffingList entries={event.staffing_entries} />
           </View>
         )}
 
-        {/* Infrastructure */}
+        {/* ── Infrastructure ── */}
         {event.infrastructure_items?.length > 0 && (
-          <View className="mb-4">
+          <View style={{ marginBottom: 16 }}>
             <InfrastructureList items={event.infrastructure_items} />
           </View>
         )}
 
-        {/* Documents */}
-        <View className="mb-4">
+        {/* ── Documents ── */}
+        <View style={{ marginBottom: 16 }}>
           <DocumentsSection eventId={event.id} />
         </View>
 
-        {/* COGS from Sales Report */}
-        <View className="mb-4">
-          <CogsSection
-            eventId={event.id}
-            existingCogs={event.event_financials?.cost_of_goods ?? 0}
-          />
+        {/* ── COGS ── */}
+        <View style={{ marginBottom: 16 }}>
+          <CogsSection eventId={event.id} existingCogs={event.event_financials?.cost_of_goods ?? 0} />
         </View>
 
-        {/* Details */}
-        <View className="bg-white rounded-2xl p-4 border border-slate-100 mb-4 gap-3">
-          <Text className="font-bold text-slate-700">Details</Text>
+        {/* ── Details ── */}
+        <View style={{ borderWidth: 1, borderColor: p.borderStrong, backgroundColor: p.surface, marginBottom: 16 }}>
+          <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10 }}>DETAILS</Text>
           {event.application_date && (
-            <View className="flex-row">
-              <Text className="text-slate-400 text-sm w-32">Applied on</Text>
-              <Text className="text-slate-700 text-sm font-medium">{formatDate(event.application_date)}</Text>
+            <View style={{ flexDirection: 'row', paddingHorizontal: 14, paddingVertical: 8, borderTopWidth: 1, borderTopColor: p.border }}>
+              <Text style={{ fontSize: 12, color: p.textMuted, width: 120 }}>Applied on</Text>
+              <Text style={{ fontSize: 12, color: p.text }}>{formatDate(event.application_date)}</Text>
             </View>
           )}
           {event.overnight_stay && (
-            <View className="flex-row items-center">
-              <Text className="text-slate-400 text-sm w-32">Overnight stay</Text>
-              <Text className="text-amber-700 text-sm font-medium">🌙 Yes</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderTopWidth: 1, borderTopColor: p.border }}>
+              <Text style={{ fontSize: 12, color: p.textMuted, width: 120 }}>Overnight stay</Text>
+              <Text style={{ fontSize: 12, color: p.brand, fontWeight: '600' }}>Yes</Text>
             </View>
           )}
-          <View className="flex-row items-center">
-            <Text className="text-slate-400 text-sm w-32">Docs uploaded</Text>
-            <Text className={`text-sm font-medium ${event.documents_uploaded ? 'text-green-600' : 'text-slate-400'}`}>
-              {event.documents_uploaded ? '✅ Yes' : '⏳ Not yet'}
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderTopWidth: 1, borderTopColor: p.border }}>
+            <Text style={{ fontSize: 12, color: p.textMuted, width: 120 }}>Docs uploaded</Text>
+            <Text style={{ fontSize: 12, color: event.documents_uploaded ? S.green : p.textFaint, fontWeight: event.documents_uploaded ? '600' : '400' }}>
+              {event.documents_uploaded ? 'Yes' : 'Not yet'}
             </Text>
           </View>
           {event.url_last_checked_at && (
-            <View className="flex-row">
-              <Text className="text-slate-400 text-sm w-32">Last checked</Text>
-              <Text className="text-slate-700 text-sm">{formatDate(event.url_last_checked_at)}</Text>
+            <View style={{ flexDirection: 'row', paddingHorizontal: 14, paddingVertical: 8, borderTopWidth: 1, borderTopColor: p.border }}>
+              <Text style={{ fontSize: 12, color: p.textMuted, width: 120 }}>Last checked</Text>
+              <Text style={{ fontSize: 12, color: p.text }}>{formatDate(event.url_last_checked_at)}</Text>
             </View>
           )}
           {event.description && (
-            <Text className="text-slate-600 text-sm leading-relaxed">{event.description}</Text>
+            <View style={{ paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: 1, borderTopColor: p.border }}>
+              <Text style={{ fontSize: 12, color: p.text, lineHeight: 18 }}>{event.description}</Text>
+            </View>
           )}
           {event.notes && (
-            <>
-              <View className="border-t border-slate-50" />
-              <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wide">Notes</Text>
-              <Text className="text-slate-600 text-sm leading-relaxed">{event.notes}</Text>
-            </>
+            <View style={{ paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: 1, borderTopColor: p.border }}>
+              <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 6 }}>NOTES</Text>
+              <Text style={{ fontSize: 12, color: p.text, lineHeight: 18 }}>{event.notes}</Text>
+            </View>
           )}
         </View>
 
-        <View className="bg-white rounded-2xl p-4 border border-stone-100 mb-6 gap-3">
+        {/* ── Actions ── */}
+        <View style={{ gap: 8 }}>
           <TouchableOpacity
             onPress={handleDuplicate}
             disabled={duplicating}
             accessibilityRole="button"
             accessibilityLabel="Duplicate event"
             accessibilityState={{ disabled: duplicating }}
-            style={{ borderWidth: 1, borderColor: '#d6d3d1', paddingVertical: 12, borderRadius: 12, alignItems: 'center' }}
+            style={{ borderWidth: 1, borderColor: p.borderStrong, paddingVertical: 14, alignItems: 'center', minHeight: 48, flexDirection: 'row', justifyContent: 'center', gap: 8 }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="copy-outline" size={15} color="#57534e" />
-              <Text style={{ color: '#57534e', fontWeight: '500', fontSize: 14 }}>
-                {duplicating ? 'Duplicating…' : 'Duplicate Event'}
-              </Text>
-            </View>
+            <Ionicons name="copy-outline" size={15} color={p.textMuted} />
+            <Text style={{ color: p.textMuted, fontWeight: '700', fontSize: 12, letterSpacing: 1 }}>
+              {duplicating ? 'DUPLICATING…' : 'DUPLICATE EVENT'}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() =>
@@ -513,13 +540,13 @@ export default function EventDetailScreen() {
                 ],
               )
             }
-            className="border border-red-200 py-3 rounded-xl items-center"
+            accessibilityRole="button"
+            accessibilityLabel="Delete event"
+            style={{ borderWidth: 1, borderColor: S.red, paddingVertical: 14, alignItems: 'center', minHeight: 48 }}
           >
-            <Text className="text-red-500 font-medium text-sm">Delete Event</Text>
+            <Text style={{ color: S.red, fontWeight: '700', fontSize: 12, letterSpacing: 1 }}>DELETE EVENT</Text>
           </TouchableOpacity>
         </View>
-
-        <View style={{ height: 20 }} />
       </ScrollView>
     </View>
   );
