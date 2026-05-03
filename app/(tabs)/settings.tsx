@@ -135,7 +135,7 @@ export default function SettingsScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                 <Ionicons name="contrast-outline" size={20} color={p.text} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: tokens.type.display, fontSize: 17 }}>Theme</Text>
+                  <Text style={{ fontFamily: tokens.type.display, fontSize: 17, color: p.text }}>Theme</Text>
                   <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 1 }}>Auto follows your iOS setting.</Text>
                 </View>
               </View>
@@ -193,7 +193,7 @@ export default function SettingsScreen() {
                     <Ionicons name={item.icon} size={16} color={p.text} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontFamily: tokens.type.display, fontSize: 16 }}>{item.label}</Text>
+                    <Text style={{ fontFamily: tokens.type.display, fontSize: 16, color: p.text }}>{item.label}</Text>
                     <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 1 }}>{item.sub}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={p.textFaint} />
@@ -443,7 +443,7 @@ export default function SettingsScreen() {
                 <Ionicons name="lock-closed-outline" size={16} color={p.text} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: tokens.type.display, fontSize: 16 }}>Privacy summary</Text>
+                <Text style={{ fontFamily: tokens.type.display, fontSize: 16, color: p.text }}>Privacy summary</Text>
                 <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 1 }}>
                   How your data is handled — in plain English.
                 </Text>
@@ -466,7 +466,7 @@ export default function SettingsScreen() {
                 <Ionicons name="mail-outline" size={16} color={p.text} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: tokens.type.display, fontSize: 16 }}>Contact support</Text>
+                <Text style={{ fontFamily: tokens.type.display, fontSize: 16, color: p.text }}>Contact support</Text>
                 <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 1 }}>
                   {SUPPORT_EMAIL}
                 </Text>

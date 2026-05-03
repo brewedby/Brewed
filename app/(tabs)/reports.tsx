@@ -231,7 +231,7 @@ export default function ReportsScreen() {
                             activeOpacity={0.7}
                           >
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                              <Text style={{ fontFamily: tokens.type.display, fontSize: 15, flex: 1, lineHeight: 18 }} numberOfLines={1}>
+                              <Text style={{ fontFamily: tokens.type.display, fontSize: 15, flex: 1, lineHeight: 18, color: p.text }} numberOfLines={1}>
                                 <Text style={{ color: p.textMuted }}>{i + 1}. </Text>
                                 {event.name}
                               </Text>
@@ -275,7 +275,7 @@ export default function ReportsScreen() {
                           }}
                         >
                           <View style={{ flex: 1 }}>
-                            <Text style={{ fontFamily: tokens.type.display, fontSize: 16 }}>{cp.company.name}</Text>
+                            <Text style={{ fontFamily: tokens.type.display, fontSize: 16, color: p.text }}>{cp.company.name}</Text>
                             <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 1 }}>
                               {cp.totalEvents} events · {cp.acceptedEvents} accepted · {cp.acceptanceRate.toFixed(0)}% acceptance
                             </Text>

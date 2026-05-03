@@ -56,7 +56,7 @@ function OverlapBanner({ a, b, companyMap }: {
       <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1.5, color: S.red }}>
         {'● CLASH · ' + formatDateRange(a.date, a.end_date)}
       </Text>
-      <Text style={{ fontFamily: tokens.type.display, fontSize: 17, marginTop: 6, lineHeight: 22 }}>
+      <Text style={{ fontFamily: tokens.type.display, fontSize: 17, marginTop: 6, lineHeight: 22, color: p.text }}>
         {a.name} <Text style={{ color: p.textMuted, fontStyle: 'italic', fontSize: 13 }}>vs</Text> {b.name}
       </Text>
       {(hasA || hasB) && (

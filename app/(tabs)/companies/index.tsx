@@ -73,7 +73,7 @@ export default function CompaniesScreen() {
     <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
         <Ionicons name="trophy-outline" size={16} color={p.brand} />
-        <Text style={{ fontFamily: tokens.type.display, fontSize: 18 }}>Top performers</Text>
+        <Text style={{ fontFamily: tokens.type.display, fontSize: 18, color: p.text }}>Top performers</Text>
         <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1 }}>{'MARGIN · VOLUME · RELIABILITY'}</Text>
       </View>
       {rankedCompanies.map((c, i) => (
@@ -98,7 +98,7 @@ export default function CompaniesScreen() {
             <Text style={{ fontFamily: tokens.type.display, fontSize: 14, color: p.brand }}>{i + 1}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: tokens.type.display, fontSize: 17, lineHeight: 20 }}>{c.name}</Text>
+            <Text style={{ fontFamily: tokens.type.display, fontSize: 17, lineHeight: 20, color: p.text }}>{c.name}</Text>
             <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 2 }}>
               {c.completedEventCount} events · £{c.totalRevenue >= 1000 ? `${(c.totalRevenue / 1000).toFixed(1)}k` : c.totalRevenue.toFixed(0)} revenue
             </Text>
@@ -168,7 +168,7 @@ export default function CompaniesScreen() {
             >
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={{ fontFamily: tokens.type.display, fontSize: 20, letterSpacing: -0.4, lineHeight: 24 }}>
+                  <Text style={{ fontFamily: tokens.type.display, fontSize: 20, letterSpacing: -0.4, lineHeight: 24, color: p.text }}>
                     {company.name}
                   </Text>
                   {company.lastEventDate && (
@@ -187,7 +187,7 @@ export default function CompaniesScreen() {
               }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1, fontWeight: '600' }}>{'EVENTS'}</Text>
-                  <Text style={{ fontFamily: tokens.type.display, fontSize: 18, marginTop: 2, fontVariant: ['tabular-nums'] }}>
+                  <Text style={{ fontFamily: tokens.type.display, fontSize: 18, marginTop: 2, fontVariant: ['tabular-nums'], color: p.text }}>
                     {company.totalEvents}
                   </Text>
                   {company.acceptedEvents > 0 && (
@@ -207,7 +207,7 @@ export default function CompaniesScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1, fontWeight: '600' }}>{'REVENUE'}</Text>
                   {company.totalRevenue > 0 ? (
-                    <Text style={{ fontFamily: tokens.type.display, fontSize: 18, marginTop: 2, fontVariant: ['tabular-nums'] }}>
+                    <Text style={{ fontFamily: tokens.type.display, fontSize: 18, marginTop: 2, fontVariant: ['tabular-nums'], color: p.text }}>
                       £{company.totalRevenue >= 1000 ? `${(company.totalRevenue / 1000).toFixed(1)}k` : company.totalRevenue.toFixed(0)}
                     </Text>
                   ) : (
