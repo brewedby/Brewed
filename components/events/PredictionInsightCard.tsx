@@ -16,6 +16,7 @@ import { useTheme } from '@/lib/themeContext';
 import { FarSectionRule } from '@/components/far/SectionRule';
 import { DrinkSplitInsightCard } from '@/components/events/DrinkSplitInsightCard';
 import { getTradeConfig, type PredictionLens, type TradeTypeConfig } from '@/lib/tradeTypeConfig';
+import { CATEGORY_DEFINITIONS } from '@/types/cogs';
 
 interface Props {
   tradeType: string | null;
@@ -138,6 +139,38 @@ function DirectionalForecastCard({
           </View>
         ))}
       </View>
+
+      {/* Plan stock for — visible per-trade category chips */}
+      {config.menuCategories.length > 0 && (
+        <View style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: p.border, borderStyle: 'dashed' }}>
+          <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1, fontWeight: '700', marginBottom: 6 }}>
+            PLAN STOCK FOR
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {config.menuCategories
+              .filter((cat) => cat !== 'other')
+              .map((cat) => {
+                const def = CATEGORY_DEFINITIONS[cat];
+                if (!def) return null;
+                return (
+                  <View
+                    key={cat}
+                    style={{
+                      borderWidth: 1, borderColor: p.border,
+                      paddingHorizontal: 8, paddingVertical: 3,
+                      flexDirection: 'row', alignItems: 'center', gap: 4,
+                    }}
+                  >
+                    <Text style={{ fontSize: 10 }}>{def.emoji}</Text>
+                    <Text style={{ fontSize: 10, color: p.textMuted, fontWeight: '600' }}>
+                      {def.label}
+                    </Text>
+                  </View>
+                );
+              })}
+          </View>
+        </View>
+      )}
 
       {/* Demand pattern footnote */}
       <View style={{ borderTopWidth: 1, borderTopColor: p.border, borderStyle: 'dashed', marginTop: 12, paddingTop: 10 }}>

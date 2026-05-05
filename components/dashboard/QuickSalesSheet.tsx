@@ -3,12 +3,18 @@ import {
   View, Text, Modal, Pressable, TouchableOpacity,
   FlatList, ActivityIndicator, Alert,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/lib/themeContext';
 import { useEvents } from '@/lib/queries/events';
 import { useLogSales } from '@/lib/mutations/events';
 import { CurrencyInput } from '@/components/shared/CurrencyInput';
 import { formatDateRange } from '@/lib/formatters';
+import { encodeTrail } from '@/lib/navTrail';
 import type { EventWithFinancials } from '@/types';
+
+const TODAYS_SALES_TRAIL = encodeTrail([
+  { label: 'Dashboard', pathname: '/(tabs)/dashboard' },
+]);
 
 interface Props {
   visible: boolean;
@@ -17,12 +23,23 @@ interface Props {
 
 export function QuickSalesSheet({ visible, onClose }: Props) {
   const { tokens } = useTheme();
+  const router = useRouter();
   const p = tokens.palette;
   const [selectedEvent, setSelectedEvent] = useState<EventWithFinancials | null>(null);
   const [grossSales, setGrossSales] = useState(0);
 
   const { data: events, isLoading } = useEvents({ status: 'accepted' });
   const { mutate: logSales, isPending: saving } = useLogSales();
+
+  function handleOpenEvent() {
+    if (!selectedEvent) return;
+    onClose();
+    // Set up trail so the back button on the event lands on Dashboard.
+    router.push({
+      pathname: `/(tabs)/events/${selectedEvent.id}`,
+      params: { trail: TODAYS_SALES_TRAIL },
+    });
+  }
 
   function handleClose() {
     setSelectedEvent(null);
@@ -134,6 +151,18 @@ export function QuickSalesSheet({ visible, onClose }: Props) {
                   <Text style={{ color: p.bg, fontWeight: '700', fontSize: 14, letterSpacing: 1 }}>SAVE</Text>
                 )}
               </TouchableOpacity>
+              {selectedEvent && (
+                <TouchableOpacity
+                  onPress={handleOpenEvent}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open full event financials"
+                  style={{ borderWidth: 1, borderColor: p.brand, paddingVertical: 14, alignItems: 'center' }}
+                >
+                  <Text style={{ color: p.brand, fontWeight: '700', fontSize: 12, letterSpacing: 1 }}>
+                    OPEN EVENT FINANCIALS →
+                  </Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 onPress={handleClose}
                 style={{ borderWidth: 1, borderColor: p.border, paddingVertical: 16, alignItems: 'center' }}

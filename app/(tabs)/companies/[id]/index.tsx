@@ -92,6 +92,7 @@ export default function CompanyDetailScreen() {
         <BackBar
           trail={trail}
           fallbackLabel="Companies"
+          showCrumbs
           rightAction={
             <TouchableOpacity
               onPress={() => router.push({ pathname: `/(tabs)/companies/${id}/edit`, params: { trail: childTrail } })}
