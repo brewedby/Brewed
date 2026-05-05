@@ -6,7 +6,12 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/lib/themeContext';
 import { STATUS_COLORS, STATUS_LABELS } from '@/constants';
 import { OverlapModal } from './OverlapModal';
+import { encodeTrail } from '@/lib/navTrail';
 import type { EventWithFinancials, ApplicationStatus } from '@/types';
+
+const CALENDAR_TRAIL = encodeTrail([
+  { label: 'Calendar', pathname: '/(tabs)/events' },
+]);
 
 export { scoreEvent } from '@/lib/scoring';
 export type { ScoreResult } from '@/lib/scoring';
@@ -263,7 +268,7 @@ export function CalendarView({
                   return (
                     <TouchableOpacity
                       key={e.id}
-                      onPress={() => router.push(`/(tabs)/events/${e.id}`)}
+                      onPress={() => router.push({ pathname: `/(tabs)/events/${e.id}`, params: { trail: CALENDAR_TRAIL } })}
                       style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
                         backgroundColor: p.surface, paddingHorizontal: 14, paddingVertical: 11,
                         marginBottom: 6, borderWidth: 1, borderColor: p.border }}

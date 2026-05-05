@@ -12,6 +12,11 @@ import { FarSectionRule } from '@/components/far/SectionRule';
 import { useTheme } from '@/lib/themeContext';
 import { TONE } from '@/lib/theme';
 import { formatDate } from '@/lib/formatters';
+import { encodeTrail } from '@/lib/navTrail';
+
+const REPORTS_TRAIL = encodeTrail([
+  { label: 'Reports', pathname: '/(modal)/reports' },
+]);
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2];
@@ -227,7 +232,7 @@ export default function ReportsScreen() {
                         return (
                           <TouchableOpacity
                             key={event.id}
-                            onPress={() => router.push(`/(tabs)/events/${event.id}`)}
+                            onPress={() => router.push({ pathname: `/(tabs)/events/${event.id}`, params: { trail: REPORTS_TRAIL } })}
                             activeOpacity={0.7}
                           >
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
@@ -265,7 +270,7 @@ export default function ReportsScreen() {
                       {data.companyPerformance.map((cp, i) => (
                         <TouchableOpacity
                           key={cp.company.id}
-                          onPress={() => router.push(`/(tabs)/companies/${cp.company.id}`)}
+                          onPress={() => router.push({ pathname: `/(tabs)/companies/${cp.company.id}`, params: { trail: REPORTS_TRAIL } })}
                           activeOpacity={0.7}
                           style={{
                             flexDirection: 'row', alignItems: 'center',

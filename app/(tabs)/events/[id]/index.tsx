@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/auth';
 import { FinancialsCard } from '@/components/events/FinancialsCard';
 import { WeatherCard } from '@/components/events/WeatherCard';
 import { DailyTakingsCard } from '@/components/events/DailyTakingsCard';
-import { DrinkSplitInsightCard } from '@/components/events/DrinkSplitInsightCard';
+import { PredictionInsightCard } from '@/components/events/PredictionInsightCard';
 import { StaffingList } from '@/components/events/StaffingList';
 import { InfrastructureList } from '@/components/events/InfrastructureList';
 import { DocumentsSection } from '@/components/events/DocumentsSection';
@@ -18,6 +18,9 @@ import { CogsSection } from '@/components/cogs/CogsSection';
 import { FarSectionRule } from '@/components/far/SectionRule';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { useTheme } from '@/lib/themeContext';
+import { BackBar } from '@/components/shared/BackBar';
+import { pushTrail } from '@/lib/navTrail';
+import { useProfile } from '@/lib/queries/profile';
 import { farStatus, STATUS_DOT } from '@/lib/theme';
 import { formatDateRange, formatDate, toISODateString } from '@/lib/formatters';
 import { STATUSES, STATUS_LABELS } from '@/constants';
@@ -96,7 +99,7 @@ function ApplicationTimeline({ currentStatus }: { currentStatus: ApplicationStat
 
 export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
-  const { id, companyName } = useLocalSearchParams<{ id: string; companyName?: string }>();
+  const { id, companyName, trail } = useLocalSearchParams<{ id: string; companyName?: string; trail?: string }>();
   const router = useRouter();
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -105,6 +108,8 @@ export default function EventDetailScreen() {
   const S = farStatus(isDark);
 
   const { data: event, isLoading, refetch } = useEvent(id);
+  const { data: profile } = useProfile(user?.id);
+  const tradeType = profile?.business_type ?? null;
   const deleteEvent = useDeleteEvent();
   const createEvent = useCreateEvent();
   const [refreshing, setRefreshing] = useState(false);
@@ -217,31 +222,34 @@ export default function EventDetailScreen() {
 
   const dotColor = STATUS_DOT[event.status] ?? p.textFaint;
 
+  // Trail to pass forward (e.g. into edit modal). Falls back to the trail
+  // we received unchanged when the event has no name yet.
+  const childTrail = event
+    ? pushTrail(trail, {
+        label: event.name,
+        pathname: '/(tabs)/events/[id]',
+        params: { id, companyName: companyName ?? '', trail: trail ?? '' },
+      })
+    : trail ?? '';
+
   return (
     <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
-      {/* ── Top nav ── */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel={companyName ? `Back to ${companyName}` : 'Back to applications'}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 16 }}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 36 }}
-        >
-          <Ionicons name="chevron-back" size={14} color={p.brand} />
-          <Text style={{ color: p.brand, fontSize: 13, fontWeight: '600' }} numberOfLines={1}>
-            {companyName ?? 'Applications'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => router.push(`/(tabs)/events/${id}/edit`)}
-          accessibilityRole="button"
-          accessibilityLabel="Edit event"
-          style={{ backgroundColor: p.text, paddingHorizontal: 14, paddingVertical: 6, minHeight: 36, justifyContent: 'center' }}
-        >
-          <Text style={{ color: p.bg, fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>EDIT</Text>
-        </TouchableOpacity>
-      </View>
+      {/* ── Top nav — back label/target driven by the URL trail ── */}
+      <BackBar
+        trail={trail}
+        fallbackLabel={companyName ?? 'Applications'}
+        showCrumbs
+        rightAction={
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: `/(tabs)/events/${id}/edit`, params: { trail: childTrail } })}
+            accessibilityRole="button"
+            accessibilityLabel="Edit event"
+            style={{ backgroundColor: p.text, paddingHorizontal: 14, paddingVertical: 6, minHeight: 36, justifyContent: 'center' }}
+          >
+            <Text style={{ color: p.bg, fontSize: 11, fontWeight: '700', letterSpacing: 1 }}>EDIT</Text>
+          </TouchableOpacity>
+        }
+      />
 
       {/* ── Title block ── */}
       <View style={{ paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 2, borderBottomColor: p.text }}>
@@ -330,7 +338,7 @@ export default function EventDetailScreen() {
               <Text style={{ fontSize: 12, color: p.text, lineHeight: 18 }}>No sales figures entered yet — add the actuals to keep your reports accurate.</Text>
             </View>
             <TouchableOpacity
-              onPress={() => router.push(`/(tabs)/events/${id}/edit`)}
+              onPress={() => router.push({ pathname: `/(tabs)/events/${id}/edit`, params: { trail: childTrail } })}
               accessibilityRole="button"
               accessibilityLabel="Add sales figures"
               style={{ backgroundColor: p.brand, paddingHorizontal: 12, paddingVertical: 8 }}
@@ -426,13 +434,10 @@ export default function EventDetailScreen() {
           </View>
         )}
 
-        {/* ── Drink split ── */}
+        {/* ── Trade-aware prediction ── */}
         {forecastTemp !== null && (
           <View style={{ marginBottom: 16 }}>
-            <FarSectionRule label="Drink split prediction" />
-            <View style={{ marginTop: 12 }}>
-              <DrinkSplitInsightCard forecastTempC={forecastTemp} />
-            </View>
+            <PredictionInsightCard tradeType={tradeType} forecastTempC={forecastTemp} />
           </View>
         )}
 

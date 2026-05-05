@@ -16,7 +16,12 @@ import { useAuth } from '@/lib/auth';
 import { useProfile } from '@/lib/queries/profile';
 import { useTheme } from '@/lib/themeContext';
 import { TONE, farStatus } from '@/lib/theme';
+import { encodeTrail } from '@/lib/navTrail';
 import type { UnitWithStatus } from '@/types';
+
+const DASHBOARD_TRAIL = encodeTrail([
+  { label: 'Dashboard', pathname: '/(tabs)/dashboard' },
+]);
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i);
@@ -539,7 +544,7 @@ export default function DashboardScreen() {
                   key={event.id}
                   event={event}
                   tokens={tokens}
-                  onPress={() => router.push(`/(tabs)/events/${event.id}`)}
+                  onPress={() => router.push({ pathname: `/(tabs)/events/${event.id}`, params: { trail: DASHBOARD_TRAIL } })}
                   isLast={i === Math.min(stats.upcomingEvents.length, 5) - 1}
                 />
               ))

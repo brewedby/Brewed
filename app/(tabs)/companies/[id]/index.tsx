@@ -10,10 +10,12 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { formatCurrency, toISODateString } from '@/lib/formatters';
 import { useTheme } from '@/lib/themeContext';
+import { BackBar } from '@/components/shared/BackBar';
+import { pushTrail } from '@/lib/navTrail';
 
 export default function CompanyDetailScreen() {
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, trail } = useLocalSearchParams<{ id: string; trail?: string }>();
   const router = useRouter();
   const { tokens } = useTheme();
   const p = tokens.palette;
@@ -21,6 +23,18 @@ export default function CompanyDetailScreen() {
   const { data: allEvents } = useEvents({ companyId: id });
   const deleteCompany = useDeleteCompany();
   const [refreshing, setRefreshing] = useState(false);
+
+  // Trail to pass forward when drilling into events from this company.
+  const childTrail = useMemo(
+    () => company
+      ? pushTrail(trail, {
+          label: company.name,
+          pathname: '/(tabs)/companies/[id]',
+          params: { id, trail: trail ?? '' },
+        })
+      : trail ?? '',
+    [trail, company, id],
+  );
 
   const today = toISODateString(new Date());
   const events = allEvents ?? [];
@@ -73,17 +87,20 @@ export default function CompanyDetailScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
-      {/* Nav bar */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 2, borderBottomColor: p.text }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 16, right: 8 }}>
-          <Text style={{ fontSize: 13, color: p.brand, fontWeight: '600' }}>‹ Companies</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => router.push(`/(tabs)/companies/${id}/edit`)}
-          style={{ borderWidth: 2, borderColor: p.text, paddingHorizontal: 14, paddingVertical: 5 }}
-        >
-          <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 0.5, color: p.text }}>EDIT</Text>
-        </TouchableOpacity>
+      {/* Nav bar — back label and target come from the URL trail. */}
+      <View style={{ borderBottomWidth: 2, borderBottomColor: p.text }}>
+        <BackBar
+          trail={trail}
+          fallbackLabel="Companies"
+          rightAction={
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: `/(tabs)/companies/${id}/edit`, params: { trail: childTrail } })}
+              style={{ borderWidth: 2, borderColor: p.text, paddingHorizontal: 14, paddingVertical: 5 }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 0.5, color: p.text }}>EDIT</Text>
+            </TouchableOpacity>
+          }
+        />
       </View>
 
       {/* Company name heading */}
@@ -175,7 +192,7 @@ export default function CompanyDetailScreen() {
                   <EventCard
                     key={event.id}
                     event={event}
-                    onPress={() => router.push({ pathname: `/(tabs)/events/${event.id}`, params: { companyName: company.name } })}
+                    onPress={() => router.push({ pathname: `/(tabs)/events/${event.id}`, params: { companyName: company.name, trail: childTrail } })}
                   />
                 ))}
                 <View style={{ height: 20 }} />
@@ -190,7 +207,7 @@ export default function CompanyDetailScreen() {
                   <EventCard
                     key={event.id}
                     event={event}
-                    onPress={() => router.push({ pathname: `/(tabs)/events/${event.id}`, params: { companyName: company.name } })}
+                    onPress={() => router.push({ pathname: `/(tabs)/events/${event.id}`, params: { companyName: company.name, trail: childTrail } })}
                   />
                 ))}
               </>

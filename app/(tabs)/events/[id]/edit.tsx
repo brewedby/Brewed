@@ -13,6 +13,9 @@ import type { EventFormValues } from '@/lib/validations/event.schema';
 
 export default function EditEventScreen() {
   const insets = useSafeAreaInsets();
+  // Modal screens use router.back() — the trail gets carried via the URL but
+  // doesn't drive cancel behaviour: dismissing always returns to the parent
+  // event detail. We still accept it so deep-links / refresh preserve context.
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { tokens } = useTheme();

@@ -13,8 +13,13 @@ import { FarSectionRule } from '@/components/far/SectionRule';
 import { useTheme } from '@/lib/themeContext';
 import { STATUS_DOT, farStatus } from '@/lib/theme';
 import { formatDateRange, toISODateString } from '@/lib/formatters';
+import { encodeTrail } from '@/lib/navTrail';
 import { STATUSES, STATUS_LABELS } from '@/constants';
 import type { ApplicationStatus, EventWithFinancials, CompanyWithStats } from '@/types';
+
+const EVENTS_TRAIL = encodeTrail([
+  { label: 'Applications', pathname: '/(tabs)/events' },
+]);
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS_LIST = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i);
@@ -90,7 +95,7 @@ function FarEventRow({ event }: { event: EventWithFinancials }) {
 
   return (
     <TouchableOpacity
-      onPress={() => router.push(`/(tabs)/events/${event.id}`)}
+      onPress={() => router.push({ pathname: `/(tabs)/events/${event.id}`, params: { trail: EVENTS_TRAIL } })}
       accessibilityRole="button"
       accessibilityLabel={`Open ${event.name}`}
       activeOpacity={0.7}

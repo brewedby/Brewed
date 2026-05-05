@@ -12,7 +12,12 @@ import { FarSectionRule } from '@/components/far/SectionRule';
 import { useTheme } from '@/lib/themeContext';
 import { TONE } from '@/lib/theme';
 import { formatDate } from '@/lib/formatters';
+import { encodeTrail } from '@/lib/navTrail';
 import type { CompanyWithStats } from '@/types';
+
+const COMPANIES_TRAIL = encodeTrail([
+  { label: 'Companies', pathname: '/(tabs)/companies' },
+]);
 
 function companyScore(c: CompanyWithStats): number {
   if (c.completedEventCount === 0 || c.avgProfitMargin == null) return -Infinity;
@@ -79,7 +84,7 @@ export default function CompaniesScreen() {
       {rankedCompanies.map((c, i) => (
         <TouchableOpacity
           key={c.id}
-          onPress={() => router.push(`/(tabs)/companies/${c.id}`)}
+          onPress={() => router.push({ pathname: `/(tabs)/companies/${c.id}`, params: { trail: COMPANIES_TRAIL } })}
           activeOpacity={0.7}
           accessibilityRole="button"
           accessibilityLabel={`${c.name}, ${(c.avgProfitMargin ?? 0).toFixed(0)}% average margin`}
@@ -156,7 +161,7 @@ export default function CompaniesScreen() {
           }
           renderItem={({ item: company }) => (
             <TouchableOpacity
-              onPress={() => router.push(`/(tabs)/companies/${company.id}`)}
+              onPress={() => router.push({ pathname: `/(tabs)/companies/${company.id}`, params: { trail: COMPANIES_TRAIL } })}
               accessibilityRole="button"
               accessibilityLabel={`Open company ${company.name}`}
               activeOpacity={0.7}
