@@ -34,6 +34,21 @@ function omEmoji(code: number): string {
   return '⛈️';
 }
 
+/** Human-readable summary of a WMO weather code. Used for the persisted
+ *  weather_summary field on events; intentionally short for UI use. */
+function describeWeatherCode(code: number): string {
+  if (code === 0) return 'Sunny';
+  if (code <= 2) return 'Mostly sunny';
+  if (code === 3) return 'Cloudy';
+  if (code <= 49) return 'Foggy';
+  if (code <= 57) return 'Drizzle';
+  if (code <= 67) return 'Rainy';
+  if (code <= 77) return 'Snowy';
+  if (code <= 82) return 'Showers';
+  if (code <= 86) return 'Snow showers';
+  return 'Stormy';
+}
+
 function stEmoji(w: string): string {
   if (w.includes('clear')) return '☀️';
   if (w.includes('pcloudy')) return '⛅';
@@ -221,6 +236,41 @@ export function WeatherCard({
         setDays(dual);
         setAvgTemp(avg);
         onTempFetchedRef.current?.(avg);
+
+        // Persist a weather snapshot on the event itself so the prediction
+        // engine can learn from it later. Pick the dominant weather code
+        // (most common across the date range) as a coarse summary, and the
+        // mean temperature as the headline. Graceful fallback: if the
+        // weather columns haven't been migrated yet (Postgres 42703) or
+        // any other write fails, we just skip — the in-memory forecast
+        // still drives the current screen.
+        if (eventId && omDays.length > 0) {
+          const codeCounts = new Map<number, number>();
+          for (const d of omDays) {
+            codeCounts.set(d.weatherCode, (codeCounts.get(d.weatherCode) ?? 0) + 1);
+          }
+          let dominantCode = omDays[0].weatherCode;
+          let topCount = 0;
+          for (const [code, count] of codeCounts) {
+            if (count > topCount) { dominantCode = code; topCount = count; }
+          }
+          const summary = describeWeatherCode(dominantCode);
+          supabase
+            .from('events')
+            .update({
+              avg_temp_c: Math.round(avg * 10) / 10,
+              weather_code: dominantCode,
+              weather_summary: summary,
+              weather_fetched_at: new Date().toISOString(),
+            })
+            .eq('id', eventId)
+            .then((res) => {
+              const err = res.error;
+              if (!err) return;
+              if (err.code === '42703') return; // columns not migrated yet
+              // Don't surface — weather persistence is best-effort.
+            });
+        }
       } catch { /* silently fail */ }
       finally { setLoading(false); }
     }

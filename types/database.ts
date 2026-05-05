@@ -174,6 +174,10 @@ export interface Database {
           url_changed: boolean;
           lat: number | null;
           lng: number | null;
+          avg_temp_c: number | null;
+          weather_code: number | null;
+          weather_summary: string | null;
+          weather_fetched_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -198,6 +202,10 @@ export interface Database {
           url_changed?: boolean;
           lat?: number | null;
           lng?: number | null;
+          avg_temp_c?: number | null;
+          weather_code?: number | null;
+          weather_summary?: string | null;
+          weather_fetched_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -222,6 +230,10 @@ export interface Database {
           url_changed?: boolean;
           lat?: number | null;
           lng?: number | null;
+          avg_temp_c?: number | null;
+          weather_code?: number | null;
+          weather_summary?: string | null;
+          weather_fetched_at?: string | null;
           updated_at?: string;
         };
         Relationships: [
@@ -743,6 +755,56 @@ export interface Database {
             isOneToOne: false;
             referencedRelation: "sales_reports";
             referencedColumns: ["id"];
+          }
+        ];
+      };
+      event_predictions: {
+        Row: {
+          id: string;
+          event_id: string;
+          user_id: string;
+          trade_type: string;
+          kind: string;
+          payload: Record<string, unknown>;
+          forecast_temp_c: number | null;
+          weather_summary: string | null;
+          confidence: 'high' | 'medium' | 'low';
+          based_on_events: number;
+          generated_at: string;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          user_id: string;
+          trade_type: string;
+          kind: string;
+          payload?: Record<string, unknown>;
+          forecast_temp_c?: number | null;
+          weather_summary?: string | null;
+          confidence?: 'high' | 'medium' | 'low';
+          based_on_events?: number;
+          generated_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          user_id?: string;
+          trade_type?: string;
+          kind?: string;
+          payload?: Record<string, unknown>;
+          forecast_temp_c?: number | null;
+          weather_summary?: string | null;
+          confidence?: 'high' | 'medium' | 'low';
+          based_on_events?: number;
+          generated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'event_predictions_event_id_fkey';
+            columns: ['event_id'];
+            isOneToOne: false;
+            referencedRelation: 'events';
+            referencedColumns: ['id'];
           }
         ];
       };

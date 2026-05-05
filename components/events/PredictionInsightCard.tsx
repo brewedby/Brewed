@@ -1,153 +1,200 @@
 // Trade-aware prediction surface.
 //
-// Picks the right prediction renderer (drink-split for coffee, weather-led
-// guidance for ice cream / juice, mains-attach guidance for food traders,
-// etc.) based on the trade type configured in lib/tradeTypeConfig.
+// Reads the user's historical event observations, runs them through the
+// trade-specific prediction engine, and renders the forecast lines,
+// drivers, weather impact and confidence level in a single FAR-style
+// card. Coffee continues to delegate to the existing data-driven
+// drink-split engine; every other trade type is rendered from
+// `predict()` results in lib/predictionEngine.ts.
 //
-// Coffee gets the data-driven drink-split engine. Other trades currently
-// receive directional weather/timing guidance — the data-driven engines
-// for those (mains attachment rates, footfall-weighted demand) are
-// scaffolded here as a follow-up; see TODOs at the bottom.
+// COGS guarantee: we never display, suggest, or compute cost-of-goods
+// here. The engine itself reads only quantities and revenue.
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/themeContext';
 import { FarSectionRule } from '@/components/far/SectionRule';
-import { DrinkSplitInsightCard } from '@/components/events/DrinkSplitInsightCard';
-import { getTradeConfig, type PredictionLens, type TradeTypeConfig } from '@/lib/tradeTypeConfig';
+import { useEventObservations } from '@/lib/queries/eventObservations';
+import { useAllDailyTakings } from '@/lib/queries/dailyTakings';
+import { getTradeConfig } from '@/lib/tradeTypeConfig';
 import { CATEGORY_DEFINITIONS } from '@/types/cogs';
+import { predict, type PredictionResult, type Confidence } from '@/lib/predictionEngine';
 
 interface Props {
   tradeType: string | null;
   forecastTempC: number;
-  expectedTakings?: number;
+  /** Date of the upcoming event — used by the engine for recency
+   *  weighting of historical observations. */
+  eventDate?: string;
 }
 
-export function PredictionInsightCard({ tradeType, forecastTempC, expectedTakings }: Props) {
+export function PredictionInsightCard({ tradeType, forecastTempC, eventDate }: Props) {
   const config = getTradeConfig(tradeType);
-
-  return (
-    <>
-      {config.predictionLenses.map((lens, i) => (
-        <View key={`${lens.kind}-${i}`} style={{ marginBottom: i < config.predictionLenses.length - 1 ? 16 : 0 }}>
-          <FarSectionRule label={lens.title} />
-          <View style={{ marginTop: 12 }}>
-            <LensRenderer
-              lens={lens}
-              config={config}
-              forecastTempC={forecastTempC}
-              expectedTakings={expectedTakings}
-            />
-          </View>
-        </View>
-      ))}
-    </>
-  );
-}
-
-function LensRenderer({
-  lens, config, forecastTempC, expectedTakings,
-}: {
-  lens: PredictionLens;
-  config: TradeTypeConfig;
-  forecastTempC: number;
-  expectedTakings?: number;
-}) {
-  switch (lens.kind) {
-    case 'drink_split':
-      return <DrinkSplitInsightCard forecastTempC={forecastTempC} expectedTakings={expectedTakings} />;
-    case 'cold_demand':
-    case 'food_attach':
-    case 'morning_bake':
-    case 'evening_sweet':
-    case 'beverage_mix':
-    case 'general_demand':
-    default:
-      return (
-        <DirectionalForecastCard
-          lens={lens}
-          config={config}
-          forecastTempC={forecastTempC}
-        />
-      );
-  }
-}
-
-/**
- * Renderer for trades without a fully-trained data engine (yet).
- *
- * Surfaces the temperature, the trade's weather sensitivity, and the
- * lens drivers as a punch-list so the trader knows what to plan around.
- * Once we have enough historical data per trade type we can replace this
- * with proper attachment-rate / cold-demand engines.
- */
-function DirectionalForecastCard({
-  lens, config, forecastTempC,
-}: {
-  lens: PredictionLens;
-  config: TradeTypeConfig;
-  forecastTempC: number;
-}) {
   const { tokens, isDark } = useTheme();
   const p = tokens.palette;
 
-  const tempBucket = forecastTempC < 12 ? 'cold' : forecastTempC < 18 ? 'cool' : forecastTempC < 23 ? 'warm' : 'hot';
-  const tempLabel = ({ cold: '❄️ Cold', cool: '🌤 Cool', warm: '☀️ Warm', hot: '🔥 Hot' } as const)[tempBucket];
+  const { data: observations = [], isLoading: obsLoading } = useEventObservations();
+  const { data: dailyTakings = [], isLoading: dtLoading } = useAllDailyTakings();
+  const loading = obsLoading || dtLoading;
 
-  const sensitivityColor = config.weatherSensitivity === 'high'
-    ? (isDark ? '#fbbf24' : '#b45309')
-    : config.weatherSensitivity === 'medium'
-      ? p.brand
-      : p.textMuted;
+  const result: PredictionResult | null = useMemo(() => {
+    if (loading) return null;
+    return predict(
+      tradeType,
+      { forecastTempC, eventDate: eventDate ?? new Date().toISOString().slice(0, 10) },
+      observations,
+      dailyTakings,
+    );
+  }, [tradeType, forecastTempC, eventDate, observations, dailyTakings, loading]);
 
-  const swing = directionalSwing(lens.kind, forecastTempC, config.weatherSensitivity);
+  const lens = config.predictionLenses[0];
+  if (!lens) return null;
 
   return (
-    <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, padding: 16, marginBottom: 12 }}>
-      {/* Header */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 12 }}>
+    <View style={{ marginBottom: 16 }}>
+      <FarSectionRule label={lens.title} />
+      <View style={{ marginTop: 12 }}>
+        {loading || !result ? (
+          <LoadingForecast tagline={lens.tagline} />
+        ) : (
+          <ForecastCard
+            result={result}
+            tagline={lens.tagline}
+            tradeLabel={config.label}
+            tradeMenuCategories={config.menuCategories}
+            forecastTempC={forecastTempC}
+            isDark={isDark}
+            palette={p}
+          />
+        )}
+      </View>
+    </View>
+  );
+}
+
+function LoadingForecast({ tagline }: { tagline: string }) {
+  const { tokens } = useTheme();
+  const p = tokens.palette;
+  return (
+    <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, padding: 16 }}>
+      <Text style={{ fontSize: 12, color: p.textMuted, fontStyle: 'italic' }}>{tagline}</Text>
+      <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 8 }}>Loading your past events…</Text>
+    </View>
+  );
+}
+
+function ForecastCard({
+  result, tagline, tradeLabel, tradeMenuCategories, forecastTempC, isDark, palette,
+}: {
+  result: PredictionResult;
+  tagline: string;
+  tradeLabel: string;
+  tradeMenuCategories: string[];
+  forecastTempC: number;
+  isDark: boolean;
+  palette: ReturnType<typeof useTheme>['tokens']['palette'];
+}) {
+  const p = palette;
+  const conf = confidencePresentation(result.confidence, isDark, p);
+
+  return (
+    <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, padding: 16 }}>
+      {/* Header: tagline + confidence badge */}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 12, color: p.textMuted, fontStyle: 'italic', lineHeight: 18 }}>{lens.tagline}</Text>
+          <Text style={{ fontSize: 12, color: p.textMuted, fontStyle: 'italic', lineHeight: 18 }}>
+            {tagline}
+          </Text>
         </View>
-        <View style={{ borderWidth: 1, borderColor: sensitivityColor, paddingHorizontal: 8, paddingVertical: 3 }}>
-          <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 0.5, color: sensitivityColor, textTransform: 'uppercase' }}>
-            {config.weatherSensitivity} weather sensitivity
+        <View style={{ borderWidth: 1, borderColor: conf.color, paddingHorizontal: 8, paddingVertical: 3 }}>
+          <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 0.5, color: conf.color, textTransform: 'uppercase' }}>
+            {conf.label}
           </Text>
         </View>
       </View>
 
-      {/* Forecast strip */}
-      <View style={{
-        flexDirection: 'row', alignItems: 'center', gap: 10,
-        backgroundColor: p.surfaceAlt, padding: 10,
-        borderWidth: 1, borderColor: p.border, marginBottom: 10,
-      }}>
-        <Text style={{ fontSize: 11, color: p.textMuted }}>{tempLabel}</Text>
-        <Text style={{ fontSize: 11, color: p.textFaint }}>·</Text>
-        <Text style={{ fontSize: 11, color: p.text, fontWeight: '600' }}>{forecastTempC.toFixed(0)}°C forecast</Text>
-        <Text style={{ fontSize: 11, color: p.textFaint }}>·</Text>
-        <Text style={{ fontSize: 11, color: swing.color, fontWeight: '600' }}>{swing.label}</Text>
-      </View>
+      {/* Learning state */}
+      {result.learningMode && (
+        <View style={{
+          backgroundColor: p.surfaceAlt, padding: 10, marginBottom: 12,
+          borderWidth: 1, borderColor: p.border,
+        }}>
+          <Text style={{ fontSize: 10, color: p.textMuted, fontWeight: '700', letterSpacing: 1, marginBottom: 4 }}>
+            LEARNING MODE
+          </Text>
+          <Text style={{ fontSize: 12, color: p.text, lineHeight: 18 }}>
+            Add actual quantities sold after each event to improve future predictions. The more completed
+            events you record, the sharper the {tradeLabel.toLowerCase()} forecast becomes.
+          </Text>
+        </View>
+      )}
 
-      {/* Drivers */}
-      <View style={{ gap: 6 }}>
-        {lens.drivers.map((d, i) => (
-          <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
-            <Ionicons name="ellipse" size={5} color={p.textFaint} style={{ marginTop: 6 }} />
-            <Text style={{ fontSize: 12, color: p.text, flex: 1, lineHeight: 18 }}>{d}</Text>
+      {/* Forecast lines */}
+      <View style={{ gap: 8 }}>
+        {result.forecast.map((line, i) => (
+          <View key={i} style={{
+            flexDirection: 'row', alignItems: 'flex-start',
+            paddingVertical: 8,
+            borderBottomWidth: i < result.forecast.length - 1 ? 1 : 0,
+            borderBottomColor: p.border,
+            borderStyle: 'dashed',
+          }}>
+            {line.emoji && <Text style={{ fontSize: 18, marginRight: 10 }}>{line.emoji}</Text>}
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, color: p.text, fontWeight: '600' }}>{line.label}</Text>
+              {line.detail && (
+                <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 1 }}>{line.detail}</Text>
+              )}
+            </View>
+            <Text style={{
+              fontFamily: tokensTabular(),
+              fontSize: 17, fontWeight: '700', color: p.text,
+              fontVariant: ['tabular-nums'],
+            }}>
+              {line.value}
+            </Text>
           </View>
         ))}
       </View>
 
-      {/* Plan stock for — visible per-trade category chips */}
-      {config.menuCategories.length > 0 && (
+      {/* Weather impact */}
+      <View style={{
+        flexDirection: 'row', alignItems: 'center', gap: 8,
+        backgroundColor: p.surfaceAlt, padding: 10, marginTop: 12,
+        borderWidth: 1, borderColor: p.border,
+      }}>
+        <Ionicons name="partly-sunny-outline" size={14} color={p.textMuted} />
+        <Text style={{ fontSize: 11, color: p.text, flex: 1, lineHeight: 16 }}>
+          {result.weatherImpact} (forecast {forecastTempC.toFixed(0)}°C)
+        </Text>
+      </View>
+
+      {/* Drivers */}
+      <View style={{ marginTop: 12, gap: 6 }}>
+        {result.drivers.map((d, i) => (
+          <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+            <Ionicons name="ellipse" size={5} color={p.textFaint} style={{ marginTop: 6 }} />
+            <Text style={{ fontSize: 11, color: p.textMuted, flex: 1, lineHeight: 16 }}>{d}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Confidence reason */}
+      <View style={{ borderTopWidth: 1, borderTopColor: p.border, borderStyle: 'dashed', marginTop: 12, paddingTop: 10 }}>
+        <Text style={{ fontSize: 10, color: p.textFaint, fontStyle: 'italic', lineHeight: 14 }}>
+          {result.confidenceReason}
+        </Text>
+      </View>
+
+      {/* Plan-stock-for chip strip — visible per-trade categories */}
+      {tradeMenuCategories.length > 0 && (
         <View style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: p.border, borderStyle: 'dashed' }}>
           <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1, fontWeight: '700', marginBottom: 6 }}>
             PLAN STOCK FOR
           </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            {config.menuCategories
+            {tradeMenuCategories
               .filter((cat) => cat !== 'other')
               .map((cat) => {
                 const def = CATEGORY_DEFINITIONS[cat];
@@ -171,73 +218,20 @@ function DirectionalForecastCard({
           </View>
         </View>
       )}
-
-      {/* Demand pattern footnote */}
-      <View style={{ borderTopWidth: 1, borderTopColor: p.border, borderStyle: 'dashed', marginTop: 12, paddingTop: 10 }}>
-        <Text style={{ fontSize: 10, color: p.textFaint, fontStyle: 'italic', lineHeight: 15 }}>
-          {config.demandPattern}
-        </Text>
-      </View>
     </View>
   );
 }
 
-/** Heuristic: for non-coffee lenses, what direction should demand swing
- *  given the forecast? Used purely for the headline strip — not stock
- *  guidance. */
-function directionalSwing(
-  kind: PredictionLens['kind'],
-  tempC: number,
-  sensitivity: TradeTypeConfig['weatherSensitivity'],
-): { label: string; color: string } {
-  // Cold-demand / juice: heat = strong, cold = weak
-  if (kind === 'cold_demand') {
-    if (tempC >= 23) return { label: 'demand likely strong', color: '#16a34a' };
-    if (tempC >= 18) return { label: 'demand normal', color: '#16a34a' };
-    if (tempC >= 12) return { label: 'demand soft', color: '#b45309' };
-    return { label: 'demand weak', color: '#dc2626' };
-  }
-  // Food: meal-time-led, only mild weather effect
-  if (kind === 'food_attach') {
-    if (tempC >= 23) return { label: 'lift drinks attach', color: '#16a34a' };
-    if (tempC < 12) return { label: 'softer footfall', color: '#b45309' };
-    return { label: 'normal trading', color: '#16a34a' };
-  }
-  // Bakery: weather mostly irrelevant
-  if (kind === 'morning_bake') {
-    if (tempC < 5) return { label: 'cold lift on hot bakes', color: '#b45309' };
-    return { label: 'plan to morning peak', color: '#16a34a' };
-  }
-  // Dessert: evening-led, mild weather effect
-  if (kind === 'evening_sweet') {
-    if (tempC >= 22) return { label: 'cold desserts up', color: '#b45309' };
-    if (tempC < 10) return { label: 'hot desserts up', color: '#b45309' };
-    return { label: 'normal evening trade', color: '#16a34a' };
-  }
-  // Bar / drinks
-  if (kind === 'beverage_mix') {
-    if (tempC >= 22) return { label: 'cold-soft attach up', color: '#b45309' };
-    return { label: 'normal evening trade', color: '#16a34a' };
-  }
-  // Generic
-  if (sensitivity === 'high') {
-    if (tempC >= 22) return { label: 'demand likely strong', color: '#16a34a' };
-    if (tempC < 12) return { label: 'demand soft', color: '#b45309' };
-  }
-  return { label: 'normal trading', color: '#16a34a' };
+function tokensTabular(): string | undefined {
+  return undefined;
 }
 
-// ── Future improvements ────────────────────────────────────────────────
-// 1. Trade-specific historical engines:
-//    - food_attach: train an attachment-rate model (sides ÷ mains, drinks
-//      ÷ mains) per event_financials row, weight-adjusted for footfall.
-//    - cold_demand: regress total_takings against avg_temp_c for ice
-//      cream / juice traders, then forecast units from forecast temp.
-//    - morning_bake: predict sell-out time from past daily_takings.
-// 2. Confidence scores per prediction line.
-// 3. Day-of-week trend overlay (use event date weekday).
-// 4. Seasonal trend (month-of-year baseline).
-// 5. "Recommended stock" outputs once we have a unit-cost pathway in
-//    product_catalog (already exists) and forecast units (TODO).
-// 6. Waste-reduction warnings: if predicted < last week, suggest reducing
-//    perishable prep by N%.
+function confidencePresentation(
+  c: Confidence,
+  isDark: boolean,
+  p: ReturnType<typeof useTheme>['tokens']['palette'],
+): { color: string; label: string } {
+  if (c === 'high') return { color: '#16a34a', label: 'High confidence' };
+  if (c === 'medium') return { color: p.brand, label: 'Medium confidence' };
+  return { color: isDark ? '#fbbf24' : '#b45309', label: 'Low confidence' };
+}

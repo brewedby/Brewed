@@ -437,7 +437,7 @@ export default function EventDetailScreen() {
         {/* ── Trade-aware prediction ── */}
         {forecastTemp !== null && (
           <View style={{ marginBottom: 16 }}>
-            <PredictionInsightCard tradeType={tradeType} forecastTempC={forecastTemp} />
+            <PredictionInsightCard tradeType={tradeType} forecastTempC={forecastTemp} eventDate={event.date} />
           </View>
         )}
 
