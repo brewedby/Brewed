@@ -65,11 +65,26 @@ export function useUploadSalesReport() {
         const response = await fetch(asset.uri);
         if (!response.ok) throw new Error('Could not read CSV file');
         const content = await response.text();
-        const parsed = parseCSVSalesReport(content);
+
+        // Wrap parsing so we always surface a meaningful error message
+        // rather than a raw "Cannot read property X of undefined".
+        let parsed;
+        try {
+          parsed = parseCSVSalesReport(content);
+        } catch (e) {
+          const detail = e instanceof Error ? e.message : String(e);
+          throw new Error(`Couldn't read this CSV. ${detail}`);
+        }
         if (parsed.errors.length > 0 && parsed.lines.length === 0) {
           throw new Error(parsed.errors.join('\n'));
         }
-        lines = reconcileLines(parsed.lines, catalog);
+
+        try {
+          lines = reconcileLines(parsed.lines, catalog);
+        } catch (e) {
+          const detail = e instanceof Error ? e.message : String(e);
+          throw new Error(`Couldn't match products. ${detail}`);
+        }
 
       } else if (isPDF) {
         // --- PDF: upload blob to storage, parse via Edge Function ---

@@ -1,8 +1,13 @@
 import type { ProductCatalogItem, ParsedSalesLine, ReconciledLine } from '@/types/cogs';
 
-/** Normalise a string for comparison — lowercase, alphanumeric + spaces only */
-function norm(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+/** Normalise a string for comparison — lowercase, alphanumeric + spaces only.
+ *  Defensive: tolerates null/undefined/non-string input so a single bad row
+ *  in the catalog (e.g. a product with name=null) doesn't crash the whole
+ *  reconciliation pass. */
+function norm(s: unknown): string {
+  if (s === null || s === undefined) return '';
+  const str = typeof s === 'string' ? s : String(s);
+  return str.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
 }
 
 /**
