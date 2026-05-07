@@ -10,7 +10,7 @@
 // COGS guarantee: we never display, suggest, or compute cost-of-goods
 // here. The engine itself reads only quantities and revenue.
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/themeContext';
@@ -20,6 +20,8 @@ import { useAllDailyTakings } from '@/lib/queries/dailyTakings';
 import { getTradeConfig } from '@/lib/tradeTypeConfig';
 import { CATEGORY_DEFINITIONS } from '@/types/cogs';
 import { predict, type PredictionResult, type Confidence } from '@/lib/predictionEngine';
+import { useSavePrediction } from '@/lib/mutations/predictions';
+import { useAuth } from '@/lib/auth';
 
 interface Props {
   tradeType: string | null;
@@ -27,12 +29,18 @@ interface Props {
   /** Date of the upcoming event — used by the engine for recency
    *  weighting of historical observations. */
   eventDate?: string;
+  /** ID of the event — used to persist the prediction snapshot. */
+  eventId?: string;
 }
 
-export function PredictionInsightCard({ tradeType, forecastTempC, eventDate }: Props) {
+export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eventId }: Props) {
   const config = getTradeConfig(tradeType);
   const { tokens, isDark } = useTheme();
   const p = tokens.palette;
+
+  const { user } = useAuth();
+  const savePrediction = useSavePrediction();
+  const savedRef = useRef<string | null>(null);
 
   const { data: observations = [], isLoading: obsLoading } = useEventObservations();
   const { data: dailyTakings = [], isLoading: dtLoading } = useAllDailyTakings();
@@ -47,6 +55,23 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate }: P
       dailyTakings,
     );
   }, [tradeType, forecastTempC, eventDate, observations, dailyTakings, loading]);
+
+  // Persist the prediction snapshot once per event+temp combination so we can
+  // compare against actuals later. The ref guard prevents re-saving on re-renders.
+  useEffect(() => {
+    if (!result || !user || !eventId) return;
+    const key = `${eventId}:${forecastTempC}`;
+    if (savedRef.current === key) return;
+    savedRef.current = key;
+    savePrediction.mutate({
+      eventId,
+      userId: user.id,
+      tradeType: tradeType ?? 'Other',
+      forecastTempC,
+      weatherSummary: null,
+      prediction: result,
+    });
+  }, [result, user, eventId, forecastTempC, tradeType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const lens = config.predictionLenses[0];
   if (!lens) return null;
