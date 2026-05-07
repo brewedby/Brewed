@@ -60,10 +60,10 @@ export function CogsSection({ eventId, existingCogs }: Props) {
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10, gap: 10 }}>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1.5, color: p.textMuted, textTransform: 'uppercase' }}>
-            COGS from Sales Report
+            COGS from POS Import
           </Text>
           <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 3 }}>
-            Upload your POS export to calculate cost of goods accurately
+            Import your EPOS sales export to automatically calculate cost of goods
           </Text>
         </View>
         <TouchableOpacity
@@ -119,8 +119,8 @@ export function CogsSection({ eventId, existingCogs }: Props) {
           <>
             <Text style={{ fontSize: 18, color: p.brand }}>↑</Text>
             <View>
-              <Text style={{ fontSize: 14, fontWeight: '600', color: p.text }}>Upload Sales Report</Text>
-              <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 1 }}>CSV or PDF · POS export</Text>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: p.text }}>Import POS Sales Report</Text>
+              <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 1 }}>CSV or PDF · from your EPOS system</Text>
             </View>
           </>
         )}

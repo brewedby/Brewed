@@ -58,9 +58,9 @@ const COFFEE: TradeTypeConfig = {
   predictionLenses: [
     {
       kind: 'drink_split',
-      title: 'Drink split prediction',
-      tagline: 'Hot vs iced share, weather-weighted from your history.',
-      drivers: ['Cooler weather → more hot drinks', 'Warm weather → more iced', 'Morning peak typical'],
+      title: 'Hot vs Iced Forecast',
+      tagline: 'Predicted hot-to-iced drink split, adjusted for weather and your trading history.',
+      drivers: ['Cold weather → more hot drinks', 'Warm weather → more iced', 'Morning peak typical'],
     },
   ],
   weatherSensitivity: 'high',

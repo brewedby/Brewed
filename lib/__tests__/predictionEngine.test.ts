@@ -259,6 +259,166 @@ function makeObs(partial: Partial<EventObservation>): EventObservation {
     `labels="${labels}"`);
 }
 
+// 19. Coffee kind is always drink_split — never food_attach or general_demand
+{
+  const temps = [4, 10, 18, 25, 32];
+  let allDrinkSplit = true;
+  let failedTemp = 0;
+  for (const t of temps) {
+    const r = predict('Coffee', { forecastTempC: t, eventDate: '2025-06-15' }, noHistory);
+    if (r?.kind !== 'drink_split') { allDrinkSplit = false; failedTemp = t; break; }
+  }
+  expect('coffee_always_drink_split_not_food',
+    allDrinkSplit,
+    allDrinkSplit ? 'all temps return drink_split' : `failed at ${failedTemp}°C`);
+}
+
+// 20. Non-coffee trade types NEVER return drink_split (no hot/iced coffee split shown to food traders)
+{
+  const foodTrades = ['Burgers', 'Pizza', 'Street Food', 'Asian Food', 'Mexican Food', 'Crepes', 'Waffles'];
+  let noDrinkSplit = true;
+  let failedTrade = '';
+  for (const trade of foodTrades) {
+    const r = predict(trade, { forecastTempC: 20, eventDate: '2025-06-15' }, noHistory);
+    if (r?.kind === 'drink_split') { noDrinkSplit = false; failedTrade = trade; break; }
+  }
+  expect('food_trades_never_return_drink_split',
+    noDrinkSplit,
+    noDrinkSplit ? 'no food trade returns drink_split' : `${failedTrade} returned drink_split`);
+}
+
+// 21. Hot weather shifts coffee iced% higher than cold weather (with history).
+//     The coffee engine maps: standardRatedSales → hot drinks (VAT-rated),
+//     zeroRatedSales → cold/iced drinks (zero-rated).
+//     Need 3+ observations per temperature bracket for the engine to use historical data.
+{
+  const coffeeHistory = [
+    // Hot-bracket events (23°C+): predominantly iced
+    makeObs({ avgTempC: 28, standardRatedSales: 200, zeroRatedSales: 800, date: '2024-07-01' }),
+    makeObs({ avgTempC: 26, standardRatedSales: 250, zeroRatedSales: 750, date: '2024-08-10' }),
+    makeObs({ avgTempC: 24, standardRatedSales: 220, zeroRatedSales: 780, date: '2024-07-20' }),
+    // Cold-bracket events (<12°C): predominantly hot
+    makeObs({ avgTempC:  7, standardRatedSales: 900, zeroRatedSales: 100, date: '2024-01-15' }),
+    makeObs({ avgTempC:  5, standardRatedSales: 950, zeroRatedSales:  50, date: '2024-02-10' }),
+    makeObs({ avgTempC:  8, standardRatedSales: 880, zeroRatedSales: 120, date: '2024-12-20' }),
+  ];
+  const hotDay  = predict('Coffee', { forecastTempC: 28, eventDate: '2025-07-01' }, coffeeHistory);
+  const coldDay = predict('Coffee', { forecastTempC:  5, eventDate: '2025-01-15' }, coffeeHistory);
+  const hotIcedVal  = hotDay?.forecast.find(l => l.label === 'Iced drinks');
+  const coldIcedVal = coldDay?.forecast.find(l => l.label === 'Iced drinks');
+  const hotIced  = parseInt(hotIcedVal?.value  ?? '0', 10);
+  const coldIced = parseInt(coldIcedVal?.value ?? '0', 10);
+  expect('coffee_warm_weather_increases_iced',
+    hotIced > coldIced,
+    `hot day iced=${hotIced}% cold day iced=${coldIced}%`);
+}
+
+// 22. general_demand returns when trade type is null (and only general_demand, not drink_split/food_attach)
+{
+  const r = predict(null, { forecastTempC: 18, eventDate: '2025-06-15' }, noHistory);
+  expect('null_trade_returns_general_demand_kind',
+    r?.kind === 'general_demand',
+    `kind=${r?.kind}`);
+}
+
+// ── CSV parser tests ───────────────────────────────────────────────────
+
+import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
+
+// 23. CSV parser handles UTF-8 BOM correctly
+{
+  const withBOM = '﻿Product Name,Quantity Sold,Net Sales\nFlatWhite,10,30.00\n';
+  const r = parseCSVSalesReport(withBOM);
+  expect('csv_handles_bom',
+    r.lines.length === 1 && r.lines[0].product_name === 'FlatWhite',
+    `lines=${r.lines.length} name="${r.lines[0]?.product_name}"`);
+}
+
+// 24. CSV parser handles blank first lines (metadata rows before header)
+{
+  const withMetadata = [
+    'Report: Daily Sales',
+    '',
+    'Product Name,Quantity Sold,Net Sales',
+    'Cappuccino,5,17.50',
+    'Latte,8,28.00',
+  ].join('\n');
+  const r = parseCSVSalesReport(withMetadata);
+  expect('csv_handles_blank_first_lines',
+    r.lines.length >= 1,
+    `lines=${r.lines.length} errors="${r.errors.join(';')}"`);
+}
+
+// 25. CSV parser handles semicolon delimiter (European EPOS exports)
+{
+  const semicolonCSV = 'Product Name;Quantity Sold;Net Sales\nEspresso;12;24.00\nLatte;8;28.00\n';
+  const r = parseCSVSalesReport(semicolonCSV);
+  expect('csv_handles_semicolon_delimiter',
+    r.lines.length === 2,
+    `lines=${r.lines.length} errors="${r.errors.join(';')}"`);
+}
+
+// 26. CSV parser handles tab delimiter
+{
+  const tabCSV = 'Product Name\tQuantity Sold\tNet Sales\nFlat White\t6\t21.00\n';
+  const r = parseCSVSalesReport(tabCSV);
+  expect('csv_handles_tab_delimiter',
+    r.lines.length === 1 && r.lines[0].product_name === 'Flat White',
+    `lines=${r.lines.length} name="${r.lines[0]?.product_name}"`);
+}
+
+// 27. CSV parser handles Windows CRLF line endings
+{
+  const crlfCSV = 'Item Name\r\nQuantity\r\nNet Sales\r\n'.replace(/\r\n/g, '\r\n');
+  // Valid CRLF with data
+  const validCrlf = 'Product Name,Quantity Sold,Net Sales\r\nCappuccino,3,10.50\r\nMocha,2,8.00\r\n';
+  const r = parseCSVSalesReport(validCrlf);
+  expect('csv_handles_crlf',
+    r.lines.length === 2,
+    `lines=${r.lines.length}`);
+}
+
+// 28. Empty CSV returns a clear error (not a crash)
+{
+  const r = parseCSVSalesReport('');
+  expect('csv_empty_returns_clear_error',
+    r.lines.length === 0 && r.errors.length > 0 && r.errors[0].toLowerCase().includes('empty'),
+    `errors="${r.errors[0]}"`);
+}
+
+// 29. CSV with only one line (just headers) gives a helpful error
+{
+  const headerOnly = 'Product Name,Quantity Sold,Net Sales';
+  const r = parseCSVSalesReport(headerOnly);
+  expect('csv_header_only_returns_helpful_error',
+    r.lines.length === 0 && r.errors.length > 0,
+    `errors="${r.errors[0]}"`);
+}
+
+// 30. CSV parser handles currency symbols and comma-thousands (£1,234.56)
+{
+  const currencyCSV = 'Product Name,Quantity Sold,Net Sales\nHot Chocolate,"5","£1,234.56"\n';
+  const r = parseCSVSalesReport(currencyCSV);
+  expect('csv_handles_currency_symbols',
+    r.lines.length === 1 && r.lines[0].line_total > 1000,
+    `lines=${r.lines.length} total=${r.lines[0]?.line_total}`);
+}
+
+// 31. CSV parser merges duplicate product names (some POS emit one row per transaction)
+{
+  const dupCSV = [
+    'Item Name,Qty,Net Sales',
+    'Cappuccino,1,3.50',
+    'Latte,1,3.80',
+    'Cappuccino,1,3.50',
+  ].join('\n');
+  const r = parseCSVSalesReport(dupCSV);
+  const cappuccino = r.lines.find(l => l.product_name.toLowerCase().includes('cappuccino'));
+  expect('csv_merges_duplicate_products',
+    cappuccino?.quantity === 2 && Math.abs(cappuccino.line_total - 7.00) < 0.01,
+    `qty=${cappuccino?.quantity} total=${cappuccino?.line_total}`);
+}
+
 // ── Reporter ───────────────────────────────────────────────────────────
 let pass = 0, fail = 0;
 for (const r of results) {

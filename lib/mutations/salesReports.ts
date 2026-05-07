@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { supabase } from '@/lib/supabase';
 import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
 import { reconcileLines } from '@/lib/parsers/productMatcher';
@@ -61,10 +62,27 @@ export function useUploadSalesReport() {
       let storagePath: string | null = null;
 
       if (isCSV) {
-        // --- CSV: fetch as text directly from the local URI ---
-        const response = await fetch(asset.uri);
-        if (!response.ok) throw new Error('Could not read CSV file');
-        const content = await response.text();
+        // --- CSV: read via FileSystem (more reliable than fetch on iOS production) ---
+        let content: string;
+        try {
+          content = await FileSystem.readAsStringAsync(asset.uri, {
+            encoding: 'utf8',
+          });
+        } catch {
+          // Fall back to fetch if FileSystem fails (e.g. content:// URI on Android)
+          try {
+            const response = await fetch(asset.uri);
+            if (!response.ok) throw new Error('HTTP error ' + response.status);
+            content = await response.text();
+          } catch (fetchErr) {
+            const detail = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+            throw new Error(`Could not read the CSV file. Try exporting it again from your EPOS system. (${detail})`);
+          }
+        }
+
+        if (!content || content.trim().length === 0) {
+          throw new Error('The file appears to be empty. Please check the export and try again.');
+        }
 
         // Wrap parsing so we always surface a meaningful error message
         // rather than a raw "Cannot read property X of undefined".

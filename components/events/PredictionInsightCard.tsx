@@ -3,12 +3,17 @@
 // Reads the user's historical event observations, runs them through the
 // trade-specific prediction engine, and renders the forecast lines,
 // drivers, weather impact and confidence level in a single FAR-style
-// card. Coffee continues to delegate to the existing data-driven
-// drink-split engine; every other trade type is rendered from
-// `predict()` results in lib/predictionEngine.ts.
+// card.
+//
+// Visibility rules enforced here (not just in the engine):
+//   • drink_split (Coffee): shows only drink-relevant stock categories.
+//     Never shows Mains / Sides / Extras / generic food chips.
+//   • general_demand (trade type not set): hides the stock-planning chip
+//     strip entirely and shows a "set your trade type" prompt instead.
+//   • All other trade types: uses that trade's own menuCategories.
 //
 // COGS guarantee: we never display, suggest, or compute cost-of-goods
-// here. The engine itself reads only quantities and revenue.
+// here. The engine reads only quantities and revenue.
 
 import React, { useEffect, useMemo, useRef } from 'react';
 import { View, Text } from 'react-native';
@@ -22,6 +27,10 @@ import { CATEGORY_DEFINITIONS } from '@/types/cogs';
 import { predict, type PredictionResult, type Confidence } from '@/lib/predictionEngine';
 import { useSavePrediction } from '@/lib/mutations/predictions';
 import { useAuth } from '@/lib/auth';
+
+// Categories shown in "PLAN STOCK FOR" when the engine returns drink_split.
+// Coffee/drink traders never see food mains/sides/extras chips.
+const DRINK_SPLIT_PLAN_CATEGORIES = ['hot_drinks', 'cold_drinks', 'bakes'];
 
 interface Props {
   tradeType: string | null;
@@ -56,7 +65,7 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
     );
   }, [tradeType, forecastTempC, eventDate, observations, dailyTakings, loading]);
 
-  // Persist the prediction snapshot once per event+temp combination so we can
+  // Persist the prediction snapshot once per event+temp so we can
   // compare against actuals later. The ref guard prevents re-saving on re-renders.
   useEffect(() => {
     if (!result || !user || !eventId) return;
@@ -76,9 +85,18 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
   const lens = config.predictionLenses[0];
   if (!lens) return null;
 
+  // Derive section label from prediction result kind when available,
+  // so a coffee trader with no profile trade type set still sees a
+  // sensible label once the engine resolves.
+  const sectionLabel = result?.kind === 'drink_split'
+    ? 'Hot vs Iced Forecast'
+    : result?.kind === 'general_demand'
+      ? 'Demand Forecast'
+      : lens.title;
+
   return (
     <View style={{ marginBottom: 16 }}>
-      <FarSectionRule label={lens.title} />
+      <FarSectionRule label={sectionLabel} />
       <View style={{ marginTop: 12 }}>
         {loading || !result ? (
           <LoadingForecast tagline={lens.tagline} />
@@ -122,6 +140,16 @@ function ForecastCard({
 }) {
   const p = palette;
   const conf = confidencePresentation(result.confidence, isDark, p);
+
+  // Determine which stock categories to show in the "PLAN STOCK FOR" strip.
+  // drink_split (Coffee): only coffee-relevant categories — never food mains/sides/extras.
+  // general_demand (no trade type set): hide chips entirely, show set-trade-type prompt.
+  // All other kinds: use the trade config's own categories (minus 'other').
+  const planCategories: string[] = result.kind === 'drink_split'
+    ? DRINK_SPLIT_PLAN_CATEGORIES
+    : result.kind === 'general_demand'
+      ? []
+      : tradeMenuCategories.filter((cat) => cat !== 'other');
 
   return (
     <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, padding: 16 }}>
@@ -173,7 +201,6 @@ function ForecastCard({
               )}
             </View>
             <Text style={{
-              fontFamily: tokensTabular(),
               fontSize: 17, fontWeight: '700', color: p.text,
               fontVariant: ['tabular-nums'],
             }}>
@@ -215,43 +242,45 @@ function ForecastCard({
         </Text>
       </View>
 
-      {/* Plan-stock-for chip strip — visible per-trade categories */}
-      {tradeMenuCategories.length > 0 && (
+      {/* Plan-stock-for chip strip.
+          Hidden for general_demand — show "set trade type" prompt instead.
+          drink_split (Coffee): only drink categories, never food. */}
+      {result.kind === 'general_demand' ? (
+        <View style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: p.border, borderStyle: 'dashed' }}>
+          <Text style={{ fontSize: 10, color: p.textMuted, lineHeight: 14 }}>
+            Set your trade type in Settings for category-specific stock planning and a sharper forecast.
+          </Text>
+        </View>
+      ) : planCategories.length > 0 ? (
         <View style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: p.border, borderStyle: 'dashed' }}>
           <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1, fontWeight: '700', marginBottom: 6 }}>
             PLAN STOCK FOR
           </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            {tradeMenuCategories
-              .filter((cat) => cat !== 'other')
-              .map((cat) => {
-                const def = CATEGORY_DEFINITIONS[cat];
-                if (!def) return null;
-                return (
-                  <View
-                    key={cat}
-                    style={{
-                      borderWidth: 1, borderColor: p.border,
-                      paddingHorizontal: 8, paddingVertical: 3,
-                      flexDirection: 'row', alignItems: 'center', gap: 4,
-                    }}
-                  >
-                    <Text style={{ fontSize: 10 }}>{def.emoji}</Text>
-                    <Text style={{ fontSize: 10, color: p.textMuted, fontWeight: '600' }}>
-                      {def.label}
-                    </Text>
-                  </View>
-                );
-              })}
+            {planCategories.map((cat) => {
+              const def = CATEGORY_DEFINITIONS[cat];
+              if (!def) return null;
+              return (
+                <View
+                  key={cat}
+                  style={{
+                    borderWidth: 1, borderColor: p.border,
+                    paddingHorizontal: 8, paddingVertical: 3,
+                    flexDirection: 'row', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  <Text style={{ fontSize: 10 }}>{def.emoji}</Text>
+                  <Text style={{ fontSize: 10, color: p.textMuted, fontWeight: '600' }}>
+                    {def.label}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         </View>
-      )}
+      ) : null}
     </View>
   );
-}
-
-function tokensTabular(): string | undefined {
-  return undefined;
 }
 
 function confidencePresentation(

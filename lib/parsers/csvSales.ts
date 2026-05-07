@@ -50,9 +50,9 @@ function findColumn(headers: string[], aliases: string[]): number {
 
 /**
  * Parse a single CSV line respecting quoted fields, escaped quotes, and
- * tab-separated values. Always returns a string[] (never sparse/with holes).
+ * tab/semicolon-separated values. Always returns a string[] (never sparse/with holes).
  */
-function parseLine(line: string, delimiter: ',' | '\t' = ','): string[] {
+function parseLine(line: string, delimiter: ',' | '\t' | ';' = ','): string[] {
   const safeLine = asString(line);
   const result: string[] = [];
   let current = '';
@@ -83,12 +83,15 @@ function parseMoney(s: unknown): number {
   return isNaN(n) ? 0 : n;
 }
 
-/** Detect the CSV delimiter (comma or tab) by counting on the header row. */
-function detectDelimiter(firstLine: string): ',' | '\t' {
+/** Detect the CSV delimiter (comma, semicolon, or tab) by counting on the header row. */
+function detectDelimiter(firstLine: string): ',' | '\t' | ';' {
   const safe = asString(firstLine);
-  const tabs = (safe.match(/\t/g) ?? []).length;
-  const commas = (safe.match(/,/g) ?? []).length;
-  return tabs > commas ? '\t' : ',';
+  const tabs       = (safe.match(/\t/g)  ?? []).length;
+  const commas     = (safe.match(/,/g)   ?? []).length;
+  const semicolons = (safe.match(/;/g)   ?? []).length;
+  if (tabs > commas && tabs > semicolons) return '\t';
+  if (semicolons > commas) return ';';
+  return ',';
 }
 
 /** Strip a UTF-8 BOM from the start of the content if present. Square and
@@ -103,10 +106,25 @@ export function parseCSVSalesReport(content: string): ParseResult {
   const rawLines = safe.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
   const lines = rawLines.filter((l) => l.trim().length > 0);
 
+  if (lines.length === 0) {
+    return {
+      lines: [],
+      errors: [
+        'The file is empty.',
+        'Try exporting the report again from your EPOS system.',
+      ],
+      rawHeaders: [],
+      sourceFormat: 'csv',
+    };
+  }
+
   if (lines.length < 2) {
     return {
       lines: [],
-      errors: ['File appears to be empty or has no data rows'],
+      errors: [
+        'The file has a header row but no data rows.',
+        'Make sure you export the full sales report including individual line items, not just a summary.',
+      ],
       rawHeaders: [],
       sourceFormat: 'csv',
     };
@@ -133,7 +151,11 @@ export function parseCSVSalesReport(content: string): ParseResult {
   if (headers.length === 0) {
     return {
       lines: [],
-      errors: ['Could not parse any column headers from the file'],
+      errors: [
+        'Could not read any column headers from the file.',
+        'The file may use an unsupported layout or encoding.',
+        'Try exporting as CSV from your EPOS provider.',
+      ],
       rawHeaders: [],
       sourceFormat: 'csv',
     };
@@ -146,13 +168,17 @@ export function parseCSVSalesReport(content: string): ParseResult {
 
   const errors: string[] = [];
   if (productCol === -1) {
-    errors.push(`Could not find a product name column. Headers found: ${headers.join(', ')}`);
+    errors.push(
+      `We found text but could not identify a product name column (looked for: ${PRODUCT_ALIASES.slice(0, 5).join(', ')}).`,
+      `Column headers detected: ${headers.slice(0, 8).join(', ')}${headers.length > 8 ? '…' : ''}.`,
+      'Try exporting as a "Items Sold" or "Product Sales" report from your EPOS.',
+    );
   }
   if (qtyCol === -1) {
-    errors.push(`Could not find a quantity column. Headers found: ${headers.join(', ')}`);
+    errors.push(`No recognised quantity column found (looked for: ${QUANTITY_ALIASES.slice(0, 4).join(', ')}).`);
   }
   if (totalCol === -1 && priceCol === -1) {
-    errors.push('Could not find a total or unit price column');
+    errors.push('No recognised price or total column found.');
   }
 
   if (productCol === -1) {
@@ -233,6 +259,8 @@ function repairOverColumns(
   expected: number,
   productCol: number,
 ): string[] {
+  // Type is widened to string here because detectDelimiter may return ';'
+  // but parseLine already handled it; repairOverColumns works on the split result.
   let cells = [...cols];
   // Don't touch the product name column or earlier — names can contain anything.
   let i = Math.max(0, productCol + 1);
