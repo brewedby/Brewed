@@ -180,6 +180,85 @@ function makeObs(partial: Partial<EventObservation>): EventObservation {
     `kind=${r2?.kind}`);
 }
 
+// 11. Trade-specific food defaults: Burger default sides ≥ 65% (higher than Pizza)
+{
+  const burger = predict('Burgers', { forecastTempC: 18, eventDate: '2025-06-15' }, noHistory);
+  const pizza  = predict('Pizza',   { forecastTempC: 18, eventDate: '2025-06-15' }, noHistory);
+  const burgerSides = parseInt(burger?.forecast.find(l => l.label === 'Sides attach')?.value ?? '0', 10);
+  const pizzaSides  = parseInt(pizza?.forecast.find(l => l.label === 'Sides attach')?.value ?? '0', 10);
+  expect('burger_default_sides_higher_than_pizza',
+    burgerSides > pizzaSides,
+    `burger=${burgerSides}% pizza=${pizzaSides}%`);
+}
+
+// 12. Burger default sides ≥ 65% (reflects UK burger attach rates)
+{
+  const r = predict('Burgers', { forecastTempC: 18, eventDate: '2025-06-15' }, noHistory);
+  const sides = parseInt(r?.forecast.find(l => l.label === 'Sides attach')?.value ?? '0', 10);
+  expect('burger_sides_default_at_least_65pct', sides >= 65, `sides=${sides}%`);
+}
+
+// 13. Juice & Smoothies routes to cold_demand (same as Ice Cream)
+{
+  const r = predict('Juice & Smoothies', { forecastTempC: 22, eventDate: '2025-07-01' }, noHistory);
+  expect('juice_returns_cold_demand', r?.kind === 'cold_demand', `kind=${r?.kind}`);
+}
+
+// 14. Bakery routes to morning_bake
+{
+  const r = predict('Bakery', { forecastTempC: 14, eventDate: '2025-04-10' }, noHistory);
+  expect('bakery_returns_morning_bake', r?.kind === 'morning_bake', `kind=${r?.kind}`);
+}
+
+// 15. Cocktails routes to beverage_mix (bar engine)
+{
+  const r = predict('Cocktails', { forecastTempC: 20, eventDate: '2025-07-20' }, noHistory);
+  expect('cocktails_returns_beverage_mix', r?.kind === 'beverage_mix', `kind=${r?.kind}`);
+}
+
+// 16. Asian Food and Mexican Food route to food_attach
+{
+  const asian   = predict('Asian Food',   { forecastTempC: 18, eventDate: '2025-06-15' }, noHistory);
+  const mexican = predict('Mexican Food', { forecastTempC: 18, eventDate: '2025-06-15' }, noHistory);
+  expect('asian_food_returns_food_attach',   asian?.kind === 'food_attach',   `kind=${asian?.kind}`);
+  expect('mexican_food_returns_food_attach', mexican?.kind === 'food_attach', `kind=${mexican?.kind}`);
+}
+
+// 17. One extreme outlier event does NOT dominate the ice cream forecast.
+//     Without outlier detection a single 10× revenue event would make the forecast
+//     roughly 4× the typical; with IQR filtering the forecast should remain sane.
+{
+  const history: EventObservation[] = [
+    makeObs({ avgTempC: 22, grossSalesFallback: 500,  date: '2024-05-10' }),
+    makeObs({ avgTempC: 21, grossSalesFallback: 480,  date: '2024-06-01' }),
+    makeObs({ avgTempC: 23, grossSalesFallback: 520,  date: '2024-06-20' }),
+    makeObs({ avgTempC: 20, grossSalesFallback: 510,  date: '2024-07-05' }),
+    makeObs({ avgTempC: 22, grossSalesFallback: 490,  date: '2024-07-20' }),
+    // outlier: stadium gig, 10× typical
+    makeObs({ avgTempC: 22, grossSalesFallback: 5000, date: '2024-08-10' }),
+  ];
+  const r = predict('Ice Cream', { forecastTempC: 22, eventDate: '2025-07-01' }, history);
+  const forecast = r?.forecast.find(l => l.label === 'Forecast revenue');
+  const rev = parseInt((forecast?.value ?? '£0').replace(/[£,]/g, ''), 10);
+  // Without outlier removal the average would be ~1250; with IQR removal it stays near 500.
+  expect('outlier_does_not_dominate_ice_cream_forecast',
+    rev < 1200,
+    `Forecast revenue = £${rev} (should be < £1200 without outlier)`);
+  // Confidence reason should mention the excluded outlier
+  expect('outlier_noted_in_confidence_reason',
+    (r?.confidenceReason ?? '').includes('outlier'),
+    `confidenceReason=${r?.confidenceReason}`);
+}
+
+// 18. Coffee trader does NOT expose food mains/sides logic
+{
+  const r = predict('Coffee', { forecastTempC: 18, eventDate: '2025-06-15' }, noHistory);
+  const labels = (r?.forecast ?? []).map(l => l.label.toLowerCase()).join(' ');
+  expect('coffee_no_mains_or_sides_label',
+    !labels.includes('mains') && !labels.includes('sides attach'),
+    `labels="${labels}"`);
+}
+
 // ── Reporter ───────────────────────────────────────────────────────────
 let pass = 0, fail = 0;
 for (const r of results) {

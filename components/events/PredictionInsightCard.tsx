@@ -205,10 +205,13 @@ function ForecastCard({
         ))}
       </View>
 
-      {/* Confidence reason */}
-      <View style={{ borderTopWidth: 1, borderTopColor: p.border, borderStyle: 'dashed', marginTop: 12, paddingTop: 10 }}>
+      {/* Confidence reason + privacy note */}
+      <View style={{ borderTopWidth: 1, borderTopColor: p.border, borderStyle: 'dashed', marginTop: 12, paddingTop: 10, gap: 6 }}>
         <Text style={{ fontSize: 10, color: p.textFaint, fontStyle: 'italic', lineHeight: 14 }}>
           {result.confidenceReason}
+        </Text>
+        <Text style={{ fontSize: 10, color: p.textFaint, lineHeight: 14 }}>
+          {'Predictions use your own event history only. Your data is never pooled with other traders or sent to an AI service.'}
         </Text>
       </View>
 

@@ -11,9 +11,12 @@
 //    compute event_financials.cost_of_goods, and do NOT suggest values
 //    for either. The engine learns from quantities and revenue only.
 //  • Predictions are computed locally. No external services see the
-//    user's sales / product data.
+//    user's sales / product data. All learning uses that trader's own data.
 //  • A prediction always returns a confidence + sample size so the UI
 //    can surface "needs more data" states honestly.
+//  • One unusual event does not dominate: IQR-based outlier detection
+//    removes extreme observations before computing weighted averages when
+//    there are 5+ data points.
 
 import { differenceInDays } from 'date-fns';
 import type { EventObservation } from '@/lib/queries/eventObservations';
@@ -56,6 +59,20 @@ export interface PredictionContext {
 
 const MIN_OBSERVATIONS_FOR_HIGH = 6;
 const MIN_OBSERVATIONS_FOR_MEDIUM = 3;
+// Minimum sample needed to run IQR outlier detection reliably.
+const MIN_OUTLIER_SAMPLE = 5;
+
+// Trade-specific default attachment rates used before the user has enough
+// history. Values reflect typical UK street-food and market-trader norms.
+const FOOD_ATTACH_DEFAULTS: Record<string, { sides: number; drinks: number; extras: number }> = {
+  Burgers:        { sides: 0.70, drinks: 0.55, extras: 0.35 },
+  Pizza:          { sides: 0.40, drinks: 0.45, extras: 0.20 },
+  'Street Food':  { sides: 0.50, drinks: 0.50, extras: 0.25 },
+  'Asian Food':   { sides: 0.45, drinks: 0.40, extras: 0.30 },
+  'Mexican Food': { sides: 0.55, drinks: 0.50, extras: 0.35 },
+  Crepes:         { sides: 0.20, drinks: 0.45, extras: 0.60 },
+  Waffles:        { sides: 0.20, drinks: 0.40, extras: 0.65 },
+};
 
 /** Top-level entry point. Returns the prediction shaped for the trader's
  *  trade type, or `null` if the trade has no engine wired up. */
@@ -66,8 +83,6 @@ export function predict(
   dailyTakings?: DailyTakings[],
 ): PredictionResult | null {
   const config = getTradeConfig(tradeType);
-  // We assume a single primary lens — if a trade type ever needs more
-  // than one we can iterate.
   const lens = config.predictionLenses[0];
   if (!lens) return null;
 
@@ -75,7 +90,7 @@ export function predict(
     case 'drink_split':
       return predictForCoffee(context, observations, dailyTakings ?? []);
     case 'food_attach':
-      return predictForFood(context, observations);
+      return predictForFood(context, observations, tradeType);
     case 'cold_demand':
       return predictForColdDemand(context, observations);
     case 'morning_bake':
@@ -117,26 +132,60 @@ function similarityWeight(
   return recencyWeight(obs.date, context.eventDate) * tempSimilarity(context.forecastTempC, obs.avgTempC);
 }
 
-function confidenceFromSampleSize(n: number, weatherMatched: number): {
-  level: Confidence;
-  reason: string;
-} {
+// ── Outlier detection ──────────────────────────────────────────────────
+
+/**
+ * Removes observations whose value falls outside the IQR fence (Q1 − 1.5×IQR,
+ * Q3 + 1.5×IQR). Only activates when sample ≥ MIN_OUTLIER_SAMPLE — below that
+ * we can't reliably compute IQR and the user needs every data point.
+ */
+function filterOutlierObservations(
+  observations: EventObservation[],
+  getValue: (o: EventObservation) => number,
+): { filtered: EventObservation[]; outliersRemoved: number } {
+  if (observations.length < MIN_OUTLIER_SAMPLE) {
+    return { filtered: observations, outliersRemoved: 0 };
+  }
+  const values = observations.map(getValue);
+  const sorted = [...values].sort((a, b) => a - b);
+  const q1 = sorted[Math.floor(sorted.length * 0.25)];
+  const q3 = sorted[Math.floor(sorted.length * 0.75)];
+  const iqr = q3 - q1;
+  // If IQR is 0 (all identical values), skip outlier removal.
+  if (iqr === 0) return { filtered: observations, outliersRemoved: 0 };
+  const lo = q1 - 1.5 * iqr;
+  const hi = q3 + 1.5 * iqr;
+  const filtered = observations.filter((o) => {
+    const v = getValue(o);
+    return v >= lo && v <= hi;
+  });
+  return { filtered, outliersRemoved: observations.length - filtered.length };
+}
+
+function confidenceFromSampleSize(
+  n: number,
+  weatherMatched: number,
+  outliersRemoved = 0,
+): { level: Confidence; reason: string } {
+  const outlierNote = outliersRemoved > 0
+    ? ` (${outliersRemoved} outlier event${outliersRemoved === 1 ? '' : 's'} excluded)`
+    : '';
   if (n >= MIN_OBSERVATIONS_FOR_HIGH && weatherMatched >= MIN_OBSERVATIONS_FOR_MEDIUM) {
     return {
       level: 'high',
-      reason: `Based on ${n} similar past events (${weatherMatched} with comparable weather).`,
+      reason: `Based on ${n} similar past events (${weatherMatched} with comparable weather)${outlierNote}.`,
     };
   }
   if (n >= MIN_OBSERVATIONS_FOR_MEDIUM) {
     return {
       level: 'medium',
-      reason: `Based on ${n} past event${n === 1 ? '' : 's'} — confidence will rise as you log more.`,
+      reason: `Based on ${n} past event${n === 1 ? '' : 's'} — confidence will rise as you log more${outlierNote}.`,
     };
   }
   if (n > 0) {
     return {
       level: 'low',
-      reason: `Only ${n} past event${n === 1 ? '' : 's'} on file — using generic baselines for the rest.`,
+      reason: `Only ${n} past event${n === 1 ? '' : 's'} on file — using defaults for the rest${outlierNote}.`,
     };
   }
   return {
@@ -159,6 +208,26 @@ function tempEmoji(tempC: number): string {
   return '🔥';
 }
 
+/** Return a sensible mains emoji for the trade type. */
+function tradeEmoji(tradeType: string | null): string {
+  const map: Record<string, string> = {
+    Burgers: '🍔',
+    Pizza: '🍕',
+    'Street Food': '🌮',
+    'Asian Food': '🍜',
+    'Mexican Food': '🌯',
+    Crepes: '🥞',
+    Waffles: '🧇',
+  };
+  return tradeType ? (map[tradeType] ?? '🍽️') : '🍽️';
+}
+
+/** Defaults for when a food trader has no line-item history yet. */
+function getFoodDefaults(tradeType: string | null): { sides: number; drinks: number; extras: number } {
+  if (tradeType && tradeType in FOOD_ATTACH_DEFAULTS) return FOOD_ATTACH_DEFAULTS[tradeType];
+  return { sides: 0.55, drinks: 0.50, extras: 0.30 };
+}
+
 // ── Coffee — drink split (delegates to existing engine) ────────────────
 
 function predictForCoffee(
@@ -166,10 +235,6 @@ function predictForCoffee(
   observations: EventObservation[],
   dailyTakings: DailyTakings[],
 ): PredictionResult {
-  // Map observations into the legacy drinkSplitEngine input format. We
-  // include only events with some hot/iced data and weather, plus any
-  // event_financials with VAT split (engine derives an avg temp from the
-  // month if avg_temp_c is missing).
   const eventFinancials: EventFinancialSummary[] = observations
     .filter((o) => o.standardRatedSales + o.zeroRatedSales > 0)
     .map((o) => ({
@@ -217,10 +282,10 @@ function predictForCoffee(
 
 // ── Food trades — mains + attachment rates ─────────────────────────────
 
-const MAIN_CATEGORIES: ProductCategory[]  = ['mains'];
-const SIDE_CATEGORIES: ProductCategory[]  = ['sides'];
-const DRINK_CATEGORIES: ProductCategory[] = ['drinks', 'cold_drinks', 'hot_drinks'];
-const EXTRA_CATEGORIES: ProductCategory[] = ['extras', 'toppings', 'sauces'];
+const MAIN_CATEGORIES: ProductCategory[]    = ['mains'];
+const SIDE_CATEGORIES: ProductCategory[]    = ['sides'];
+const DRINK_CATEGORIES: ProductCategory[]   = ['drinks', 'cold_drinks', 'hot_drinks'];
+const EXTRA_CATEGORIES: ProductCategory[]   = ['extras', 'toppings', 'sauces'];
 const SPECIAL_CATEGORIES: ProductCategory[] = ['specials'];
 
 function sumCategories(
@@ -235,46 +300,62 @@ function sumCategories(
 function predictForFood(
   context: PredictionContext,
   observations: EventObservation[],
+  tradeType: string | null,
 ): PredictionResult {
-  // Only events that have any line items at all are useful here.
   const usable = observations.filter((o) => o.totalLineItems > 0);
+
+  // Remove outlier events (e.g. an unusually large festival vs. a typical market).
+  const { filtered: nonOutliers, outliersRemoved } = filterOutlierObservations(
+    usable,
+    (o) => sumCategories(o.qtyByCategory, MAIN_CATEGORIES),
+  );
+
   let weightedMains = 0;
   let weightedSidesPer = 0;
   let weightedDrinksPer = 0;
   let weightedExtrasPer = 0;
+  let weightedSpecialsPer = 0;
   let totalWeight = 0;
   let weatherMatched = 0;
 
-  for (const obs of usable) {
+  for (const obs of nonOutliers) {
     const mains = sumCategories(obs.qtyByCategory, MAIN_CATEGORIES);
     if (mains <= 0) continue;
-    const sides  = sumCategories(obs.qtyByCategory, SIDE_CATEGORIES);
-    const drinks = sumCategories(obs.qtyByCategory, DRINK_CATEGORIES);
-    const extras = sumCategories(obs.qtyByCategory, EXTRA_CATEGORIES);
+    const sides    = sumCategories(obs.qtyByCategory, SIDE_CATEGORIES);
+    const drinks   = sumCategories(obs.qtyByCategory, DRINK_CATEGORIES);
+    const extras   = sumCategories(obs.qtyByCategory, EXTRA_CATEGORIES);
+    const specials = sumCategories(obs.qtyByCategory, SPECIAL_CATEGORIES);
     const w = similarityWeight(obs, context);
-    totalWeight       += w;
-    weightedMains     += w * mains;
-    weightedSidesPer  += w * (sides  / mains);
-    weightedDrinksPer += w * (drinks / mains);
-    weightedExtrasPer += w * (extras / mains);
+    totalWeight          += w;
+    weightedMains        += w * mains;
+    weightedSidesPer     += w * (sides    / mains);
+    weightedDrinksPer    += w * (drinks   / mains);
+    weightedExtrasPer    += w * (extras   / mains);
+    weightedSpecialsPer  += w * (specials / mains);
     if (obs.avgTempC !== null && Math.abs(obs.avgTempC - context.forecastTempC) <= 5) weatherMatched++;
   }
 
   const sample = usable.length;
-  const { level, reason } = confidenceFromSampleSize(sample, weatherMatched);
+  const { level, reason } = confidenceFromSampleSize(sample, weatherMatched, outliersRemoved);
+  const defaults = getFoodDefaults(tradeType);
 
-  // Defaults when we have no data — sensible category attachment rates
-  // for a UK food trader. These exist so the UI never says 0% before
-  // we've seen any history.
-  const defaults = { sides: 0.65, drinks: 0.55, extras: 0.30 };
+  const weatherImpact = context.forecastTempC >= 22
+    ? 'Hot weather — drinks attach expected to push above baseline.'
+    : context.forecastTempC < 12
+      ? 'Cold weather — comfort food demand holds; cold drinks soften.'
+      : 'Comfortable weather — meal-time peaks dominate.';
+
+  const hasSpecials = weightedSpecialsPer > 0;
 
   const forecast: ForecastLine[] = totalWeight > 0
     ? [
         {
           label: 'Mains forecast',
           value: `${Math.round(weightedMains / totalWeight)} units`,
-          detail: 'Weighted average from comparable past events',
-          emoji: '🍔',
+          detail: outliersRemoved > 0
+            ? `Avg from ${nonOutliers.length} events (${outliersRemoved} outlier${outliersRemoved === 1 ? '' : 's'} removed)`
+            : 'Weather- and recency-weighted average',
+          emoji: tradeEmoji(tradeType),
         },
         {
           label: 'Sides attach',
@@ -291,21 +372,36 @@ function predictForFood(
         {
           label: 'Extras / toppings',
           value: `${Math.round((weightedExtrasPer / totalWeight) * 100)}%`,
-          detail: 'Per main sold — topping/extra add-ons',
+          detail: 'Per main sold',
           emoji: '➕',
         },
+        ...(hasSpecials ? [{
+          label: 'Specials attach',
+          value: `${Math.round((weightedSpecialsPer / totalWeight) * 100)}%`,
+          detail: 'Specials per main — trial demand highest in first hour',
+          emoji: '⭐',
+        }] : []),
       ]
     : [
-        { label: 'Sides attach',     value: `${Math.round(defaults.sides * 100)}%`,   detail: 'Default — no history yet', emoji: '🍟' },
-        { label: 'Drinks attach',    value: `${Math.round(defaults.drinks * 100)}%`,  detail: 'Default — no history yet', emoji: '🥤' },
-        { label: 'Extras / toppings', value: `${Math.round(defaults.extras * 100)}%`, detail: 'Default — no history yet', emoji: '➕' },
+        {
+          label: 'Sides attach',
+          value: `${Math.round(defaults.sides * 100)}%`,
+          detail: `${tradeType ?? 'Food'} default — improves as you log events`,
+          emoji: '🍟',
+        },
+        {
+          label: 'Drinks attach',
+          value: `${Math.round(defaults.drinks * 100)}%`,
+          detail: `${tradeType ?? 'Food'} default — improves as you log events`,
+          emoji: '🥤',
+        },
+        {
+          label: 'Extras / toppings',
+          value: `${Math.round(defaults.extras * 100)}%`,
+          detail: `${tradeType ?? 'Food'} default — improves as you log events`,
+          emoji: '➕',
+        },
       ];
-
-  const weatherImpact = context.forecastTempC >= 22
-    ? 'Hot weather — expect drinks attach to push higher than baseline.'
-    : context.forecastTempC < 12
-      ? 'Cold weather — hot food + warm drink combos lift; cold drinks soften.'
-      : 'Comfortable weather — meal-time peaks dominate over weather effects.';
 
   return {
     kind: 'food_attach',
@@ -313,7 +409,7 @@ function predictForFood(
     drivers: [
       `${tempBucketLabel(context.forecastTempC)} forecast ${tempEmoji(context.forecastTempC)}`,
       sample > 0 ? `${sample} past event${sample === 1 ? '' : 's'} with line-item data` : 'No event line-item data yet',
-      'Recency-weighted — recent events matter more',
+      'Recency- and weather-weighted — recent similar days matter most',
     ],
     weatherImpact,
     confidence: level,
@@ -329,49 +425,87 @@ function predictForColdDemand(
   context: PredictionContext,
   observations: EventObservation[],
 ): PredictionResult {
-  // Aggregate by event: total revenue (anything sold) versus temp.
   const usable = observations.filter((o) => totalRevenueOf(o) > 0);
+
+  // Remove revenue outliers so one record-breaking day doesn't skew prep guidance.
+  const { filtered: nonOutliers, outliersRemoved } = filterOutlierObservations(
+    usable,
+    totalRevenueOf,
+  );
+
   const sample = usable.length;
-  const weatherMatched = usable.filter((o) =>
+  const weatherMatched = nonOutliers.filter((o) =>
     o.avgTempC !== null && Math.abs(o.avgTempC - context.forecastTempC) <= 5,
   ).length;
 
-  // Demand multiplier vs your average — anchored at 1.0 for the user's
-  // historical mean revenue, scaled by temperature similarity.
-  const meanRevenue = sample > 0
-    ? usable.reduce((s, o) => s + totalRevenueOf(o), 0) / sample
+  // Demand multiplier anchored at the user's historical mean.
+  const meanRevenue = nonOutliers.length > 0
+    ? nonOutliers.reduce((s, o) => s + totalRevenueOf(o), 0) / nonOutliers.length
     : 0;
   let weightedRevenue = 0, totalWeight = 0;
-  for (const obs of usable) {
+  for (const obs of nonOutliers) {
     const w = similarityWeight(obs, context);
     weightedRevenue += w * totalRevenueOf(obs);
     totalWeight     += w;
   }
   const expectedRevenue = totalWeight > 0 ? weightedRevenue / totalWeight : 0;
   const multiplier = meanRevenue > 0 ? expectedRevenue / meanRevenue : 1;
-
-  // Temperature-led headline: how much should they prep for, vs a
-  // typical day. We bucket the multiplier into qualitative bands so the
-  // copy reads naturally.
   const headline = describeMultiplier(multiplier, context.forecastTempC);
 
-  const { level, reason } = confidenceFromSampleSize(sample, weatherMatched);
+  // Topping/extra attach rate when category revenue data is available.
+  let toppingRev = 0, mainTreatRev = 0;
+  const hasCategories = nonOutliers.some((o) => Object.keys(o.revenueByCategory).length > 0);
+  if (hasCategories) {
+    for (const o of nonOutliers) {
+      toppingRev   += sumRevenue(o, ['toppings', 'extras']);
+      mainTreatRev += sumRevenue(o, ['ice_cream', 'desserts', 'specials']);
+    }
+  }
+  const toppingTotal = toppingRev + mainTreatRev;
+  const toppingAttach = toppingTotal > 0 ? toppingRev / toppingTotal : null;
+
+  const { level, reason } = confidenceFromSampleSize(sample, weatherMatched, outliersRemoved);
 
   const weatherImpact = context.forecastTempC >= 23
-    ? 'Hot, sunny days drive strong cold-treat demand — prep generously.'
+    ? 'Hot, sunny day — strong cold-treat demand. Prep generously.'
     : context.forecastTempC >= 18
-      ? 'Warm weather — solid demand, plan close to your average.'
+      ? 'Warm — solid demand. Plan close to your average.'
       : context.forecastTempC >= 12
-        ? 'Cool weather — demand softer, tighten perishable prep.'
-        : 'Cold weather — demand likely well below average. Cut perishable orders.';
+        ? 'Cool — demand softer. Tighten perishable prep.'
+        : 'Cold — demand likely well below average. Cut perishable orders.';
+
+  const revenueDetail = outliersRemoved > 0
+    ? `${outliersRemoved} outlier event${outliersRemoved === 1 ? '' : 's'} excluded`
+    : 'Recency- and weather-weighted';
 
   const forecast: ForecastLine[] = expectedRevenue > 0
     ? [
-        { label: 'Demand vs your average', value: headline.label, detail: headline.detail, emoji: tempEmoji(context.forecastTempC) },
-        { label: 'Forecast revenue', value: `£${Math.round(expectedRevenue)}`, detail: 'Recency- and weather-weighted', emoji: '💷' },
+        {
+          label: 'Demand vs your average',
+          value: headline.label,
+          detail: headline.detail,
+          emoji: tempEmoji(context.forecastTempC),
+        },
+        {
+          label: 'Forecast revenue',
+          value: `£${Math.round(expectedRevenue)}`,
+          detail: revenueDetail,
+          emoji: '💷',
+        },
+        ...(toppingAttach !== null ? [{
+          label: 'Toppings / extras attach',
+          value: `${Math.round(toppingAttach * 100)}%`,
+          detail: 'Of treat revenue — upsell opportunity',
+          emoji: '🍫',
+        }] : []),
       ]
     : [
-        { label: 'Demand vs your average', value: 'Unknown', detail: 'Log a completed event to start learning', emoji: tempEmoji(context.forecastTempC) },
+        {
+          label: 'Demand vs your average',
+          value: 'Unknown',
+          detail: 'Log a completed event to start learning',
+          emoji: tempEmoji(context.forecastTempC),
+        },
       ];
 
   return {
@@ -380,7 +514,7 @@ function predictForColdDemand(
     drivers: [
       `${tempBucketLabel(context.forecastTempC)} forecast ${tempEmoji(context.forecastTempC)}`,
       sample > 0 ? `${sample} past event${sample === 1 ? '' : 's'} on record` : 'No completed events yet',
-      'Highly weather-led — recent hot events weighted strongly',
+      'Highly weather-led — temperature similarity weighted strongly',
     ],
     weatherImpact,
     confidence: level,
@@ -397,16 +531,16 @@ function predictForBakery(
   observations: EventObservation[],
 ): PredictionResult {
   const usable = observations.filter((o) => o.totalLineItems > 0 || totalRevenueOf(o) > 0);
+  const { filtered: nonOutliers, outliersRemoved } = filterOutlierObservations(usable, totalRevenueOf);
   const sample = usable.length;
 
-  // For bakery we predict prep volume vs the user's average; we don't
-  // have time-of-day per line item so this is event-day total.
-  const meanRevenue = sample > 0
-    ? usable.reduce((s, o) => s + totalRevenueOf(o), 0) / sample
+  // Recency-only weighting (weather is secondary for bakery).
+  const meanRevenue = nonOutliers.length > 0
+    ? nonOutliers.reduce((s, o) => s + totalRevenueOf(o), 0) / nonOutliers.length
     : 0;
   let weighted = 0, w = 0;
-  for (const o of usable) {
-    const wt = recencyWeight(o.date, context.eventDate); // weather doesn't drive bakery
+  for (const o of nonOutliers) {
+    const wt = recencyWeight(o.date, context.eventDate);
     weighted += wt * totalRevenueOf(o);
     w        += wt;
   }
@@ -414,14 +548,36 @@ function predictForBakery(
   const multiplier = meanRevenue > 0 ? expectedRevenue / meanRevenue : 1;
   const headline = describeMultiplier(multiplier, context.forecastTempC, /* isBakery */ true);
 
-  const { level, reason } = confidenceFromSampleSize(sample, sample);
+  // If the bakery also sells hot drinks, show that share.
+  const hasDrinkData = nonOutliers.some(
+    (o) => o.hotDrinksSales > 0 || (o.revenueByCategory.hot_drinks ?? 0) > 0,
+  );
+  let hotDrinksRev = 0, totalRevForDrinks = 0;
+  if (hasDrinkData) {
+    for (const o of nonOutliers) {
+      hotDrinksRev     += o.hotDrinksSales + (o.revenueByCategory.hot_drinks ?? 0);
+      totalRevForDrinks += totalRevenueOf(o);
+    }
+  }
+
+  const { level, reason } = confidenceFromSampleSize(sample, sample, outliersRemoved);
+
+  const revenueDetail = outliersRemoved > 0
+    ? `${outliersRemoved} outlier event${outliersRemoved === 1 ? '' : 's'} excluded`
+    : 'Recency-weighted from your history';
 
   return {
     kind: 'morning_bake',
     forecast: expectedRevenue > 0
       ? [
           { label: 'Morning prep guidance', value: headline.label, detail: headline.detail, emoji: '🥐' },
-          { label: 'Forecast revenue',      value: `£${Math.round(expectedRevenue)}`, detail: 'Recency-weighted from your history', emoji: '💷' },
+          { label: 'Forecast revenue', value: `£${Math.round(expectedRevenue)}`, detail: revenueDetail, emoji: '💷' },
+          ...(hasDrinkData && totalRevForDrinks > 0 ? [{
+            label: 'Drinks proportion',
+            value: `${Math.round((hotDrinksRev / totalRevForDrinks) * 100)}%`,
+            detail: 'Hot drinks as share of bakery revenue',
+            emoji: '☕',
+          }] : []),
         ]
       : [
           { label: 'Morning prep guidance', value: 'Standard prep', detail: 'Log a completed event to start tuning', emoji: '🥐' },
@@ -429,11 +585,13 @@ function predictForBakery(
     drivers: [
       'Front-loaded service — morning peak dominates',
       sample > 0 ? `${sample} past event${sample === 1 ? '' : 's'} on record` : 'No completed events yet',
-      'Weather has a secondary effect for bakery — mostly footfall-led',
+      'Weather is secondary for bakery — footfall and prep timing lead',
     ],
     weatherImpact: context.forecastTempC < 5
-      ? 'Cold snap — slight lift on hot bakes/coffees if you sell them.'
-      : 'Weather effect on bakery is mild — focus on prep timing.',
+      ? 'Cold snap — slight lift on hot items and hot drinks if you sell them.'
+      : context.forecastTempC >= 22
+        ? 'Hot day — cold drinks and lighter bakes move faster. Warm items slow.'
+        : 'Weather mild — focus on prep timing and stock depth.',
     confidence: level,
     confidenceReason: reason,
     basedOnEvents: sample,
@@ -448,17 +606,17 @@ function predictForDessert(
   observations: EventObservation[],
 ): PredictionResult {
   const usable = observations.filter((o) => totalRevenueOf(o) > 0);
+  const { filtered: nonOutliers, outliersRemoved } = filterOutlierObservations(usable, totalRevenueOf);
   const sample = usable.length;
-  const weatherMatched = usable.filter((o) =>
+  const weatherMatched = nonOutliers.filter((o) =>
     o.avgTempC !== null && Math.abs(o.avgTempC - context.forecastTempC) <= 5,
   ).length;
-  const { level, reason } = confidenceFromSampleSize(sample, weatherMatched);
+  const { level, reason } = confidenceFromSampleSize(sample, weatherMatched, outliersRemoved);
 
-  // We split desserts into hot vs cold via category revenue when
-  // possible — falls back to a heuristic when we have no line items.
+  // Split desserts hot vs cold via category revenue when available.
   let hotRev = 0, coldRev = 0;
-  for (const o of usable) {
-    hotRev  += sumRevenue(o, ['cakes', 'pastries']);
+  for (const o of nonOutliers) {
+    hotRev  += sumRevenue(o, ['cakes', 'pastries', 'bakes']);
     coldRev += sumRevenue(o, ['ice_cream', 'desserts']);
   }
   const totalRev = hotRev + coldRev;
@@ -468,19 +626,19 @@ function predictForDessert(
   return {
     kind: 'evening_sweet',
     forecast: [
-      { label: 'Cold desserts',  value: `${Math.round(coldShare * 100)}%`, emoji: '🍨' },
-      { label: 'Hot / baked sweets', value: `${Math.round(hotShare * 100)}%`, emoji: '🍰' },
+      { label: 'Cold desserts',       value: `${Math.round(coldShare * 100)}%`, emoji: '🍨' },
+      { label: 'Hot / baked sweets',  value: `${Math.round(hotShare * 100)}%`,  emoji: '🍰' },
     ],
     drivers: [
       `${tempBucketLabel(context.forecastTempC)} forecast`,
-      'Evening peak typical — family events lift volume',
+      'Evening peak typical — family events lift overall volume',
       sample > 0 ? `${sample} past event${sample === 1 ? '' : 's'} with revenue data` : 'No completed events yet',
     ],
     weatherImpact: context.forecastTempC >= 22
-      ? 'Warm — cold desserts (ice cream, fruit) move ahead.'
+      ? 'Warm — cold desserts and ice cream move ahead of hot options.'
       : context.forecastTempC < 12
-        ? 'Cold — hot desserts and baked sweets do better.'
-        : 'Mild — close-to-baseline mix.',
+        ? 'Cold — hot desserts and baked sweets outperform.'
+        : 'Mild — close-to-baseline hot/cold mix.',
     confidence: level,
     confidenceReason: reason,
     basedOnEvents: sample,
@@ -495,28 +653,38 @@ function predictForBar(
   observations: EventObservation[],
 ): PredictionResult {
   const usable = observations.filter((o) => totalRevenueOf(o) > 0);
+  const { filtered: nonOutliers, outliersRemoved } = filterOutlierObservations(usable, totalRevenueOf);
   const sample = usable.length;
-  let alcoholRev = 0, softRev = 0;
-  for (const o of usable) {
-    alcoholRev += sumRevenue(o, ['alcohol', 'cocktails']);
-    softRev    += sumRevenue(o, ['cold_drinks', 'drinks', 'smoothies']);
+
+  // Use similarity-weighted split when we have line-item category revenue.
+  let weightedAlcohol = 0, weightedSoft = 0, totalWeight = 0;
+  for (const obs of nonOutliers) {
+    const alcRev  = sumRevenue(obs, ['alcohol', 'cocktails']);
+    const softRev = sumRevenue(obs, ['cold_drinks', 'drinks', 'smoothies']);
+    const tot = alcRev + softRev;
+    if (tot <= 0) continue;
+    const w = similarityWeight(obs, context);
+    weightedAlcohol += w * (alcRev / tot);
+    weightedSoft    += w * (softRev / tot);
+    totalWeight     += w;
   }
-  const total = alcoholRev + softRev;
-  // If the user only has revenue (no line items), default to 70/30.
-  const alcoholShare = total > 0 ? alcoholRev / total : 0.70;
-  const softShare = 1 - alcoholShare;
-  // Hot weather gently lifts soft / cold drinks share.
-  const tempLift = Math.max(0, Math.min(0.15, (context.forecastTempC - 18) * 0.02));
-  const adjustedSoft = Math.min(0.95, softShare + tempLift);
+
+  // Default split is temperature-adjusted when no history exists.
+  const defaultAlcohol = context.forecastTempC >= 22 ? 0.62 : 0.70;
+  const alcoholShare = totalWeight > 0 ? weightedAlcohol / totalWeight : defaultAlcohol;
+
+  // Warm weather nudges cold/soft drinks up slightly from the observed baseline.
+  const tempLift = Math.max(0, Math.min(0.12, (context.forecastTempC - 18) * 0.015));
+  const adjustedSoft    = Math.min(0.95, (1 - alcoholShare) + tempLift);
   const adjustedAlcohol = 1 - adjustedSoft;
 
-  const { level, reason } = confidenceFromSampleSize(sample, sample);
+  const { level, reason } = confidenceFromSampleSize(sample, sample, outliersRemoved);
 
   return {
     kind: 'beverage_mix',
     forecast: [
-      { label: 'Alcoholic drinks', value: `${Math.round(adjustedAlcohol * 100)}%`, emoji: '🍺' },
-      { label: 'Soft / cold drinks', value: `${Math.round(adjustedSoft * 100)}%`, emoji: '🥤' },
+      { label: 'Alcoholic drinks',    value: `${Math.round(adjustedAlcohol * 100)}%`, emoji: '🍺' },
+      { label: 'Soft / cold drinks',  value: `${Math.round(adjustedSoft * 100)}%`,    emoji: '🥤' },
     ],
     drivers: [
       `${tempBucketLabel(context.forecastTempC)} forecast`,
@@ -524,8 +692,10 @@ function predictForBar(
       sample > 0 ? `${sample} past event${sample === 1 ? '' : 's'} on record` : 'No completed events yet',
     ],
     weatherImpact: context.forecastTempC >= 22
-      ? 'Warm weather — soft/cold drinks attach harder.'
-      : 'Steady weather — typical mix expected.',
+      ? 'Hot — soft/cold drinks attach harder alongside alcoholic serves.'
+      : context.forecastTempC < 12
+        ? 'Cold — alcoholic serves dominant; soft-drink attach softens.'
+        : 'Steady weather — typical mix expected.',
     confidence: level,
     confidenceReason: reason,
     basedOnEvents: sample,
@@ -540,12 +710,14 @@ function predictForGeneral(
   observations: EventObservation[],
 ): PredictionResult {
   const usable = observations.filter((o) => totalRevenueOf(o) > 0);
+  const { filtered: nonOutliers, outliersRemoved } = filterOutlierObservations(usable, totalRevenueOf);
   const sample = usable.length;
-  const meanRevenue = sample > 0
-    ? usable.reduce((s, o) => s + totalRevenueOf(o), 0) / sample
+
+  const meanRevenue = nonOutliers.length > 0
+    ? nonOutliers.reduce((s, o) => s + totalRevenueOf(o), 0) / nonOutliers.length
     : 0;
   let weighted = 0, w = 0;
-  for (const o of usable) {
+  for (const o of nonOutliers) {
     const wt = similarityWeight(o, context);
     weighted += wt * totalRevenueOf(o);
     w        += wt;
@@ -553,13 +725,20 @@ function predictForGeneral(
   const expectedRevenue = w > 0 ? weighted / w : 0;
   const multiplier = meanRevenue > 0 ? expectedRevenue / meanRevenue : 1;
   const headline = describeMultiplier(multiplier, context.forecastTempC);
-  const { level, reason } = confidenceFromSampleSize(sample, sample);
+  const { level, reason } = confidenceFromSampleSize(sample, sample, outliersRemoved);
 
   return {
     kind: 'general_demand',
     forecast: expectedRevenue > 0
       ? [
-          { label: 'Demand vs your average', value: headline.label, detail: headline.detail, emoji: tempEmoji(context.forecastTempC) },
+          {
+            label: 'Demand vs your average',
+            value: headline.label,
+            detail: outliersRemoved > 0
+              ? `${outliersRemoved} outlier event${outliersRemoved === 1 ? '' : 's'} excluded`
+              : headline.detail,
+            emoji: tempEmoji(context.forecastTempC),
+          },
           { label: 'Forecast revenue', value: `£${Math.round(expectedRevenue)}`, detail: 'Weather and recency weighted', emoji: '💷' },
         ]
       : [
@@ -568,12 +747,12 @@ function predictForGeneral(
     drivers: [
       `${tempBucketLabel(context.forecastTempC)} forecast`,
       sample > 0 ? `${sample} past event${sample === 1 ? '' : 's'} on record` : 'No completed events yet',
-      'Generic engine — set a more specific trade type for sharper forecasts',
+      'Set a specific trade type in Settings for a sharper forecast',
     ],
     weatherImpact: context.forecastTempC >= 22
-      ? 'Warm — drinks and outdoor demand lift.'
+      ? 'Warm — drinks and outdoor food demand lift.'
       : context.forecastTempC < 12
-        ? 'Cold — hot food and footfall both soften.'
+        ? 'Cold — hot food holds; footfall and cold items soften.'
         : 'Comfortable — close to your typical day.',
     confidence: level,
     confidenceReason: reason,
@@ -585,8 +764,7 @@ function predictForGeneral(
 // ── Shared helpers ─────────────────────────────────────────────────────
 
 function totalRevenueOf(o: EventObservation): number {
-  // Sales total: prefer VAT-split, fall back to gross_sales (for events
-  // that haven't been split). We never use cost_of_goods.
+  // Prefer VAT-split totals; fall back to gross_sales. Never uses cost_of_goods.
   const split = o.standardRatedSales + o.zeroRatedSales;
   return split > 0 ? split : o.grossSalesFallback;
 }
@@ -625,7 +803,9 @@ function describeMultiplier(
   if (multiplier >= 0.6) {
     return {
       label: '−25% vs typical',
-      detail: tempC < 12 ? 'Cold day softens demand — tighten perishables.' : 'Below-average day expected — tighten prep.',
+      detail: tempC < 12
+        ? 'Cold day softens demand — tighten perishables.'
+        : 'Below-average day expected — tighten prep.',
     };
   }
   return {
@@ -634,8 +814,7 @@ function describeMultiplier(
   };
 }
 
-/** When we have no line-item data, fall back to a temp-led cold-share
- *  heuristic for desserts. */
+/** When no line-item data is available, infer cold-dessert share from temperature. */
 function weatherWarmthAsColdShare(tempC: number): number {
   if (tempC < 12) return 0.30;
   if (tempC < 18) return 0.45;

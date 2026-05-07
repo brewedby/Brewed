@@ -25,12 +25,23 @@ export function useReports(year: number) {
       const allEvents = events ?? [];
       const allCompanies = companies ?? [];
 
-      const totalGross = allEvents.reduce((s, e) => s + (e.event_financials?.gross_sales ?? 0), 0);
-      const totalNet = allEvents.reduce((s, e) => {
-        if (!e.event_financials) return s;
-        return s + calcEventFinancials(e.event_financials).netProfit;
-      }, 0);
-      const avgMargin = totalGross > 0 ? (totalNet / totalGross) * 100 : 0;
+      // Compute in a single pass to avoid calling calcEventFinancials twice per event.
+      let totalGross = 0;
+      let totalNet = 0;
+      let totalCostsAll = 0;
+      for (const e of allEvents) {
+        totalGross += e.event_financials?.gross_sales ?? 0;
+        if (e.event_financials) {
+          const calc = calcEventFinancials(e.event_financials);
+          totalNet += calc.netProfit;
+          totalCostsAll += calc.totalCosts;
+        }
+      }
+      // Margin denominator must be totalNetSales, not raw gross_sales (which is
+      // VAT-inclusive and inconsistent with the VAT-exclusive netProfit numerator).
+      // totalNetSales = netProfit + totalCosts (since netProfit = totalNetSales − totalCosts).
+      const totalNetSalesAll = totalNet + totalCostsAll;
+      const avgMargin = totalNetSalesAll > 0 ? (totalNet / totalNetSalesAll) * 100 : 0;
 
       const monthlyMap = new Map<number, MonthlyBreakdown>();
       for (let m = 1; m <= 12; m++) {
@@ -57,7 +68,10 @@ export function useReports(year: number) {
         }
       });
       monthlyMap.forEach((entry) => {
-        entry.profitMargin = entry.grossSales > 0 ? (entry.netProfit / entry.grossSales) * 100 : 0;
+        // Use totalNetSales = netProfit + totalCosts as denominator so we compare
+        // like-for-like (both sides are VAT-exclusive, ex-cost-of-goods basis).
+        const netSales = entry.netProfit + entry.totalCosts;
+        entry.profitMargin = netSales > 0 ? (entry.netProfit / netSales) * 100 : 0;
       });
 
       const totalFreshMilkLitres = allEvents.reduce((s, e) => s + (e.event_financials?.fresh_milk_litres ?? 0), 0);
