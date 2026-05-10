@@ -531,6 +531,29 @@ import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
     `lines=${r.lines.length} totalRow=${totalRow?.product_name}`);
 }
 
+// 31j. general_demand drivers no longer duplicate the "set trade type" text
+//      (the UI surfaces a dedicated CTA + breadcrumb badge for that now).
+{
+  const r = predict('Other', { forecastTempC: 18, eventDate: '2025-06-15' }, noHistory);
+  const drivers = (r?.drivers ?? []).join(' | ').toLowerCase();
+  expect('general_demand_drivers_no_legacy_dup_text',
+    !drivers.includes('set a specific trade type'),
+    `drivers="${drivers}"`);
+  expect('general_demand_drivers_still_mention_settings',
+    drivers.includes('settings') && drivers.includes('trade type'),
+    `drivers="${drivers}"`);
+}
+
+// 31k. Coffee result should NOT nag the user about setting a trade type —
+//      they ARE a coffee trader, the CTA must not appear in coffee output.
+{
+  const r = predict('Coffee', { forecastTempC: 18, eventDate: '2025-06-15' }, noHistory);
+  const drivers = (r?.drivers ?? []).join(' | ').toLowerCase();
+  expect('coffee_drivers_no_set_trade_type_prompt',
+    !drivers.includes('set a trade type') && !drivers.includes('set a specific trade type'),
+    `drivers="${drivers}"`);
+}
+
 // 32. CSV parser merges duplicate product names (some POS emit one row per transaction)
 {
   const dupCSV = [
