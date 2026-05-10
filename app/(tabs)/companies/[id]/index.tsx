@@ -58,7 +58,6 @@ export default function CompanyDetailScreen() {
             onPress={() => router.back()}
             accessibilityRole="button"
             accessibilityLabel="Back to companies"
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 16 }}
             className="p-1"
           >
             <Text className="text-amber-600 text-base">‹ Companies</Text>

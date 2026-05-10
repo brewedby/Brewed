@@ -29,8 +29,8 @@ const STATUS_JOURNEY: { status: ApplicationStatus; label: string }[] = [
 function ApplicationTimeline({ currentStatus }: { currentStatus: ApplicationStatus }) {
   if (currentStatus === 'rejected' || currentStatus === 'withdrawn') {
     return (
-      <View className="bg-white rounded-2xl p-4 border border-stone-100 mb-4">
-        <Text className="font-bold text-stone-700 mb-3">Application Journey</Text>
+      <View className="bg-white rounded-2xl p-4 border border-slate-100 mb-4">
+        <Text className="font-bold text-slate-700 mb-3">Application Journey</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, backgroundColor: STATUS_COLORS[currentStatus].bgHex }}>
           <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: STATUS_COLORS[currentStatus].dot, marginRight: 8 }} />
           <Text style={{ fontWeight: '600', fontSize: 14, color: STATUS_COLORS[currentStatus].textHex }}>
@@ -44,8 +44,8 @@ function ApplicationTimeline({ currentStatus }: { currentStatus: ApplicationStat
   const currentIdx = STATUS_JOURNEY.findIndex((s) => s.status === currentStatus);
 
   return (
-    <View className="bg-white rounded-2xl p-4 border border-stone-100 mb-4">
-      <Text className="font-bold text-stone-700 mb-3">Application Journey</Text>
+    <View className="bg-white rounded-2xl p-4 border border-slate-100 mb-4">
+      <Text className="font-bold text-slate-700 mb-3">Application Journey</Text>
       <View className="flex-row items-center">
         {STATUS_JOURNEY.map((step, i) => {
           const done = i <= currentIdx;
@@ -55,20 +55,20 @@ function ApplicationTimeline({ currentStatus }: { currentStatus: ApplicationStat
             <React.Fragment key={step.status}>
               <View className="items-center">
                 <View
-                  className={`w-9 h-9 rounded-full items-center justify-center border-2 ${done ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-stone-200'}`}
+                  className={`w-9 h-9 rounded-full items-center justify-center border-2 ${done ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-200'}`}
                 >
                   {done ? (
                     <Text className="text-white font-bold text-sm">{isCurrent ? '●' : '✓'}</Text>
                   ) : (
-                    <Text className="text-stone-300 text-xs">{i + 1}</Text>
+                    <Text className="text-slate-300 text-xs">{i + 1}</Text>
                   )}
                 </View>
-                <Text className={`text-xs mt-1 font-medium ${isCurrent ? 'text-emerald-600' : done ? 'text-stone-600' : 'text-stone-300'}`}>
+                <Text className={`text-xs mt-1 font-medium ${isCurrent ? 'text-emerald-600' : done ? 'text-slate-600' : 'text-slate-300'}`}>
                   {step.label}
                 </Text>
               </View>
               {!isLast && (
-                <View className={`flex-1 h-0.5 mx-1 mb-4 ${i < currentIdx ? 'bg-emerald-400' : 'bg-stone-200'}`} />
+                <View className={`flex-1 h-0.5 mx-1 mb-4 ${i < currentIdx ? 'bg-emerald-400' : 'bg-slate-200'}`} />
               )}
             </React.Fragment>
           );
@@ -188,61 +188,60 @@ export default function EventDetailScreen() {
   if (isLoading) return <LoadingSpinner message="Loading application..." />;
   if (!event) return (
     <View className="flex-1 items-center justify-center">
-      <Text className="text-stone-500">Event not found</Text>
+      <Text className="text-slate-500">Event not found</Text>
     </View>
   );
 
   const dotColor = STATUS_COLORS[event.status]?.dot ?? '#94a3b8';
 
   return (
-    <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-slate-50" style={{ paddingTop: insets.top }}>
       {/* Header */}
-      <View className="bg-white border-b border-stone-100">
+      <View className="bg-white border-b border-slate-100">
         <View style={{ height: 4, backgroundColor: dotColor }} />
         <View className="px-4 pt-3 pb-4">
           <View className="flex-row items-center justify-between mb-2">
             <TouchableOpacity
               onPress={() => router.back()}
               accessibilityRole="button"
-              accessibilityLabel="Back to events"
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 16 }}
+              accessibilityLabel="Back to applications"
               className="flex-row items-center"
             >
-              <Text className="text-amber-500 font-semibold text-sm">‹ Events</Text>
+              <Text className="text-amber-500 font-semibold text-sm">‹ Applications</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => router.push(`/(tabs)/events/${id}/edit`)}
               accessibilityRole="button"
               accessibilityLabel="Edit event"
-              className="bg-stone-900 px-4 py-1.5 rounded-xl"
+              className="bg-slate-900 px-4 py-1.5 rounded-xl"
             >
               <Text className="text-white font-semibold text-sm">Edit</Text>
             </TouchableOpacity>
           </View>
 
-          <Text className="text-xl font-bold text-stone-900 mb-2 leading-snug">{event.name}</Text>
+          <Text className="text-xl font-bold text-slate-900 mb-2 leading-snug">{event.name}</Text>
 
           <View className="flex-row items-center flex-wrap gap-2 mb-1">
             <EventStatusBadge status={event.status} />
             <View className="flex-row items-center">
               <Ionicons name="calendar-outline" size={13} color="#64748b" />
-              <Text className="text-stone-500 text-sm ml-1.5">{formatDateRange(event.date, event.end_date)}</Text>
+              <Text className="text-slate-500 text-sm ml-1.5">{formatDateRange(event.date, event.end_date)}</Text>
             </View>
           </View>
           <View className="flex-row items-center mt-1">
             <Ionicons name="location-outline" size={13} color="#64748b" />
-            <Text className="text-stone-500 text-sm ml-1.5">{event.location}</Text>
+            <Text className="text-slate-500 text-sm ml-1.5">{event.location}</Text>
           </View>
           {event.concessions_companies && (
             <View className="flex-row items-center mt-1">
               <Ionicons name="business-outline" size={12} color="#94a3b8" />
-              <Text className="text-stone-400 text-xs ml-1.5">{event.concessions_companies.name}</Text>
+              <Text className="text-slate-400 text-xs ml-1.5">{event.concessions_companies.name}</Text>
             </View>
           )}
           {event.units?.length > 0 && (
             <View className="flex-row items-center mt-1">
               <Ionicons name="car-outline" size={12} color="#94a3b8" />
-              <Text className="text-stone-400 text-xs ml-1.5">{event.units.map((u) => u.name).join(' · ')}</Text>
+              <Text className="text-slate-400 text-xs ml-1.5">{event.units.map((u) => u.name).join(' · ')}</Text>
             </View>
           )}
         </View>
@@ -307,9 +306,9 @@ export default function EventDetailScreen() {
         <ApplicationTimeline currentStatus={event.status} />
 
         {/* Quick status update */}
-        <View className="bg-white rounded-2xl p-4 border border-stone-100 mb-4" style={{ overflow: 'hidden' }}>
+        <View className="bg-white rounded-2xl p-4 border border-slate-100 mb-4" style={{ overflow: 'hidden' }}>
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="font-bold text-stone-700">Update Status</Text>
+            <Text className="font-bold text-slate-700">Update Status</Text>
             {justChanged && (
               <Animated.View
                 style={{
@@ -362,13 +361,13 @@ export default function EventDetailScreen() {
         {event.application_url && (
           <TouchableOpacity
             onPress={() => event.application_url && Linking.openURL(event.application_url)}
-            className="bg-white rounded-2xl p-4 border border-stone-100 mb-4 flex-row items-center"
+            className="bg-white rounded-2xl p-4 border border-slate-100 mb-4 flex-row items-center"
             activeOpacity={0.7}
           >
             <Text className="text-2xl mr-3">🔗</Text>
             <View className="flex-1">
-              <Text className="font-semibold text-stone-800 text-sm">Application Portal</Text>
-              <Text className="text-stone-400 text-xs mt-0.5" numberOfLines={1}>
+              <Text className="font-semibold text-slate-800 text-sm">Application Portal</Text>
+              <Text className="text-slate-400 text-xs mt-0.5" numberOfLines={1}>
                 {event.application_url}
               </Text>
             </View>
@@ -409,40 +408,40 @@ export default function EventDetailScreen() {
         )}
 
         {/* Details */}
-        <View className="bg-white rounded-2xl p-4 border border-stone-100 mb-4 gap-3">
-          <Text className="font-bold text-stone-700">Details</Text>
+        <View className="bg-white rounded-2xl p-4 border border-slate-100 mb-4 gap-3">
+          <Text className="font-bold text-slate-700">Details</Text>
           {event.application_date && (
             <View className="flex-row">
-              <Text className="text-stone-400 text-sm w-32">Applied on</Text>
-              <Text className="text-stone-700 text-sm font-medium">{formatDate(event.application_date)}</Text>
+              <Text className="text-slate-400 text-sm w-32">Applied on</Text>
+              <Text className="text-slate-700 text-sm font-medium">{formatDate(event.application_date)}</Text>
             </View>
           )}
           {event.overnight_stay && (
             <View className="flex-row items-center">
-              <Text className="text-stone-400 text-sm w-32">Overnight stay</Text>
+              <Text className="text-slate-400 text-sm w-32">Overnight stay</Text>
               <Text className="text-amber-700 text-sm font-medium">🌙 Yes</Text>
             </View>
           )}
           <View className="flex-row items-center">
-            <Text className="text-stone-400 text-sm w-32">Docs uploaded</Text>
-            <Text className={`text-sm font-medium ${event.documents_uploaded ? 'text-green-600' : 'text-stone-400'}`}>
+            <Text className="text-slate-400 text-sm w-32">Docs uploaded</Text>
+            <Text className={`text-sm font-medium ${event.documents_uploaded ? 'text-green-600' : 'text-slate-400'}`}>
               {event.documents_uploaded ? '✅ Yes' : '⏳ Not yet'}
             </Text>
           </View>
           {event.url_last_checked_at && (
             <View className="flex-row">
-              <Text className="text-stone-400 text-sm w-32">Last checked</Text>
-              <Text className="text-stone-700 text-sm">{formatDate(event.url_last_checked_at)}</Text>
+              <Text className="text-slate-400 text-sm w-32">Last checked</Text>
+              <Text className="text-slate-700 text-sm">{formatDate(event.url_last_checked_at)}</Text>
             </View>
           )}
           {event.description && (
-            <Text className="text-stone-600 text-sm leading-relaxed">{event.description}</Text>
+            <Text className="text-slate-600 text-sm leading-relaxed">{event.description}</Text>
           )}
           {event.notes && (
             <>
-              <View className="border-t border-stone-50" />
-              <Text className="text-stone-400 text-xs font-semibold uppercase tracking-wide">Notes</Text>
-              <Text className="text-stone-600 text-sm leading-relaxed">{event.notes}</Text>
+              <View className="border-t border-slate-50" />
+              <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wide">Notes</Text>
+              <Text className="text-slate-600 text-sm leading-relaxed">{event.notes}</Text>
             </>
           )}
         </View>

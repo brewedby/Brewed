@@ -32,7 +32,7 @@ function ukToIso(val: string | undefined | null): string {
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <Text className="text-xs font-bold text-stone-400 uppercase tracking-widest mt-2 mb-1">
+    <Text className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2 mb-1">
       {title}
     </Text>
   );
@@ -140,7 +140,7 @@ function DatePickerButton({
 
   return (
     <View>
-      <Text className="text-stone-600 text-sm font-semibold mb-1.5">
+      <Text className="text-slate-600 text-sm font-semibold mb-1.5">
         {label}{required && <Text className="text-red-500"> *</Text>}
       </Text>
       <TouchableOpacity
@@ -177,10 +177,10 @@ function CalcRow({
 }) {
   return (
     <View className="flex-row justify-between items-center py-1">
-      <Text className={`text-xs ${highlight ? 'font-semibold text-stone-900' : 'text-stone-500'}`}>
+      <Text className={`text-xs ${highlight ? 'font-semibold text-slate-900' : 'text-slate-500'}`}>
         {label}
       </Text>
-      <Text className={`text-xs font-semibold ${highlight ? 'text-stone-900' : 'text-stone-600'}`}>
+      <Text className={`text-xs font-semibold ${highlight ? 'text-slate-900' : 'text-slate-600'}`}>
         {value}
       </Text>
     </View>
@@ -224,7 +224,7 @@ function FinancialsTabContent({
 
       {/* ── SALES & VAT ── */}
       <SectionHeader title="Sales & VAT" />
-      <View className="bg-white rounded-xl p-4 border border-stone-100 gap-3">
+      <View className="bg-white rounded-xl p-4 border border-slate-100 gap-3">
         <Controller
           control={control}
           name="standard_rated_sales"
@@ -248,7 +248,7 @@ function FinancialsTabContent({
           )}
         />
         {(zeroRated > 0 || standardRated > 0) && (
-          <View className="bg-stone-50 rounded-lg p-3 mt-1 gap-0.5">
+          <View className="bg-slate-50 rounded-lg p-3 mt-1 gap-0.5">
             <CalcRow label="Standard-rated ex-VAT" value={formatCurrency(standardRatedNet)} />
             <CalcRow label="VAT collected (20%)" value={formatCurrency(vatCollected)} />
             <CalcRow
@@ -262,7 +262,7 @@ function FinancialsTabContent({
 
       {/* ── CONCESSIONS COMPANY ── */}
       <SectionHeader title="Concessions Company / Organiser" />
-      <View className="bg-white rounded-xl p-4 border border-stone-100 gap-3">
+      <View className="bg-white rounded-xl p-4 border border-slate-100 gap-3">
         <Controller
           control={control}
           name="concessions_commission_pct"
@@ -312,7 +312,7 @@ function FinancialsTabContent({
           )}
         />
         {(pitchFee > 0 || commissionPct > 0 || powerFee > 0) && (
-          <View className="bg-stone-50 rounded-lg p-3 mt-1 gap-0.5">
+          <View className="bg-slate-50 rounded-lg p-3 mt-1 gap-0.5">
             <CalcRow
               label={`Commission (${commissionPct}% × net sales)`}
               value={formatCurrency(commissionAmount)}
@@ -352,7 +352,7 @@ function FinancialsTabContent({
 
       {/* ── YOUR OTHER COSTS ── */}
       <SectionHeader title="Your Other Costs" />
-      <View className="bg-white rounded-xl p-4 border border-stone-100 gap-3">
+      <View className="bg-white rounded-xl p-4 border border-slate-100 gap-3">
         <Controller
           control={control}
           name="cost_of_goods"
@@ -424,7 +424,7 @@ function FinancialsTabContent({
 
       {/* ── MILK & CONSUMABLES ── */}
       <SectionHeader title="Milk & Consumables" />
-      <View className="bg-white rounded-xl p-4 border border-stone-100 gap-3">
+      <View className="bg-white rounded-xl p-4 border border-slate-100 gap-3">
         <Controller
           control={control}
           name="fresh_milk_litres"
@@ -590,9 +590,9 @@ export function EventForm({
   }
 
   return (
-    <View className="flex-1 bg-stone-50">
+    <View className="flex-1 bg-slate-50">
       {/* Tab bar */}
-      <View className="bg-white border-b border-stone-100">
+      <View className="bg-white border-b border-slate-100">
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -608,12 +608,12 @@ export function EventForm({
                 accessibilityLabel={tabErrors ? `${tab} tab — has errors` : `${tab} tab`}
                 accessibilityState={{ selected: activeTab === tab }}
                 className={`px-4 py-2 rounded-full flex-row items-center ${
-                  activeTab === tab ? 'bg-stone-900' : 'bg-stone-100'
+                  activeTab === tab ? 'bg-slate-900' : 'bg-slate-100'
                 }`}
               >
                 <Text
                   className={`text-sm font-semibold ${
-                    activeTab === tab ? 'text-white' : 'text-stone-800'
+                    activeTab === tab ? 'text-white' : 'text-slate-800'
                   }`}
                 >
                   {tab}
@@ -743,8 +743,8 @@ export function EventForm({
             {/* Unit selector — multi-select */}
             {units.length > 0 && (
               <View>
-                <Text className="text-stone-600 text-sm font-semibold mb-2">Units / Vehicles</Text>
-                <Text className="text-stone-400 text-xs mb-2">Select all units attending this event</Text>
+                <Text className="text-slate-600 text-sm font-semibold mb-2">Units / Vehicles</Text>
+                <Text className="text-slate-400 text-xs mb-2">Select all units attending this event</Text>
                 <View className="flex-row flex-wrap gap-2">
                   {units.map((u) => {
                     const active = selectedUnitIds.includes(u.id);
@@ -780,7 +780,7 @@ export function EventForm({
                 </View>
                 {selectedUnitIds.length > 0 && (
                   <TouchableOpacity onPress={() => setValue('unit_ids', [])} className="mt-2">
-                    <Text className="text-stone-400 text-xs">Clear selection</Text>
+                    <Text className="text-slate-400 text-xs">Clear selection</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -788,7 +788,7 @@ export function EventForm({
 
             {/* Application Status selector */}
             <View>
-              <Text className="text-stone-600 text-sm font-semibold mb-2">
+              <Text className="text-slate-600 text-sm font-semibold mb-2">
                 Application Status <Text className="text-red-500">*</Text>
               </Text>
               <View className="flex-row flex-wrap gap-2">
@@ -821,7 +821,7 @@ export function EventForm({
 
             {/* Concessions Company selector */}
             <View>
-              <Text className="text-stone-600 text-sm font-semibold mb-2">
+              <Text className="text-slate-600 text-sm font-semibold mb-2">
                 Concessions Company / Organiser
               </Text>
               <View className="flex-row flex-wrap gap-2">
@@ -829,13 +829,13 @@ export function EventForm({
                   onPress={() => setValue('company_id', '')}
                   className={`px-3 py-1.5 rounded-xl border ${
                     !selectedCompanyId
-                      ? 'bg-stone-900 border-stone-900'
-                      : 'bg-white border-stone-200'
+                      ? 'bg-slate-900 border-slate-900'
+                      : 'bg-white border-slate-200'
                   }`}
                 >
                   <Text
                     className={`text-sm ${
-                      !selectedCompanyId ? 'text-white font-medium' : 'text-stone-500'
+                      !selectedCompanyId ? 'text-white font-medium' : 'text-slate-500'
                     }`}
                   >
                     None
@@ -847,15 +847,15 @@ export function EventForm({
                     onPress={() => setValue('company_id', c.id)}
                     className={`px-3 py-1.5 rounded-xl border ${
                       selectedCompanyId === c.id
-                        ? 'bg-stone-900 border-stone-900'
-                        : 'bg-white border-stone-200'
+                        ? 'bg-slate-900 border-slate-900'
+                        : 'bg-white border-slate-200'
                     }`}
                   >
                     <Text
                       className={`text-sm ${
                         selectedCompanyId === c.id
                           ? 'text-white font-medium'
-                          : 'text-stone-600'
+                          : 'text-slate-600'
                       }`}
                       numberOfLines={1}
                     >
@@ -884,7 +884,7 @@ export function EventForm({
             />
 
             {/* Toggle rows */}
-            <View className="bg-white rounded-xl border border-stone-100 overflow-hidden">
+            <View className="bg-white rounded-xl border border-slate-100 overflow-hidden">
               {/* Overnight Stay */}
               <Controller
                 control={control}
@@ -892,7 +892,7 @@ export function EventForm({
                 render={({ field }) => (
                   <View className="flex-row items-center justify-between px-4 py-3.5">
                     <View className="flex-1 mr-3">
-                      <Text className="text-sm font-medium text-stone-700">
+                      <Text className="text-sm font-medium text-slate-700">
                         Overnight Stay Required
                       </Text>
                     </View>
@@ -905,7 +905,7 @@ export function EventForm({
                   </View>
                 )}
               />
-              <View className="border-t border-stone-100" />
+              <View className="border-t border-slate-100" />
               {/* Documents Uploaded */}
               <Controller
                 control={control}
@@ -913,7 +913,7 @@ export function EventForm({
                 render={({ field }) => (
                   <View className="flex-row items-center justify-between px-4 py-3.5">
                     <View className="flex-1 mr-3">
-                      <Text className="text-sm font-medium text-stone-700">
+                      <Text className="text-sm font-medium text-slate-700">
                         Paperwork / Docs Uploaded
                       </Text>
                     </View>
@@ -949,9 +949,9 @@ export function EventForm({
               </Text>
             </View>
             {staffFields.map((field, i) => (
-              <View key={field.id} className="bg-white rounded-xl p-4 border border-stone-100 gap-3">
+              <View key={field.id} className="bg-white rounded-xl p-4 border border-slate-100 gap-3">
                 <View className="flex-row justify-between items-center">
-                  <Text className="font-semibold text-stone-700 text-sm">
+                  <Text className="font-semibold text-slate-700 text-sm">
                     Staff Member {i + 1}
                   </Text>
                   <TouchableOpacity onPress={() => removeStaff(i)}>
@@ -1005,9 +1005,9 @@ export function EventForm({
             ))}
             <TouchableOpacity
               onPress={() => appendStaff({ staff_name: '', hours_worked: 0, hourly_rate: 0 })}
-              className="border-2 border-dashed border-stone-300 rounded-xl py-4 items-center"
+              className="border-2 border-dashed border-slate-300 rounded-xl py-4 items-center"
             >
-              <Text className="text-stone-500 font-medium">+ Add Staff Member</Text>
+              <Text className="text-slate-500 font-medium">+ Add Staff Member</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -1018,9 +1018,9 @@ export function EventForm({
         {activeTab === 'Costs' && (
           <View className="gap-4">
             {infraFields.map((field, i) => (
-              <View key={field.id} className="bg-white rounded-xl p-4 border border-stone-100 gap-3">
+              <View key={field.id} className="bg-white rounded-xl p-4 border border-slate-100 gap-3">
                 <View className="flex-row justify-between items-center">
-                  <Text className="font-semibold text-stone-700 text-sm">Cost Item {i + 1}</Text>
+                  <Text className="font-semibold text-slate-700 text-sm">Cost Item {i + 1}</Text>
                   <TouchableOpacity onPress={() => removeInfra(i)}>
                     <Text className="text-red-400 text-sm font-medium">Remove</Text>
                   </TouchableOpacity>
@@ -1039,7 +1039,7 @@ export function EventForm({
                   )}
                 />
                 <View>
-                  <Text className="text-stone-600 text-sm font-medium mb-2">Category</Text>
+                  <Text className="text-slate-600 text-sm font-medium mb-2">Category</Text>
                   <View className="flex-row flex-wrap gap-2">
                     {INFRASTRUCTURE_CATEGORIES.map((cat) => {
                       const current = watch(
@@ -1053,13 +1053,13 @@ export function EventForm({
                           }
                           className={`px-3 py-1 rounded-full border ${
                             current === cat
-                              ? 'bg-stone-900 border-stone-900'
-                              : 'bg-white border-stone-200'
+                              ? 'bg-slate-900 border-slate-900'
+                              : 'bg-white border-slate-200'
                           }`}
                         >
                           <Text
                             className={`text-xs font-medium ${
-                              current === cat ? 'text-white' : 'text-stone-600'
+                              current === cat ? 'text-white' : 'text-slate-600'
                             }`}
                           >
                             {INFRASTRUCTURE_CATEGORY_LABELS[cat]}
@@ -1080,9 +1080,9 @@ export function EventForm({
             ))}
             <TouchableOpacity
               onPress={() => appendInfra({ description: '', category: 'other', cost: 0 })}
-              className="border-2 border-dashed border-stone-300 rounded-xl py-4 items-center"
+              className="border-2 border-dashed border-slate-300 rounded-xl py-4 items-center"
             >
-              <Text className="text-stone-500 font-medium">+ Add Cost Item</Text>
+              <Text className="text-slate-500 font-medium">+ Add Cost Item</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -1112,7 +1112,7 @@ export function EventForm({
       </ScrollView>
 
       {/* Submit button */}
-      <View className="px-4 pb-8 pt-3 bg-white border-t border-stone-100">
+      <View className="px-4 pb-8 pt-3 bg-white border-t border-slate-100">
         <TouchableOpacity
           onPress={handleSubmit(handleFormSubmit)}
           className="bg-amber-500 py-4 rounded-2xl items-center"
