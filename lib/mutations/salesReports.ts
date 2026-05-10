@@ -241,6 +241,18 @@ export function useUploadSalesReport() {
         }
 
         const parsedLines = (edgeResult as { lines: typeof lines }).lines ?? [];
+        // Empty-result case — the Edge Function ran without erroring but
+        // returned zero rows. Most common cause: an image-only PDF (e.g.
+        // a scan, a receipt photo saved as PDF, or a Square POS export
+        // that's a flat image rather than a vector text PDF). Tell the
+        // user explicitly rather than silently completing with 0 items.
+        if (parsedLines.length === 0) {
+          throw new Error(
+            "We couldn't extract any line items from this PDF. " +
+            "It may be image-only (a scan or photo saved as PDF) — our parser only reads text-based PDFs. " +
+            'Try a CSV export from your EPOS instead, or open the PDF in another app and use its Share → Export as CSV option.',
+          );
+        }
         lines = reconcileLines(parsedLines, catalog);
 
       } else {
@@ -402,4 +414,3 @@ export function useDeleteSalesReport() {
     },
   });
 }
-
