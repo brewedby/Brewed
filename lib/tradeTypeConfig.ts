@@ -336,8 +336,7 @@ const CONFIG_BY_KEY: Record<string, TradeTypeConfig> = Object.fromEntries(
 /** Resolve config for a trade type key. Falls back to OTHER for unknown
  *  keys so the UI never crashes when a profile has a stale value. */
 export function getTradeConfig(tradeType: string | null | undefined): TradeTypeConfig {
-  if (!tradeType) return OTHER;
-  return CONFIG_BY_KEY[tradeType] ?? OTHER;
+  return CONFIG_BY_KEY[normalizeTradeType(tradeType)] ?? OTHER;
 }
 
 /** Convenience: just the prediction kinds for a trade. Used by callers
@@ -345,4 +344,65 @@ export function getTradeConfig(tradeType: string | null | undefined): TradeTypeC
  *  for the drink-split engine). */
 export function getPredictionKinds(tradeType: string | null | undefined): PredictionKind[] {
   return getTradeConfig(tradeType).predictionLenses.map((l) => l.kind);
+}
+
+/**
+ * Normalise free-text trade type input into one of the canonical config keys.
+ * Handles capitalisation, separators, and common aliases ("coffee_cart",
+ * "Coffee Van", "burgers" → "Burgers", etc.). Returns 'Other' for unknown
+ * values — never returns null, so callers can rely on it always resolving.
+ *
+ * Order: aliases first (so plurals/synonyms reach the right canonical key),
+ * then exact-match fallback against the registered keys.
+ */
+export function normalizeTradeType(raw: string | null | undefined): string {
+  if (!raw) return 'Other';
+  const cleaned = String(raw).trim().toLowerCase().replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ');
+  if (!cleaned) return 'Other';
+
+  // Direct alias hits — match by substring on the simplified input.
+  const aliasMap: Array<[RegExp, string]> = [
+    [/\bcoffee\b/,        'Coffee'],
+    [/\bespresso\b/,      'Coffee'],
+    [/\bcafe\b/,          'Coffee'],
+    [/\bburger/,          'Burgers'],
+    [/\bpizza/,           'Pizza'],
+    [/\bice\s?cream/,     'Ice Cream'],
+    [/\bgelato/,          'Ice Cream'],
+    [/\bsoft\s?serve/,    'Ice Cream'],
+    [/\bdessert/,         'Desserts'],
+    [/\bcake/,            'Desserts'],
+    [/\bbakery|baker|bake\b/, 'Bakery'],
+    [/\bbread\b/,         'Bakery'],
+    [/\bpastr/,           'Bakery'],
+    [/\bcocktail/,        'Cocktails'],
+    [/\bbar\b/,           'Cocktails'],
+    [/\bcraft\s?beer|beer\b/, 'Craft Beer'],
+    [/\bwine\b/,          'Wine'],
+    [/\bjuice|smoothie/,  'Juice & Smoothies'],
+    [/\bcrepe|crêpe/,     'Crepes'],
+    [/\bwaffle/,          'Waffles'],
+    [/\basian/,           'Asian Food'],
+    [/\bnoodle|ramen|sushi|thai|chinese|vietnamese|korean|japanese/, 'Asian Food'],
+    [/\bmexican|taco|burrito|quesadilla/, 'Mexican Food'],
+    [/\bstreet\s?food/,   'Street Food'],
+  ];
+  for (const [re, key] of aliasMap) if (re.test(cleaned)) return key;
+
+  // Title-case the cleaned input and try the exact CONFIG_BY_KEY lookup.
+  const titled = cleaned.replace(/\b\w/g, (c) => c.toUpperCase());
+  if (titled in CONFIG_BY_KEY) return titled;
+  return 'Other';
+}
+
+/**
+ * Single source of truth for "what trade is this user". Reads from a
+ * profile-shaped object and returns a canonical trade-type key. Never
+ * defaults to Coffee — falls back to Other so general-demand
+ * predictions kick in for unset accounts.
+ */
+export function getActiveTradeType(
+  profile: { business_type?: string | null } | null | undefined,
+): string {
+  return normalizeTradeType(profile?.business_type ?? null);
 }
