@@ -14,17 +14,20 @@ function Row({
   bold,
   color,
   indent,
+  large,
 }: {
   label: string;
   value: string;
   bold?: boolean;
   color?: string;
   indent?: boolean;
+  large?: boolean;
 }) {
+  const textSize = large ? 'text-base' : 'text-sm';
   return (
     <View className="flex-row justify-between items-center py-1.5">
       <Text
-        className={`text-sm ${
+        className={`${textSize} ${
           indent
             ? 'pl-3 text-stone-500'
             : bold
@@ -35,7 +38,7 @@ function Row({
         {label}
       </Text>
       <Text
-        className={`text-sm ${bold ? 'font-bold' : 'font-medium'} ${
+        className={`${textSize} ${bold ? 'font-bold' : 'font-medium'} ${
           color ?? (bold ? 'text-stone-900' : 'text-stone-600')
         }`}
       >
@@ -173,12 +176,14 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
         label="Net Profit"
         value={formatCurrency(c.netProfit)}
         bold
+        large
         color={c.netProfit >= 0 ? 'text-green-600' : 'text-red-500'}
       />
       <Row
         label="Profit Margin"
         value={formatPercent(c.profitMargin)}
         bold
+        large
         color={c.profitMargin >= 0 ? 'text-green-600' : 'text-red-500'}
       />
     </View>

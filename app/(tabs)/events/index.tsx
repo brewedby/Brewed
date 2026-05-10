@@ -8,7 +8,7 @@ import { EventCard } from '@/components/events/EventCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { QueryError } from '@/components/shared/QueryError';
-import { formatDateRange, toISODateString } from '@/lib/formatters';
+import { formatDateRange, toISODateString, formatCurrencyInt, formatPercent } from '@/lib/formatters';
 import { STATUSES, STATUS_LABELS } from '@/constants';
 import type { ApplicationStatus, EventWithFinancials, CompanyWithStats } from '@/types';
 
@@ -42,11 +42,11 @@ function OverlapBanner({
       ? { event: a, comp: compA! }
       : { event: b, comp: compB! };
     const loser = winner.event === a ? { event: b, comp: compB! } : { event: a, comp: compA! };
-    recommendation = `Prioritise "${winner.event.name}" — ${winner.comp.name} avg ${winner.comp.avgProfitMargin!.toFixed(0)}% margin across ${winner.comp.completedEventCount} event${winner.comp.completedEventCount > 1 ? 's' : ''} vs ${loser.comp.avgProfitMargin!.toFixed(0)}% for ${loser.comp.name}.`;
+    recommendation = `Prioritise "${winner.event.name}" — ${winner.comp.name} avg ${formatPercent(winner.comp.avgProfitMargin, 0)} margin across ${winner.comp.completedEventCount} event${winner.comp.completedEventCount > 1 ? 's' : ''} vs ${formatPercent(loser.comp.avgProfitMargin, 0)} for ${loser.comp.name}.`;
   } else if (hasA) {
-    recommendation = `"${a.name}" via ${compA!.name} has ${compA!.completedEventCount} past event${compA!.completedEventCount > 1 ? 's' : ''} (avg ${compA!.avgProfitMargin!.toFixed(0)}% margin). No history for "${b.name}" yet.`;
+    recommendation = `"${a.name}" via ${compA!.name} has ${compA!.completedEventCount} past event${compA!.completedEventCount > 1 ? 's' : ''} (avg ${formatPercent(compA!.avgProfitMargin, 0)} margin). No history for "${b.name}" yet.`;
   } else if (hasB) {
-    recommendation = `"${b.name}" via ${compB!.name} has ${compB!.completedEventCount} past event${compB!.completedEventCount > 1 ? 's' : ''} (avg ${compB!.avgProfitMargin!.toFixed(0)}% margin). No history for "${a.name}" yet.`;
+    recommendation = `"${b.name}" via ${compB!.name} has ${compB!.completedEventCount} past event${compB!.completedEventCount > 1 ? 's' : ''} (avg ${formatPercent(compB!.avgProfitMargin, 0)} margin). No history for "${a.name}" yet.`;
   }
 
   return (
@@ -57,12 +57,12 @@ function OverlapBanner({
       </Text>
       {hasA && (
         <Text style={{ color: '#9a3412', fontSize: 11, marginTop: 2 }}>
-          • {compA!.name}: Avg {compA!.avgProfitMargin!.toFixed(0)}% margin ({compA!.completedEventCount} event{compA!.completedEventCount > 1 ? 's' : ''})
+          • {compA!.name}: Avg {formatPercent(compA!.avgProfitMargin, 0)} margin ({compA!.completedEventCount} event{compA!.completedEventCount > 1 ? 's' : ''})
         </Text>
       )}
       {hasB && (
         <Text style={{ color: '#9a3412', fontSize: 11, marginTop: 2 }}>
-          • {compB!.name}: Avg {compB!.avgProfitMargin!.toFixed(0)}% margin ({compB!.completedEventCount} event{compB!.completedEventCount > 1 ? 's' : ''})
+          • {compB!.name}: Avg {formatPercent(compB!.avgProfitMargin, 0)} margin ({compB!.completedEventCount} event{compB!.completedEventCount > 1 ? 's' : ''})
         </Text>
       )}
       {!hasA && !hasB && (
@@ -295,10 +295,10 @@ export default function EventsScreen() {
         <View className="flex-row bg-white px-4 py-2 border-b border-stone-100 gap-6">
           <Text className="text-stone-500 text-xs">{events.length} event{events.length !== 1 ? 's' : ''}</Text>
           {totalRevenue > 0 && (
-            <Text className="text-stone-500 text-xs">Sales: <Text className="text-stone-700 font-medium">£{totalRevenue.toFixed(0)}</Text></Text>
+            <Text className="text-stone-500 text-xs">Sales: <Text className="text-stone-700 font-medium">{formatCurrencyInt(totalRevenue)}</Text></Text>
           )}
           {totalNet !== 0 && (
-            <Text className="text-stone-500 text-xs">Net: <Text className={`font-medium ${totalNet >= 0 ? 'text-green-600' : 'text-red-500'}`}>£{totalNet.toFixed(0)}</Text></Text>
+            <Text className="text-stone-500 text-xs">Net: <Text className={`font-medium ${totalNet >= 0 ? 'text-green-600' : 'text-red-500'}`}>{formatCurrencyInt(totalNet)}</Text></Text>
           )}
         </View>
       )}

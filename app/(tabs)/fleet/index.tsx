@@ -80,7 +80,7 @@ export default function FleetScreen() {
             <EmptyState
               icon="🚐"
               title="No units added yet"
-              description="Add your coffee trucks and vans to track where they are."
+              description="Add your vehicles and units to track where they are."
               action={{ label: 'Add First Unit', onPress: () => router.push('/(tabs)/fleet/new') }}
             />
           ) : (
