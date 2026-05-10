@@ -22,6 +22,9 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Alert, Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
+import Constants from 'expo-constants';                       // <-- ADD THIS
+import { useQueryClient } from '@tanstack/react-query';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { useProfile } from '@/lib/queries/profile';
@@ -53,6 +56,7 @@ type IapModule = {
 function loadIap(): IapModule | null {
   // Only iOS has Apple IAP; Android would use Google Play Billing.
   if (Platform.OS !== 'ios') return null;
+  if (Constants.appOwnership === 'expo') return null;         // <-- ADD THIS
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require('expo-iap') as IapModule;
