@@ -665,7 +665,9 @@ function predictForDessert(
   }
   const totalRev = hotRev + coldRev;
   const coldShare = totalRev > 0 ? coldRev / totalRev : weatherWarmthAsColdShare(context.forecastTempC);
-  const hotShare = 1 - coldShare;
+  // Round once and derive the complement so the two %s always sum to exactly 100.
+  const coldPct = Math.round(coldShare * 100);
+  const hotPct = 100 - coldPct;
 
   const { multiplier } = clampedMultiplier(nonOutliers, context, totalRevenueOf, similarityWeight);
   const demandLevel = nonOutliers.length > 0 ? multiplierToDemandLevel(multiplier) : null;
@@ -680,8 +682,8 @@ function predictForDessert(
         detail: prepLevel ? prepLevelLabel(prepLevel) : undefined,
         emoji: tempEmoji(context.forecastTempC),
       }] : []),
-      { label: 'Cold desserts',      value: `${Math.round(coldShare * 100)}%`, emoji: '🍨' },
-      { label: 'Hot / baked sweets', value: `${Math.round(hotShare * 100)}%`,  emoji: '🍰' },
+      { label: 'Cold desserts',      value: `${coldPct}%`, emoji: '🍨' },
+      { label: 'Hot / baked sweets', value: `${hotPct}%`,  emoji: '🍰' },
     ],
     drivers: [
       `${tempBucketLabel(context.forecastTempC)} forecast`,
@@ -727,7 +729,9 @@ function predictForBar(
   const alcoholShare = totalWeight > 0 ? weightedAlcohol / totalWeight : defaultAlcohol;
   const tempLift = Math.max(0, Math.min(0.12, (context.forecastTempC - 18) * 0.015));
   const adjustedSoft    = Math.min(0.95, (1 - alcoholShare) + tempLift);
-  const adjustedAlcohol = 1 - adjustedSoft;
+  // Round once and derive the complement so the two %s always sum to exactly 100.
+  const softPct = Math.round(adjustedSoft * 100);
+  const alcoholPct = 100 - softPct;
 
   const { multiplier } = clampedMultiplier(nonOutliers, context, totalRevenueOf, similarityWeight);
   const demandLevel = nonOutliers.length > 0 ? multiplierToDemandLevel(multiplier) : null;
@@ -744,8 +748,8 @@ function predictForBar(
         detail: prepLevel ? prepLevelLabel(prepLevel) : undefined,
         emoji: tempEmoji(context.forecastTempC),
       }] : []),
-      { label: 'Alcoholic drinks',   value: `${Math.round(adjustedAlcohol * 100)}%`, emoji: '🍺' },
-      { label: 'Soft / cold drinks', value: `${Math.round(adjustedSoft * 100)}%`,    emoji: '🥤' },
+      { label: 'Alcoholic drinks',   value: `${alcoholPct}%`, emoji: '🍺' },
+      { label: 'Soft / cold drinks', value: `${softPct}%`,    emoji: '🥤' },
     ],
     drivers: [
       `${tempBucketLabel(context.forecastTempC)} forecast`,
