@@ -126,7 +126,19 @@ export function useEventObservations() {
         linesByEvent.set(li.event_id, arr);
       }
 
-      return events.map<EventObservation>((e) => {
+      // Exclude upcoming events from historical learning. Even when
+      // an upcoming event has been marked 'accepted' and pre-filled with
+      // financial values, it must not influence the forecast for a NEXT
+      // event — that would create a cycle where forecasts learn from
+      // forecasts. We compare today (UTC ISO yyyy-mm-dd) against the
+      // event's end_date (multi-day) or date (single-day).
+      const todayISO = new Date().toISOString().slice(0, 10);
+      const completedEvents = events.filter((e) => {
+        const endISO = e.end_date ?? e.date;
+        return endISO < todayISO;
+      });
+
+      return completedEvents.map<EventObservation>((e) => {
         const days = dailyByEvent.get(e.id) ?? [];
         const lines = linesByEvent.get(e.id) ?? [];
 

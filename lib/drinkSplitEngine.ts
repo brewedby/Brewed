@@ -98,9 +98,10 @@ export function predictDrinkSplit(
 
   if (uniqueInBracket >= 3) {
     const avg = weightedAvgOf(bracketPoints);
+    const hotPct = Math.round(avg);
     return {
-      hotPct: Math.round(avg),
-      icedPct: Math.round(100 - avg),
+      hotPct,
+      icedPct: 100 - hotPct,    // ensure hot+iced always sum to exactly 100
       confidence: uniqueInBracket >= 8 ? 'high' : 'medium',
       basedOnDays: uniqueInBracket,
       basedOnRealWeatherDays: realWeatherDaysInBracket,
@@ -113,9 +114,10 @@ export function predictDrinkSplit(
 
   if (bracketPoints.length > 0 && allPoints.length > 0) {
     const blended = weightedAvgOf(bracketPoints) * 0.7 + weightedAvgOf(allPoints) * 0.3;
+    const hotPct = Math.round(blended);
     return {
-      hotPct: Math.round(blended),
-      icedPct: Math.round(100 - blended),
+      hotPct,
+      icedPct: 100 - hotPct,    // ensure hot+iced always sum to exactly 100
       confidence: 'low',
       basedOnDays: uniqueInBracket,
       basedOnRealWeatherDays: realWeatherDaysInBracket,
