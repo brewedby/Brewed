@@ -56,12 +56,11 @@ export default function TabLayout() {
     >
       <Tabs.Screen name="dashboard" listeners={TAB_LISTENERS} options={{ title: 'Dashboard', tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.dashboard} focused={focused} color={color} /> }} />
       <Tabs.Screen name="events" listeners={TAB_LISTENERS} options={{ title: 'Events', tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.events} focused={focused} color={color} /> }} />
+      <Tabs.Screen name="calendar" listeners={TAB_LISTENERS} options={{ title: 'Calendar', tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.calendar} focused={focused} color={color} /> }} />
+      <Tabs.Screen name="fleet" listeners={TAB_LISTENERS} options={{ title: 'Fleet', tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.fleet} focused={focused} color={color} /> }} />
       <Tabs.Screen name="companies" listeners={TAB_LISTENERS} options={{ title: 'Companies', tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.companies} focused={focused} color={color} /> }} />
       <Tabs.Screen name="discover" listeners={TAB_LISTENERS} options={{ title: 'Discover', tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.discover} focused={focused} color={color} /> }} />
       <Tabs.Screen name="settings" listeners={TAB_LISTENERS} options={{ title: 'Settings', tabBarIcon: ({ focused, color }) => <TabIcon name={ICONS.settings} focused={focused} color={color} /> }} />
-      {/* Hidden routes — reachable from inside other screens, not in the tab bar */}
-      <Tabs.Screen name="calendar" options={{ href: null }} />
-      <Tabs.Screen name="fleet" options={{ href: null }} />
       <Tabs.Screen name="reports" options={{ href: null }} />
     </Tabs>
   );

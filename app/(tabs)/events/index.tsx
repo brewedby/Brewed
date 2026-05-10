@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, TextInput, FlatList } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useEvents } from '@/lib/queries/events';
@@ -173,25 +172,14 @@ export default function EventsScreen() {
       <View className="px-4 pt-2 pb-3 bg-white border-b border-stone-100">
         <View className="flex-row items-center justify-between mb-3">
           <Text className="text-2xl font-bold text-stone-900">Events</Text>
-          <View className="flex-row items-center gap-2">
-            <TouchableOpacity
-              onPress={() => router.push('/(tabs)/calendar')}
-              accessibilityRole="button"
-              accessibilityLabel="Open calendar view"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              className="bg-stone-100 w-9 h-9 rounded-xl items-center justify-center"
-            >
-              <Ionicons name="calendar-outline" size={18} color="#57534e" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push('/(tabs)/events/new')}
-              accessibilityRole="button"
-              accessibilityLabel="Add new event"
-              className="bg-amber-700 px-4 py-2 rounded-xl"
-            >
-              <Text className="text-white font-semibold text-sm">+ New</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/events/new')}
+            accessibilityRole="button"
+            accessibilityLabel="Add new event"
+            className="bg-amber-700 px-4 py-2 rounded-xl"
+          >
+            <Text className="text-white font-semibold text-sm">+ New</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Search */}
