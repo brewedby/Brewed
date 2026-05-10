@@ -80,11 +80,25 @@ export interface ParsedSalesLine {
   line_total: number;
 }
 
+export interface ParseDiagnostics {
+  fileSizeBytes: number | null;
+  rawLineCount: number;
+  nonEmptyLineCount: number;
+  detectedDelimiter: ',' | ';' | '\t' | null;
+  headerRowIndex: number | null;
+  detectedHeaders: string[];
+  parsedRowCount: number;
+  acceptedRowCount: number;
+  skippedRowCount: number;
+  skipReasons: Record<string, number>;
+}
+
 export interface ParseResult {
   lines: ParsedSalesLine[];
   errors: string[];
   rawHeaders: string[];
   sourceFormat: 'csv' | 'pdf' | 'unknown';
+  diagnostics?: ParseDiagnostics;
 }
 
 // After fuzzy matching against the catalog
@@ -105,7 +119,7 @@ export interface ReconciliationSummary {
   coveragePercent: number;
 }
 
-// ── Category catalogue ──────────────────────────────────────────────
+// ── Category catalogue ───────────────────────────────────────
 // Every category that can appear in any trade type, keyed by snake_case.
 // `vatable: true` means the selling price includes 20% UK standard-rate VAT
 // (hot food, hot drinks, alcohol, ready-to-eat). Cold/take-away food is
@@ -143,7 +157,7 @@ export const CATEGORY_DEFINITIONS: Record<string, CategoryDefinition> = {
   other:         { label: 'Other',         emoji: '📦', vatable: false },
 };
 
-// ── Trade-type → ordered category list ──────────────────────────────
+// ── Trade-type → ordered category list ────────────────────────────────
 // Defines the default category set surfaced in the menu builder for
 // each business type. Users can pick categories from any list — these
 // are just sensible defaults to make the menu feel relevant.

@@ -65,10 +65,6 @@ function loadIap(): IapModule | null {
     return null;
   }
 }
-  } catch {
-    return null;
-  }
-}
 
 interface SubscriptionContextValue {
   isReady: boolean;
