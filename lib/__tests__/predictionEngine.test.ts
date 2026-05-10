@@ -554,6 +554,45 @@ import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
     `drivers="${drivers}"`);
 }
 
+// 31l. Percentage splits sum to exactly 100 across every kind that has a split.
+//      Math.round() on independent values can drift to 99/101 — we round once
+//      and derive the complement, so the two %s always add up.
+{
+  function pct(line?: { value: string }): number {
+    return parseInt((line?.value ?? '0').replace('%', ''), 10);
+  }
+
+  // Coffee: hot + iced
+  for (const t of [4, 18, 28]) {
+    const r = predict('Coffee', { forecastTempC: t, eventDate: '2025-06-15' }, noHistory);
+    const hot  = pct(r?.forecast.find(l => l.label === 'Hot drinks'));
+    const iced = pct(r?.forecast.find(l => l.label === 'Iced drinks'));
+    expect(`coffee_split_sums_to_100_at_${t}c`,
+      hot + iced === 100,
+      `hot=${hot} iced=${iced} sum=${hot + iced}`);
+  }
+
+  // Bar: alcohol + soft
+  for (const t of [4, 18, 28]) {
+    const r = predict('Cocktails', { forecastTempC: t, eventDate: '2025-06-15' }, noHistory);
+    const alc  = pct(r?.forecast.find(l => l.label === 'Alcoholic drinks'));
+    const soft = pct(r?.forecast.find(l => l.label === 'Soft / cold drinks'));
+    expect(`bar_split_sums_to_100_at_${t}c`,
+      alc + soft === 100,
+      `alc=${alc} soft=${soft} sum=${alc + soft}`);
+  }
+
+  // Dessert: cold + hot
+  for (const t of [4, 18, 28]) {
+    const r = predict('Desserts', { forecastTempC: t, eventDate: '2025-06-15' }, noHistory);
+    const cold = pct(r?.forecast.find(l => l.label === 'Cold desserts'));
+    const hot  = pct(r?.forecast.find(l => l.label === 'Hot / baked sweets'));
+    expect(`dessert_split_sums_to_100_at_${t}c`,
+      cold + hot === 100,
+      `cold=${cold} hot=${hot} sum=${cold + hot}`);
+  }
+}
+
 // 32. CSV parser merges duplicate product names (some POS emit one row per transaction)
 {
   const dupCSV = [
