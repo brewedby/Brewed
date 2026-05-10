@@ -62,6 +62,7 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
   const savedRef = useRef<string | null>(null);
   const [showInlinePicker, setShowInlinePicker] = useState(false);
   const [savingTradeType, setSavingTradeType] = useState(false);
+  const [pendingTradeType, setPendingTradeType] = useState<string | null>(null);
   const [pickerError, setPickerError] = useState<string | null>(null);
   const [pickerSuccess, setPickerSuccess] = useState<string | null>(null);
 
@@ -93,6 +94,10 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
       setPickerError("You're not signed in. Sign in and try again.");
       return;
     }
+    // Track the just-tapped tile so the picker can highlight it during
+    // the save round-trip — otherwise the old selection stays highlighted
+    // until the profile refetch arrives, which is confusing.
+    setPendingTradeType(picked);
     setSavingTradeType(true);
     setPickerError(null);
     setPickerSuccess(null);
@@ -112,6 +117,7 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
       Alert.alert('Could not save', detail);
     } finally {
       setSavingTradeType(false);
+      setPendingTradeType(null);
     }
   }
 
@@ -176,6 +182,7 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
             onTogglePicker={() => { setShowInlinePicker((v) => !v); setPickerError(null); }}
             onPickTradeType={pickTradeType}
             savingTradeType={savingTradeType}
+            pendingTradeType={pendingTradeType}
             pickerError={pickerError}
             pickerSuccess={pickerSuccess}
           />
@@ -199,7 +206,7 @@ function LoadingForecast({ tagline }: { tagline: string }) {
 function ForecastCard({
   result, tagline, tradeLabel, tradeMenuCategories, forecastTempC, isDark, palette,
   canonicalTradeType, rawTradeType, onOpenSettings,
-  showInlinePicker, onTogglePicker, onPickTradeType, savingTradeType,
+  showInlinePicker, onTogglePicker, onPickTradeType, savingTradeType, pendingTradeType,
   pickerError, pickerSuccess,
 }: {
   result: PredictionResult;
@@ -216,6 +223,7 @@ function ForecastCard({
   onTogglePicker: () => void;
   onPickTradeType: (picked: string) => void;
   savingTradeType: boolean;
+  pendingTradeType: string | null;
   pickerError: string | null;
   pickerSuccess: string | null;
 }) {
@@ -303,7 +311,14 @@ function ForecastCard({
           </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {BUSINESS_TYPES.map((t) => {
-              const isCurrent = t === canonicalTradeType;
+              // While a save is in flight, prefer the just-tapped tile as
+              // "selected" — otherwise the old canonical value stays
+              // highlighted until the profile refetch arrives, which is
+              // visually confusing right after the tap.
+              const isCurrent = pendingTradeType
+                ? t === pendingTradeType
+                : t === canonicalTradeType;
+              const isOtherDuringSave = savingTradeType && t !== pendingTradeType;
               return (
                 <TouchableOpacity
                   key={t}
@@ -320,7 +335,7 @@ function ForecastCard({
                     borderWidth: 1,
                     borderColor: isCurrent ? p.brand : p.borderStrong,
                     backgroundColor: isCurrent ? p.brand : 'transparent',
-                    opacity: savingTradeType ? 0.6 : 1,
+                    opacity: isOtherDuringSave ? 0.4 : 1,
                     justifyContent: 'center',
                   }}
                 >
