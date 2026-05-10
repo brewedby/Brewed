@@ -23,17 +23,6 @@ export function formatCurrencyCompact(value: number | null | undefined): string 
   return formatCurrency(n);
 }
 
-// Whole-pound display for tabular contexts (£1,234 — no pence, with thousands separator)
-export function formatCurrencyInt(value: number | null | undefined): string {
-  const n = value == null || !Number.isFinite(value) ? 0 : value;
-  return new Intl.NumberFormat('en-GB', {
-    style: 'currency',
-    currency: 'GBP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(n);
-}
-
 export function formatPercent(value: number | null | undefined, decimals = 1): string {
   const n = value == null || !Number.isFinite(value) ? 0 : value;
   return `${n.toFixed(decimals)}%`;

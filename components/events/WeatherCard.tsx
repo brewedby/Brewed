@@ -101,7 +101,6 @@ export function WeatherCard({
   const [avgTemp, setAvgTemp] = useState(15);
   const [loading, setLoading] = useState(true);
   const [outOfRange, setOutOfRange] = useState(false);
-  const [failureReason, setFailureReason] = useState<'network' | 'location' | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -115,7 +114,7 @@ export function WeatherCard({
           `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1&language=en&format=json`,
         );
         const geoData = await geoRes.json();
-        if (!geoData.results?.length) { setFailureReason('location'); setLoading(false); return; }
+        if (!geoData.results?.length) { setLoading(false); return; }
         const { latitude, longitude } = geoData.results[0];
 
         const end = endDate ?? startDate;
@@ -160,9 +159,7 @@ export function WeatherCard({
 
         setDays(dual);
         setAvgTemp(avg);
-      } catch {
-        setFailureReason('network');
-      }
+      } catch { /* silently fail */ }
       finally { setLoading(false); }
     }
     load();
@@ -186,11 +183,7 @@ export function WeatherCard({
     <View className="bg-white rounded-2xl p-4 border border-stone-100">
       <Text className="font-bold text-stone-900 text-sm mb-1">🌤️ Weather Forecast</Text>
       <Text className="text-stone-400 text-xs">
-        {failureReason === 'network'
-          ? "Couldn't reach the forecast service. Check your connection and pull to refresh."
-          : failureReason === 'location'
-            ? `Couldn't pinpoint "${location}" on the map. Try adding the nearest town or postcode.`
-            : 'Forecast unavailable for this date or location.'}
+        Forecast unavailable — we couldn't match "{location}" or the providers didn't return data.
       </Text>
     </View>
   );
