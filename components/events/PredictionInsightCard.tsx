@@ -62,15 +62,18 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
   const savedRef = useRef<string | null>(null);
   const [showInlinePicker, setShowInlinePicker] = useState(false);
   const [savingTradeType, setSavingTradeType] = useState(false);
+  const [pickerError, setPickerError] = useState<string | null>(null);
+  const [pickerSuccess, setPickerSuccess] = useState<string | null>(null);
 
   const { data: observations = [], isLoading: obsLoading } = useEventObservations();
   const { data: dailyTakings = [], isLoading: dtLoading } = useAllDailyTakings();
   const loading = obsLoading || dtLoading || !!isProfileLoading;
 
-  // Dev-only: log how the trade type was resolved so a "showing OTHER but
-  // I selected COFFEE" mismatch becomes visible in the Metro console.
-  // Production builds skip this entirely (no raw profile data logged either).
-  if (__DEV__) {
+  // Dev-only logging — fires ONLY when the resolved trade type changes,
+  // not on every render. The previous version logged in the component body
+  // and produced one line per re-render, which spammed the Metro console.
+  useEffect(() => {
+    if (!__DEV__) return;
     // eslint-disable-next-line no-console
     console.log('[Prediction]', {
       rawTradeType: tradeType,
@@ -79,23 +82,34 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
       isProfileLoading: !!isProfileLoading,
       eventId,
     });
-  }
+  }, [canonicalTradeType, isProfileLoading, eventId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Inline trade-type picker handler. When the user is sitting on the
   // OTHER fallback and they tap a real trade type from the picker, we
   // write it back to their profile so every screen converges to the
   // same answer immediately — no need to navigate to Settings.
   async function pickTradeType(picked: string) {
-    if (!user) return;
+    if (!user) {
+      setPickerError("You're not signed in. Sign in and try again.");
+      return;
+    }
     setSavingTradeType(true);
+    setPickerError(null);
+    setPickerSuccess(null);
     try {
       await updateProfile.mutateAsync({
         userId: user.id,
         updates: { business_type: picked },
       });
       setShowInlinePicker(false);
+      setPickerSuccess(`Saved — ${picked} forecast loading…`);
+      // Auto-clear the success badge after a few seconds.
+      setTimeout(() => setPickerSuccess(null), 4000);
     } catch (e) {
-      Alert.alert('Could not save', e instanceof Error ? e.message : 'Please try again.');
+      const detail = e instanceof Error ? e.message : String(e);
+      setPickerError(detail);
+      // Also surface as Alert in case the inline state isn't visible.
+      Alert.alert('Could not save', detail);
     } finally {
       setSavingTradeType(false);
     }
@@ -156,11 +170,14 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
             isDark={isDark}
             palette={p}
             canonicalTradeType={canonicalTradeType}
+            rawTradeType={tradeType}
             onOpenSettings={() => router.push('/(tabs)/settings')}
             showInlinePicker={showInlinePicker}
-            onTogglePicker={() => setShowInlinePicker((v) => !v)}
+            onTogglePicker={() => { setShowInlinePicker((v) => !v); setPickerError(null); }}
             onPickTradeType={pickTradeType}
             savingTradeType={savingTradeType}
+            pickerError={pickerError}
+            pickerSuccess={pickerSuccess}
           />
         )}
       </View>
@@ -181,8 +198,9 @@ function LoadingForecast({ tagline }: { tagline: string }) {
 
 function ForecastCard({
   result, tagline, tradeLabel, tradeMenuCategories, forecastTempC, isDark, palette,
-  canonicalTradeType, onOpenSettings,
+  canonicalTradeType, rawTradeType, onOpenSettings,
   showInlinePicker, onTogglePicker, onPickTradeType, savingTradeType,
+  pickerError, pickerSuccess,
 }: {
   result: PredictionResult;
   tagline: string;
@@ -192,11 +210,14 @@ function ForecastCard({
   isDark: boolean;
   palette: ReturnType<typeof useTheme>['tokens']['palette'];
   canonicalTradeType: string;
+  rawTradeType: string | null;
   onOpenSettings: () => void;
   showInlinePicker: boolean;
   onTogglePicker: () => void;
   onPickTradeType: (picked: string) => void;
   savingTradeType: boolean;
+  pickerError: string | null;
+  pickerSuccess: string | null;
 }) {
   const p = palette;
   const conf = confidencePresentation(result.confidence, isDark, p);
@@ -264,40 +285,94 @@ function ForecastCard({
 
       {/* Inline picker — let the user pick their trade type from the
           prediction card itself. Saves to profile.business_type and the
-          card immediately re-renders with the right kind of forecast. */}
+          card immediately re-renders with the right kind of forecast.
+
+          Tap targets are 44pt minimum (iOS HIG) — the previous 22pt
+          tiles missed taps frequently and the user couldn't pick Coffee. */}
       {isUnsetTradeType && showInlinePicker && (
         <View style={{
           borderWidth: 1, borderColor: p.brand,
           backgroundColor: p.surfaceAlt,
-          padding: 12, marginBottom: 12,
+          padding: 14, marginBottom: 12,
         }}>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: p.text, marginBottom: 8 }}>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: p.text, marginBottom: 4 }}>
             What do you sell?
           </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            {BUSINESS_TYPES.map((t) => (
-              <TouchableOpacity
-                key={t}
-                onPress={() => onPickTradeType(t)}
-                disabled={savingTradeType}
-                accessibilityRole="radio"
-                accessibilityLabel={t}
-                style={{
-                  paddingHorizontal: 10, paddingVertical: 6,
-                  borderWidth: 1, borderColor: p.borderStrong,
-                  backgroundColor: 'transparent',
-                  opacity: savingTradeType ? 0.5 : 1,
-                }}
-              >
-                <Text style={{ fontSize: 11, fontWeight: '600', color: p.text }}>{t}</Text>
-              </TouchableOpacity>
-            ))}
+          <Text style={{ fontSize: 11, color: p.textMuted, marginBottom: 10, lineHeight: 15 }}>
+            Tap any tile — the forecast updates as soon as we save.
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {BUSINESS_TYPES.map((t) => {
+              const isCurrent = t === canonicalTradeType;
+              return (
+                <TouchableOpacity
+                  key={t}
+                  onPress={() => onPickTradeType(t)}
+                  disabled={savingTradeType}
+                  accessibilityRole="radio"
+                  accessibilityLabel={t}
+                  accessibilityState={{ selected: isCurrent, disabled: savingTradeType }}
+                  // 44pt minHeight = iOS recommended tap target. 14/12 padding
+                  // gives a comfortable hit zone around the label text.
+                  style={{
+                    minHeight: 44,
+                    paddingHorizontal: 14, paddingVertical: 12,
+                    borderWidth: 1,
+                    borderColor: isCurrent ? p.brand : p.borderStrong,
+                    backgroundColor: isCurrent ? p.brand : 'transparent',
+                    opacity: savingTradeType ? 0.6 : 1,
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 13,
+                    fontWeight: '700',
+                    color: isCurrent ? p.bg : p.text,
+                  }}>
+                    {t}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
           {savingTradeType && (
-            <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 8 }}>
+            <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 10 }}>
               Saving…
             </Text>
           )}
+          {pickerError && !savingTradeType && (
+            <View style={{
+              borderTopWidth: 1, borderTopColor: p.border, borderStyle: 'dashed',
+              marginTop: 10, paddingTop: 8,
+            }}>
+              <Text style={{ fontSize: 11, color: '#dc2626', fontWeight: '700', marginBottom: 2 }}>
+                Couldn't save trade type
+              </Text>
+              <Text style={{ fontSize: 11, color: p.textMuted, lineHeight: 15 }}>
+                {pickerError}
+              </Text>
+            </View>
+          )}
+          {__DEV__ && (
+            <Text style={{ fontSize: 9, color: p.textFaint, marginTop: 10, fontFamily: 'Menlo' }}>
+              dev: profile.business_type = {JSON.stringify(rawTradeType)} → canonical {canonicalTradeType}
+            </Text>
+          )}
+        </View>
+      )}
+
+      {/* Inline success badge — appears briefly after a successful save,
+          before the card re-renders with the new trade type. */}
+      {pickerSuccess && (
+        <View style={{
+          borderWidth: 1, borderColor: '#16a34a',
+          backgroundColor: p.surfaceAlt,
+          paddingHorizontal: 12, paddingVertical: 8,
+          marginBottom: 12,
+        }}>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: '#16a34a' }}>
+            ✓ {pickerSuccess}
+          </Text>
         </View>
       )}
 
