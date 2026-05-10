@@ -25,6 +25,65 @@ export interface UploadAndReconcileResult {
 }
 
 /**
+ * Read the picked CSV file as text. Tries strategies in order:
+ *  1. expo-file-system readAsStringAsync (most reliable on iOS)
+ *  2. fetch(asset.uri) (handles some content:// URIs and dev-server cases)
+ *  3. Base64 read + utf-8 decode (fallback for iCloud / sandboxed paths)
+ * Returns '' if every strategy yields empty content; the caller surfaces a
+ * useful error rather than silently treating that as "file empty".
+ */
+async function readCsvContent(asset: { uri: string; name: string }): Promise<string> {
+  // 1. FileSystem direct read
+  try {
+    const text = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'utf8' });
+    if (text && text.trim().length > 0) return text;
+  } catch {
+    // fall through
+  }
+  // 2. fetch the URI
+  try {
+    const response = await fetch(asset.uri);
+    if (response.ok) {
+      const text = await response.text();
+      if (text && text.trim().length > 0) return text;
+    }
+  } catch {
+    // fall through
+  }
+  // 3. Base64 read + manual UTF-8 decode (helps with iCloud-hosted picker URIs)
+  try {
+    const b64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'base64' });
+    if (b64 && b64.length > 0) {
+      const decoded = decodeBase64Utf8(b64);
+      if (decoded && decoded.trim().length > 0) return decoded;
+    }
+  } catch {
+    // give up
+  }
+  return '';
+}
+
+function decodeBase64Utf8(b64: string): string {
+  // Decode base64 → bytes → utf-8 string. global.atob exists in Hermes RN.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const atob = (globalThis as any).atob as undefined | ((s: string) => string);
+  if (!atob) return '';
+  try {
+    const binary = atob(b64);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+    if (typeof TextDecoder !== 'undefined') {
+      return new TextDecoder('utf-8').decode(bytes);
+    }
+    // Fallback: best-effort latin-1 decode
+    return binary;
+  } catch {
+    return '';
+  }
+}
+
+/**
  * Pick, parse, and reconcile a sales report (CSV or PDF).
  * CSV is parsed fully client-side.
  * PDF is uploaded to Supabase Storage and then parsed via Edge Function.
@@ -43,10 +102,15 @@ export function useUploadSalesReport() {
       catalog: ProductCatalogItem[];
     }): Promise<UploadAndReconcileResult> => {
 
-      // 1. Pick file
+      // 1. Pick file. Some iOS UTIs don't include "csv" in the MIME string, so
+      //    we accept a wide list and fall back to filename suffix detection below.
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['text/csv', 'text/comma-separated-values', 'application/csv',
-               'application/pdf', 'text/plain'],
+        type: [
+          'text/csv', 'text/comma-separated-values', 'application/csv',
+          'application/vnd.ms-excel', // iOS occasionally hands CSVs back as this
+          'application/pdf', 'text/plain', 'text/tab-separated-values',
+          '*/*',
+        ],
         copyToCacheDirectory: true,
       });
 
@@ -55,43 +119,53 @@ export function useUploadSalesReport() {
       }
 
       const asset = result.assets[0];
-      const isCSV = asset.mimeType?.includes('csv') || asset.name.toLowerCase().endsWith('.csv');
-      const isPDF = asset.mimeType === 'application/pdf' || asset.name.toLowerCase().endsWith('.pdf');
+      const lowerName = asset.name.toLowerCase();
+      const isCSV = lowerName.endsWith('.csv') || lowerName.endsWith('.tsv') || lowerName.endsWith('.txt')
+        || asset.mimeType?.includes('csv')
+        || asset.mimeType === 'text/plain'
+        || asset.mimeType === 'text/tab-separated-values';
+      const isPDF = lowerName.endsWith('.pdf') || asset.mimeType === 'application/pdf';
 
       let lines: ReconciledLine[];
       let storagePath: string | null = null;
 
       if (isCSV) {
-        // --- CSV: read via FileSystem (more reliable than fetch on iOS production) ---
-        let content: string;
-        try {
-          content = await FileSystem.readAsStringAsync(asset.uri, {
-            encoding: 'utf8',
-          });
-        } catch {
-          // Fall back to fetch if FileSystem fails (e.g. content:// URI on Android)
-          try {
-            const response = await fetch(asset.uri);
-            if (!response.ok) throw new Error('HTTP error ' + response.status);
-            content = await response.text();
-          } catch (fetchErr) {
-            const detail = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-            throw new Error(`Could not read the CSV file. Try exporting it again from your EPOS system. (${detail})`);
-          }
-        }
+        // --- CSV: try multiple read strategies; each produces different
+        // failure modes on iOS / Android / dev / TestFlight builds. ---
+        const content = await readCsvContent(asset);
 
         if (!content || content.trim().length === 0) {
-          throw new Error('The file appears to be empty. Please check the export and try again.');
+          const sizeNote = asset.size ? ` (file size: ${asset.size} bytes)` : '';
+          throw new Error(
+            `Couldn't read the file "${asset.name}"${sizeNote}.\n` +
+            'The file may not have downloaded fully from iCloud, or your EPOS export may have produced an empty file. ' +
+            'Try saving the CSV to your Files app first, then upload it from there.',
+          );
         }
 
-        // Wrap parsing so we always surface a meaningful error message
-        // rather than a raw "Cannot read property X of undefined".
         let parsed;
         try {
-          parsed = parseCSVSalesReport(content);
+          parsed = parseCSVSalesReport(content, asset.size ?? null);
         } catch (e) {
           const detail = e instanceof Error ? e.message : String(e);
           throw new Error(`Couldn't read this CSV. ${detail}`);
+        }
+        if (__DEV__ && parsed.diagnostics) {
+          // Dev-only — never logs raw line content, only counts and column names.
+          // eslint-disable-next-line no-console
+          console.log('[CSV import]', {
+            file: asset.name,
+            size: parsed.diagnostics.fileSizeBytes,
+            rawLines: parsed.diagnostics.rawLineCount,
+            nonEmpty: parsed.diagnostics.nonEmptyLineCount,
+            delimiter: parsed.diagnostics.detectedDelimiter,
+            headerRow: parsed.diagnostics.headerRowIndex,
+            headers: parsed.diagnostics.detectedHeaders,
+            parsed: parsed.diagnostics.parsedRowCount,
+            accepted: parsed.diagnostics.acceptedRowCount,
+            skipped: parsed.diagnostics.skippedRowCount,
+            skipReasons: parsed.diagnostics.skipReasons,
+          });
         }
         if (parsed.errors.length > 0 && parsed.lines.length === 0) {
           throw new Error(parsed.errors.join('\n'));
