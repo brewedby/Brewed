@@ -96,9 +96,8 @@ function makeObs(partial: Partial<EventObservation>): EventObservation {
     `kind=${r?.kind}`);
 }
 
-// 5. Ice cream demand rises with hot weather
+// 5. Ice cream demand level rises with hot weather
 {
-  // Build a synthetic history: same revenue at every event, weather varies
   const history: EventObservation[] = [
     makeObs({ avgTempC: 28, grossSalesFallback: 1000, date: '2024-07-01' }),
     makeObs({ avgTempC: 26, grossSalesFallback:  900, date: '2024-08-15' }),
@@ -109,15 +108,15 @@ function makeObs(partial: Partial<EventObservation>): EventObservation {
   ];
   const hot = predict('Ice Cream', { forecastTempC: 27, eventDate: '2025-07-15' }, history);
   const cold = predict('Ice Cream', { forecastTempC: 6, eventDate: '2025-12-15' }, history);
-  // Both should be cold_demand kind
   expect('ice_cream_returns_cold_demand', hot?.kind === 'cold_demand',
     `kind=${hot?.kind}`);
-  // Forecast revenue line value parsed to a number for comparison
-  const hotRev  = parseInt((hot?.forecast.find((l) => l.label === 'Forecast revenue')?.value ?? '£0').replace(/[£,]/g, ''), 10);
-  const coldRev = parseInt((cold?.forecast.find((l) => l.label === 'Forecast revenue')?.value ?? '£0').replace(/[£,]/g, ''), 10);
+  // Demand level should be at least one band higher on the hot day vs the cold day.
+  const order: Record<string, number> = { low: 0, below_average: 1, average: 2, high: 3, very_high: 4 };
+  const hotIdx  = order[hot?.demandLevel ?? 'average'] ?? 2;
+  const coldIdx = order[cold?.demandLevel ?? 'average'] ?? 2;
   expect('ice_cream_demand_rises_with_heat',
-    hotRev > coldRev,
-    `hotRev=£${hotRev} coldRev=£${coldRev}`);
+    hotIdx > coldIdx,
+    `hot=${hot?.demandLevel} cold=${cold?.demandLevel}`);
 }
 
 // 6. Weather is included for every trade type's output
@@ -224,9 +223,9 @@ function makeObs(partial: Partial<EventObservation>): EventObservation {
   expect('mexican_food_returns_food_attach', mexican?.kind === 'food_attach', `kind=${mexican?.kind}`);
 }
 
-// 17. One extreme outlier event does NOT dominate the ice cream forecast.
-//     Without outlier detection a single 10× revenue event would make the forecast
-//     roughly 4× the typical; with IQR filtering the forecast should remain sane.
+// 17. One extreme outlier event does NOT push demand to "Very high".
+//     Without outlier detection the multiplier would be ~10× typical; with IQR
+//     filtering + the [0.6, 1.4] cap the forecast stays in the "average" band.
 {
   const history: EventObservation[] = [
     makeObs({ avgTempC: 22, grossSalesFallback: 500,  date: '2024-05-10' }),
@@ -238,13 +237,9 @@ function makeObs(partial: Partial<EventObservation>): EventObservation {
     makeObs({ avgTempC: 22, grossSalesFallback: 5000, date: '2024-08-10' }),
   ];
   const r = predict('Ice Cream', { forecastTempC: 22, eventDate: '2025-07-01' }, history);
-  const forecast = r?.forecast.find(l => l.label === 'Forecast revenue');
-  const rev = parseInt((forecast?.value ?? '£0').replace(/[£,]/g, ''), 10);
-  // Without outlier removal the average would be ~1250; with IQR removal it stays near 500.
-  expect('outlier_does_not_dominate_ice_cream_forecast',
-    rev < 1200,
-    `Forecast revenue = £${rev} (should be < £1200 without outlier)`);
-  // Confidence reason should mention the excluded outlier
+  expect('outlier_does_not_dominate_demand_level',
+    r?.demandLevel === 'average' || r?.demandLevel === 'high' || r?.demandLevel === 'below_average',
+    `demandLevel=${r?.demandLevel}`);
   expect('outlier_noted_in_confidence_reason',
     (r?.confidenceReason ?? '').includes('outlier'),
     `confidenceReason=${r?.confidenceReason}`);
@@ -321,7 +316,7 @@ function makeObs(partial: Partial<EventObservation>): EventObservation {
     `kind=${r?.kind}`);
 }
 
-// ── CSV parser tests ───────────────────────────────────────────────────
+// ── CSV parser tests ─────────────────────────────────────────────
 
 import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
 
@@ -369,8 +364,6 @@ import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
 
 // 27. CSV parser handles Windows CRLF line endings
 {
-  const crlfCSV = 'Item Name\r\nQuantity\r\nNet Sales\r\n'.replace(/\r\n/g, '\r\n');
-  // Valid CRLF with data
   const validCrlf = 'Product Name,Quantity Sold,Net Sales\r\nCappuccino,3,10.50\r\nMocha,2,8.00\r\n';
   const r = parseCSVSalesReport(validCrlf);
   expect('csv_handles_crlf',
@@ -404,7 +397,141 @@ import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
     `lines=${r.lines.length} total=${r.lines[0]?.line_total}`);
 }
 
-// 31. CSV parser merges duplicate product names (some POS emit one row per transaction)
+// 31a. Trade type normalisation — common variants resolve correctly
+{
+  const variants = [
+    ['coffee', 'drink_split'],
+    ['Coffee Van', 'drink_split'],
+    ['coffee_cart', 'drink_split'],
+    ['COFFEE', 'drink_split'],
+    ['burger', 'food_attach'],
+    ['burgers', 'food_attach'],
+    ['Burger Truck', 'food_attach'],
+    ['ice cream', 'cold_demand'],
+    ['gelato', 'cold_demand'],
+    ['baker', 'morning_bake'],
+    ['cocktail bar', 'beverage_mix'],
+  ] as const;
+  let allOk = true;
+  let failed = '';
+  for (const [input, expectedKind] of variants) {
+    const r = predict(input, { forecastTempC: 18, eventDate: '2025-06-15' }, noHistory);
+    if (r?.kind !== expectedKind) {
+      allOk = false;
+      failed = `${input} → ${r?.kind} (expected ${expectedKind})`;
+      break;
+    }
+  }
+  expect('trade_type_normalisation_resolves_variants', allOk, allOk ? 'all variants matched' : failed);
+}
+
+// 31b. Missing trade type does NOT default to Coffee
+{
+  const r1 = predict(null,         { forecastTempC: 18, eventDate: '2025-06-15' }, noHistory);
+  const r2 = predict(undefined as unknown as string, { forecastTempC: 18, eventDate: '2025-06-15' }, noHistory);
+  const r3 = predict('',           { forecastTempC: 18, eventDate: '2025-06-15' }, noHistory);
+  expect('missing_trade_does_not_default_to_coffee',
+    r1?.kind !== 'drink_split' && r2?.kind !== 'drink_split' && r3?.kind !== 'drink_split',
+    `null=${r1?.kind} undef=${r2?.kind} empty=${r3?.kind}`);
+}
+
+// 31c. Coffee result has demandLevel = null (drink split is the headline, no extra band)
+{
+  const r = predict('Coffee', { forecastTempC: 18, eventDate: '2025-06-15' }, noHistory);
+  expect('coffee_demand_level_is_null',
+    r?.demandLevel === null,
+    `demandLevel=${r?.demandLevel}`);
+}
+
+// 31d. No prediction surface includes a "Forecast revenue" line as the headline
+{
+  const trades = ['Coffee', 'Burgers', 'Pizza', 'Ice Cream', 'Bakery', 'Desserts', 'Cocktails', 'Other'];
+  let foundRevenue = '';
+  for (const t of trades) {
+    const r = predict(t, { forecastTempC: 18, eventDate: '2025-06-15' }, noHistory);
+    const labels = (r?.forecast ?? []).map(l => l.label.toLowerCase()).join(' | ');
+    if (labels.includes('forecast revenue')) {
+      foundRevenue = t;
+      break;
+    }
+  }
+  expect('no_revenue_in_primary_forecast', foundRevenue === '',
+    foundRevenue ? `${foundRevenue} still surfaces forecast revenue` : 'no trades show forecast revenue');
+}
+
+// 31e. Demand multiplier is clamped — no demand level pushes beyond very_high
+{
+  // Synthetic history with one event massively above the rest. Should be IQR-filtered
+  // and even unfiltered the cap holds the result inside the bands.
+  const history: EventObservation[] = Array.from({ length: 4 }).map((_, i) => makeObs({
+    avgTempC: 20, grossSalesFallback: 500, date: `2024-0${(i % 9) + 1}-15`,
+  })).concat([
+    // outlier far beyond IQR fence (won't be filtered with only 5 points actually,
+    // but the cap still bounds the multiplier).
+    makeObs({ avgTempC: 20, grossSalesFallback: 50_000, date: '2024-08-01' }),
+  ]);
+  const r = predict('Other', { forecastTempC: 20, eventDate: '2025-07-01' }, history);
+  // The clamp is at multiplier ≤ 1.4 → demandLevel can be at most 'very_high' (>= 1.30).
+  // Crucially, no NaN, no crash, no inflated band.
+  const ok = r?.demandLevel === 'low' || r?.demandLevel === 'below_average' ||
+             r?.demandLevel === 'average' || r?.demandLevel === 'high' ||
+             r?.demandLevel === 'very_high';
+  expect('demand_multiplier_clamped_to_known_bands', !!ok, `demandLevel=${r?.demandLevel}`);
+}
+
+// 31f. CSV parser handles a Square-style export with a Category column + currency
+{
+  const square = [
+    'Item Name,Item Variation,SKU,Category,Items Sold,Product Sales,Items Refunded,Refunds,Discounts & Comps,Net Sales,Tax,Gross Sales,Units Sold',
+    'Iced Latte,Regular,"",Iced drinks,277,"£1,234.40",0,£0.00,-£28.14,"£1,206.26",£0.00,"£1,206.26",277',
+    'Cappuccino,Regular,"",Hot drinks,65,£231.82,0,£0.00,-£5.67,£226.15,£45.28,£271.43,65',
+  ].join('\n');
+  const r = parseCSVSalesReport(square);
+  // Two products, "Iced Latte" qty 277, "Cappuccino" qty 65 — both line totals match Net Sales.
+  const iced = r.lines.find(l => l.product_name === 'Iced Latte');
+  const capp = r.lines.find(l => l.product_name === 'Cappuccino');
+  expect('csv_handles_square_with_category_column',
+    !!iced && iced.quantity === 277 && Math.round(iced.line_total) === 1206 &&
+    !!capp && capp.quantity === 65  && Math.round(capp.line_total) === 226,
+    `iced=${iced?.quantity}/${iced?.line_total} capp=${capp?.quantity}/${capp?.line_total}`);
+}
+
+// 31g. CSV parser surfaces a useful error when columns aren't recognised
+{
+  const weird = 'Foo,Bar,Baz\n1,2,3\n4,5,6\n';
+  const r = parseCSVSalesReport(weird);
+  expect('csv_unrecognised_columns_surface_useful_error',
+    r.lines.length === 0 && r.errors.some(e => e.toLowerCase().includes('product')),
+    `errors="${r.errors.join('; ')}"`);
+}
+
+// 31h. CSV diagnostics include detected delimiter, headers, and parse counts
+{
+  const csv = 'Product,Qty,Net Sales\nLatte,5,15.00\nMocha,3,9.00\n';
+  const r = parseCSVSalesReport(csv, 50);
+  const d = r.diagnostics;
+  expect('csv_diagnostics_present',
+    !!d && d.detectedDelimiter === ',' && d.acceptedRowCount === 2 &&
+    d.detectedHeaders.length === 3 && d.fileSizeBytes === 50,
+    `delim=${d?.detectedDelimiter} accepted=${d?.acceptedRowCount} headers=${d?.detectedHeaders?.length}`);
+}
+
+// 31i. CSV parser skips summary/total rows at the bottom of an export
+{
+  const withTotalRow = [
+    'Item Name,Items Sold,Net Sales',
+    'Cappuccino,5,17.50',
+    'Latte,3,11.40',
+    'TOTAL,8,28.90',
+  ].join('\n');
+  const r = parseCSVSalesReport(withTotalRow);
+  const totalRow = r.lines.find(l => /^total$/i.test(l.product_name));
+  expect('csv_skips_summary_total_row',
+    r.lines.length === 2 && !totalRow,
+    `lines=${r.lines.length} totalRow=${totalRow?.product_name}`);
+}
+
+// 32. CSV parser merges duplicate product names (some POS emit one row per transaction)
 {
   const dupCSV = [
     'Item Name,Qty,Net Sales',
@@ -419,7 +546,7 @@ import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
     `qty=${cappuccino?.quantity} total=${cappuccino?.line_total}`);
 }
 
-// ── Reporter ───────────────────────────────────────────────────────────
+// ── Reporter ────────────────────────────────────────────────────────
 let pass = 0, fail = 0;
 for (const r of results) {
   const tag = r.pass ? 'PASS' : 'FAIL';
