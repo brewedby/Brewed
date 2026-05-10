@@ -799,7 +799,7 @@ function predictForGeneral(
     drivers: [
       `${tempBucketLabel(context.forecastTempC)} forecast`,
       sample > 0 ? `${sample} past event${sample === 1 ? '' : 's'} on record` : 'No completed events yet',
-      'Set a specific trade type in Settings for a sharper forecast',
+      'Conservative general forecast — set a trade type in Settings for category-specific guidance',
     ],
     weatherImpact: context.forecastTempC >= 22
       ? 'Warm — drinks and outdoor food demand lift.'
