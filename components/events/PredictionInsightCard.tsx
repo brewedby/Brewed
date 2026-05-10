@@ -16,13 +16,14 @@
 // here. The engine reads only quantities and revenue.
 
 import React, { useEffect, useMemo, useRef } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/themeContext';
 import { FarSectionRule } from '@/components/far/SectionRule';
 import { useEventObservations } from '@/lib/queries/eventObservations';
 import { useAllDailyTakings } from '@/lib/queries/dailyTakings';
-import { getTradeConfig } from '@/lib/tradeTypeConfig';
+import { getTradeConfig, normalizeTradeType } from '@/lib/tradeTypeConfig';
 import { CATEGORY_DEFINITIONS } from '@/types/cogs';
 import { predict, type PredictionResult, type Confidence } from '@/lib/predictionEngine';
 import { useSavePrediction } from '@/lib/mutations/predictions';
@@ -40,12 +41,18 @@ interface Props {
   eventDate?: string;
   /** ID of the event — used to persist the prediction snapshot. */
   eventId?: string;
+  /** True while the user profile is still loading. Prevents the engine from
+   *  computing a forecast against tradeType=null and showing a transient
+   *  general_demand frame before the real trade type arrives. */
+  isProfileLoading?: boolean;
 }
 
-export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eventId }: Props) {
+export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eventId, isProfileLoading }: Props) {
   const config = getTradeConfig(tradeType);
+  const canonicalTradeType = normalizeTradeType(tradeType);
   const { tokens, isDark } = useTheme();
   const p = tokens.palette;
+  const router = useRouter();
 
   const { user } = useAuth();
   const savePrediction = useSavePrediction();
@@ -53,7 +60,7 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
 
   const { data: observations = [], isLoading: obsLoading } = useEventObservations();
   const { data: dailyTakings = [], isLoading: dtLoading } = useAllDailyTakings();
-  const loading = obsLoading || dtLoading;
+  const loading = obsLoading || dtLoading || !!isProfileLoading;
 
   const result: PredictionResult | null = useMemo(() => {
     if (loading) return null;
@@ -75,12 +82,12 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
     savePrediction.mutate({
       eventId,
       userId: user.id,
-      tradeType: tradeType ?? 'Other',
+      tradeType: canonicalTradeType,
       forecastTempC,
       weatherSummary: null,
       prediction: result,
     });
-  }, [result, user, eventId, forecastTempC, tradeType]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [result, user, eventId, forecastTempC, canonicalTradeType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const lens = config.predictionLenses[0];
   if (!lens) return null;
@@ -109,6 +116,8 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
             forecastTempC={forecastTempC}
             isDark={isDark}
             palette={p}
+            canonicalTradeType={canonicalTradeType}
+            onOpenSettings={() => router.push('/(tabs)/settings')}
           />
         )}
       </View>
@@ -129,6 +138,7 @@ function LoadingForecast({ tagline }: { tagline: string }) {
 
 function ForecastCard({
   result, tagline, tradeLabel, tradeMenuCategories, forecastTempC, isDark, palette,
+  canonicalTradeType, onOpenSettings,
 }: {
   result: PredictionResult;
   tagline: string;
@@ -137,9 +147,12 @@ function ForecastCard({
   forecastTempC: number;
   isDark: boolean;
   palette: ReturnType<typeof useTheme>['tokens']['palette'];
+  canonicalTradeType: string;
+  onOpenSettings: () => void;
 }) {
   const p = palette;
   const conf = confidencePresentation(result.confidence, isDark, p);
+  const isUnsetTradeType = canonicalTradeType === 'Other' || result.kind === 'general_demand';
 
   // Determine which stock categories to show in the "PLAN STOCK FOR" strip.
   // drink_split (Coffee): only coffee-relevant categories — never food mains/sides/extras.
@@ -153,6 +166,54 @@ function ForecastCard({
 
   return (
     <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, padding: 16 }}>
+      {/* Trade type breadcrumb so the user can see what the engine is forecasting for. */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+        <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1, color: p.textFaint }}>
+          TRADE TYPE
+        </Text>
+        <View style={{
+          borderWidth: 1, borderColor: isUnsetTradeType ? p.brand : p.border,
+          paddingHorizontal: 6, paddingVertical: 2,
+        }}>
+          <Text style={{ fontSize: 10, fontWeight: '700', color: isUnsetTradeType ? p.brand : p.textMuted, letterSpacing: 0.5 }}>
+            {tradeLabel.toUpperCase()}
+          </Text>
+        </View>
+        {isUnsetTradeType && (
+          <TouchableOpacity onPress={onOpenSettings} accessibilityRole="button" accessibilityLabel="Open settings to set trade type">
+            <Text style={{ fontSize: 11, color: p.brand, fontWeight: '700' }}>Change →</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Prominent CTA when trade type isn't set — this is the actual fix for
+          users who never realised the engine fell back to General. */}
+      {isUnsetTradeType && (
+        <TouchableOpacity
+          onPress={onOpenSettings}
+          accessibilityRole="button"
+          accessibilityLabel="Set your trade type for sharper forecasts"
+          style={{
+            flexDirection: 'row', alignItems: 'center', gap: 10,
+            borderWidth: 1, borderColor: p.brand,
+            backgroundColor: p.surfaceAlt,
+            paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12,
+          }}
+        >
+          <Ionicons name="information-circle-outline" size={16} color={p.brand} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: p.text }}>
+              Set your trade type for a sharper forecast
+            </Text>
+            <Text style={{ fontSize: 11, color: p.textMuted, marginTop: 2, lineHeight: 15 }}>
+              Coffee gets a hot/iced split, food gets attach rates, ice cream is weather-led.
+              We're using the conservative general forecast for now.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={14} color={p.brand} />
+        </TouchableOpacity>
+      )}
+
       {/* Header: tagline + confidence badge */}
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
         <View style={{ flex: 1 }}>
@@ -243,15 +304,9 @@ function ForecastCard({
       </View>
 
       {/* Plan-stock-for chip strip.
-          Hidden for general_demand — show "set trade type" prompt instead.
+          Hidden for general_demand — the top CTA already conveys the prompt.
           drink_split (Coffee): only drink categories, never food. */}
-      {result.kind === 'general_demand' ? (
-        <View style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: p.border, borderStyle: 'dashed' }}>
-          <Text style={{ fontSize: 10, color: p.textMuted, lineHeight: 14 }}>
-            Set your trade type in Settings for category-specific stock planning and a sharper forecast.
-          </Text>
-        </View>
-      ) : planCategories.length > 0 ? (
+      {result.kind === 'general_demand' ? null : planCategories.length > 0 ? (
         <View style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: p.border, borderStyle: 'dashed' }}>
           <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1, fontWeight: '700', marginBottom: 6 }}>
             PLAN STOCK FOR
