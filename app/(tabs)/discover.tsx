@@ -118,8 +118,6 @@ function EventCard({ event, onAdd, adding }: { event: DiscoveredEvent; onAdd: (e
         <View className="flex-row gap-2">
           <TouchableOpacity
             onPress={() => { if (event.url) Linking.openURL(event.url); }}
-            accessibilityRole="link"
-            accessibilityLabel={`Open ${event.title} application page`}
             className="flex-1 border border-slate-200 py-2.5 rounded-xl items-center"
           >
             <Text className="text-slate-600 font-medium text-sm">View & Apply ↗</Text>
@@ -127,9 +125,6 @@ function EventCard({ event, onAdd, adding }: { event: DiscoveredEvent; onAdd: (e
           <TouchableOpacity
             onPress={() => onAdd(event)}
             disabled={adding}
-            accessibilityRole="button"
-            accessibilityLabel={`Track ${event.title}`}
-            accessibilityState={{ disabled: adding }}
             className="flex-1 bg-amber-500 py-2.5 rounded-xl items-center"
           >
             {adding ? (
@@ -216,8 +211,6 @@ function CompanyCard({ company }: { company: DiscoveredEvent }) {
           <VerifiedBadge lastVerifiedAt={company.lastVerifiedAt} />
           <TouchableOpacity
             onPress={() => { if (company.url) Linking.openURL(company.url); }}
-            accessibilityRole="link"
-            accessibilityLabel={`Apply to ${company.title}`}
             className="bg-emerald-500 px-4 py-2.5 rounded-xl"
           >
             <Text className="text-white font-semibold text-sm">Apply Now ↗</Text>
@@ -416,12 +409,9 @@ export default function DiscoverScreen() {
         </View>
 
         {/* Tab switcher */}
-        <View style={{ flexDirection: 'row', backgroundColor: '#f1f5f9', borderRadius: 12, padding: 4, marginBottom: 12 }} accessibilityRole="tablist">
+        <View style={{ flexDirection: 'row', backgroundColor: '#f1f5f9', borderRadius: 12, padding: 4, marginBottom: 12 }}>
           <TouchableOpacity
             onPress={() => startTransition(() => { setActiveTab('apply'); setCategory('All'); })}
-            accessibilityRole="tab"
-            accessibilityLabel="Who to Apply To"
-            accessibilityState={{ selected: activeTab === 'apply' }}
             style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: activeTab === 'apply' ? '#ffffff' : 'transparent' }}
           >
             <Text style={{ fontSize: 14, fontWeight: '600', color: activeTab === 'apply' ? '#0f172a' : '#94a3b8' }}>
@@ -433,9 +423,6 @@ export default function DiscoverScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => startTransition(() => { setActiveTab('events'); setCategory('All'); })}
-            accessibilityRole="tab"
-            accessibilityLabel="Events and Festivals"
-            accessibilityState={{ selected: activeTab === 'events' }}
             style={{ flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center', backgroundColor: activeTab === 'events' ? '#ffffff' : 'transparent' }}
           >
             <Text style={{ fontSize: 14, fontWeight: '600', color: activeTab === 'events' ? '#0f172a' : '#94a3b8' }}>
@@ -467,14 +454,11 @@ export default function DiscoverScreen() {
 
         {/* Region filter — only for events tab */}
         {activeTab === 'events' && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 6 }} accessibilityRole="radiogroup">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginBottom: 6 }}>
             {REGIONS.map((r) => (
               <TouchableOpacity
                 key={r}
                 onPress={() => setRegion(r)}
-                accessibilityRole="radio"
-                accessibilityLabel={`Filter by region: ${r}`}
-                accessibilityState={{ selected: region === r }}
                 style={{
                   paddingHorizontal: 12,
                   paddingVertical: 6,
@@ -491,7 +475,7 @@ export default function DiscoverScreen() {
         )}
 
         {/* Category filter */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} accessibilityRole="radiogroup">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
           {currentCategories.map((c) => {
             const active = category === c;
             const activeColor = activeTab === 'apply' ? '#10b981' : '#f59e0b';
@@ -499,9 +483,6 @@ export default function DiscoverScreen() {
               <TouchableOpacity
                 key={c}
                 onPress={() => setCategory(c)}
-                accessibilityRole="radio"
-                accessibilityLabel={`Filter by category: ${c}`}
-                accessibilityState={{ selected: active }}
                 style={{
                   paddingHorizontal: 12,
                   paddingVertical: 6,

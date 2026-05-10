@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useDashboard } from '@/lib/queries/dashboard';
-import { formatCurrencyCompact, formatCurrency, formatCurrencyInt, formatPercent, formatDateRange } from '@/lib/formatters';
+import { formatCurrencyCompact, formatCurrency, formatPercent, formatDateRange } from '@/lib/formatters';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { RevenueBarChart } from '@/components/dashboard/RevenueBarChart';
 import { StatusPieChart } from '@/components/dashboard/StatusPieChart';
@@ -40,7 +40,7 @@ export default function DashboardScreen() {
 
     const bestMonth = [...stats.monthlyRevenue].sort((a, b) => b.netProfit - a.netProfit)[0];
     if (bestMonth && bestMonth.netProfit > 0) {
-      result.push({ icon: '🏆', text: `Best month: ${bestMonth.month} (${formatCurrencyInt(bestMonth.netProfit)} net)`, color: '#15803d' });
+      result.push({ icon: '🏆', text: `Best month: ${bestMonth.month} (£${bestMonth.netProfit.toFixed(0)} net)`, color: '#15803d' });
     }
 
     const today = new Date();
