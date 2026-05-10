@@ -55,10 +55,19 @@ export function useProfile(userId: string | undefined) {
         .eq('id', userId)
         .single();
       if (error) return null;
+      // Defensive default: nullish coalescing (??) misses empty strings and
+      // whitespace-only values that legacy rows can have. Treat any
+      // "no usable value" state as "Coffee" so the prediction engine and
+      // every other consumer get a canonical key. The user's explicit
+      // choice of Other / Burgers / etc. is a non-empty string and never
+      // hits this default.
+      const rawBusinessType = (data.business_type ?? '').toString().trim();
+      const businessType = rawBusinessType.length > 0 ? rawBusinessType : 'Coffee';
+
       return {
         id: data.id,
         business_name: data.business_name,
-        business_type: data.business_type ?? 'Coffee',
+        business_type: businessType,
         currency: data.currency ?? 'GBP',
         custom_metrics: (data.custom_metrics ?? []) as Metric[],
         subscription_status: (data.subscription_status ?? 'none') as SubscriptionStatus,
