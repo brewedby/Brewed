@@ -108,7 +108,7 @@ export default function EventDetailScreen() {
   const S = farStatus(isDark);
 
   const { data: event, isLoading, refetch } = useEvent(id);
-  const { data: profile } = useProfile(user?.id);
+  const { data: profile, isLoading: profileLoading } = useProfile(user?.id);
   const tradeType = profile?.business_type ?? null;
   const deleteEvent = useDeleteEvent();
   const createEvent = useCreateEvent();
@@ -437,7 +437,13 @@ export default function EventDetailScreen() {
         {/* ── Trade-aware prediction ── */}
         {forecastTemp !== null && (
           <View style={{ marginBottom: 16 }}>
-            <PredictionInsightCard tradeType={tradeType} forecastTempC={forecastTemp} eventDate={event.date} eventId={id} />
+            <PredictionInsightCard
+              tradeType={tradeType}
+              forecastTempC={forecastTemp}
+              eventDate={event.date}
+              eventId={id}
+              isProfileLoading={profileLoading}
+            />
           </View>
         )}
 
