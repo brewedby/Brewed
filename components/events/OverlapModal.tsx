@@ -29,22 +29,22 @@ export function OverlapModal({ events, allEvents, date, onClose, router }: Props
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
       <View className="flex-1 justify-end bg-black/40">
         <View className="bg-white rounded-t-3xl px-4 pt-5 pb-8 max-h-4/5">
-          <View className="w-10 h-1 bg-slate-200 rounded-full self-center mb-4" />
+          <View className="w-10 h-1 bg-stone-200 rounded-full self-center mb-4" />
 
           <View className="flex-row items-center justify-between mb-4">
             <View>
-              <Text className="font-bold text-slate-900 text-lg">
+              <Text className="font-bold text-stone-900 text-lg">
                 {isOverlap ? '⚠️ Events Overlap' : '📅 Events on this day'}
               </Text>
-              <Text className="text-slate-400 text-xs">{date}</Text>
+              <Text className="text-stone-400 text-xs">{date}</Text>
             </View>
             <TouchableOpacity
               onPress={onClose}
               accessibilityRole="button"
               accessibilityLabel="Close"
-              className="bg-slate-100 px-3 py-1.5 rounded-xl"
+              className="bg-stone-100 px-3 py-1.5 rounded-xl"
             >
-              <Text className="text-slate-600 text-sm font-medium">Close</Text>
+              <Text className="text-stone-600 text-sm font-medium">Close</Text>
             </TouchableOpacity>
           </View>
 
@@ -81,7 +81,7 @@ export function OverlapModal({ events, allEvents, date, onClose, router }: Props
               return (
                 <View
                   key={event.id}
-                  className={`mb-3 rounded-2xl border overflow-hidden ${isWinner && isOverlap ? 'border-green-300' : 'border-slate-100'}`}
+                  className={`mb-3 rounded-2xl border overflow-hidden ${isWinner && isOverlap ? 'border-green-300' : 'border-stone-100'}`}
                 >
                   <View style={{ height: 3, backgroundColor: colors.dot }} />
                   <View className="p-3">
@@ -95,14 +95,14 @@ export function OverlapModal({ events, allEvents, date, onClose, router }: Props
                             style={{ marginRight: 6 }}
                           />
                         )}
-                        <Text className="font-bold text-slate-900 flex-1" numberOfLines={2}>
+                        <Text className="font-bold text-stone-900 flex-1" numberOfLines={2}>
                           {event.name}
                         </Text>
                       </View>
                       {isOverlap && (
                         <View className="items-end">
                           <Text className={`text-xl font-black ${result.color}`}>{result.score}</Text>
-                          <Text className="text-slate-400 text-xs">/ 100</Text>
+                          <Text className="text-stone-400 text-xs">/ 100</Text>
                         </View>
                       )}
                     </View>
@@ -112,32 +112,32 @@ export function OverlapModal({ events, allEvents, date, onClose, router }: Props
                         <Text style={{ fontSize: 11, fontWeight: '500', color: colors.textHex }}>{STATUS_LABELS[event.status]}</Text>
                       </View>
                       {isOverlap && (
-                        <View className="px-2 py-0.5 rounded-full bg-slate-100">
+                        <View className="px-2 py-0.5 rounded-full bg-stone-100">
                           <Text className={`text-xs font-semibold ${result.color}`}>{result.label}</Text>
                         </View>
                       )}
                     </View>
 
-                    <Text className="text-slate-500 text-xs mb-2">
+                    <Text className="text-stone-500 text-xs mb-2">
                       📍 {event.location}
                       {event.end_date && event.end_date !== event.date ? `  ·  ${event.date} → ${event.end_date}` : `  ·  ${event.date}`}
                     </Text>
 
                     {event.calculations.netProfit !== 0 && (
-                      <Text className="text-slate-500 text-xs mb-2">
+                      <Text className="text-stone-500 text-xs mb-2">
                         Net: <Text className={`font-semibold ${event.calculations.netProfit >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                           {formatCurrency(event.calculations.netProfit)}
                         </Text>
                         {event.calculations.profitMargin !== 0 && (
-                          <Text className="text-slate-400"> ({formatPercent(event.calculations.profitMargin)} margin)</Text>
+                          <Text className="text-stone-400"> ({formatPercent(event.calculations.profitMargin)} margin)</Text>
                         )}
                       </Text>
                     )}
 
                     {isOverlap && result.reasons.length > 0 && (
-                      <View className="bg-slate-50 rounded-xl p-2 mb-2">
+                      <View className="bg-stone-50 rounded-xl p-2 mb-2">
                         {result.reasons.map((r, i) => (
-                          <Text key={i} className="text-slate-600 text-xs leading-relaxed">· {r}</Text>
+                          <Text key={i} className="text-stone-600 text-xs leading-relaxed">· {r}</Text>
                         ))}
                       </View>
                     )}
@@ -146,7 +146,7 @@ export function OverlapModal({ events, allEvents, date, onClose, router }: Props
                       onPress={() => { onClose(); router.push(`/(tabs)/events/${event.id}`); }}
                       accessibilityRole="button"
                       accessibilityLabel={`Open ${event.name}`}
-                      className="bg-slate-900 py-2 rounded-xl items-center"
+                      className="bg-stone-900 py-2 rounded-xl items-center"
                     >
                       <Text className="text-white text-xs font-semibold">Open Event →</Text>
                     </TouchableOpacity>

@@ -63,7 +63,7 @@ export const UnitCard = React.memo(function UnitCard({ unit, currentEvent, onPre
               <Text className="font-bold text-stone-900 text-base">{unit.name}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                 {unit.registration ? (
-                  <Text className="text-slate-500 text-xs font-medium tracking-wide">{unit.registration}</Text>
+                  <Text className="text-stone-500 text-xs font-medium tracking-wide">{unit.registration}</Text>
                 ) : null}
                 {unit.vehicle_type ? (
                   <View style={{ backgroundColor: '#f5f5f4', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 }}>

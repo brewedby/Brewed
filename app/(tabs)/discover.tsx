@@ -66,7 +66,7 @@ function EventCard({ event, onAdd, adding }: { event: DiscoveredEvent; onAdd: (e
   const catStyle = CATEGORY_STYLES[event.category] ?? DEFAULT_CATEGORY_STYLE;
 
   return (
-    <View className="bg-white rounded-2xl mb-3 border border-slate-100 overflow-hidden">
+    <View className="bg-white rounded-2xl mb-3 border border-stone-100 overflow-hidden">
       <View className="h-1 bg-amber-400" />
       <View className="p-4">
         {event.featured && (
@@ -76,7 +76,7 @@ function EventCard({ event, onAdd, adding }: { event: DiscoveredEvent; onAdd: (e
         )}
 
         <View className="flex-row items-start justify-between mb-2">
-          <Text className="font-bold text-slate-900 text-base leading-snug flex-1 mr-3" numberOfLines={2}>
+          <Text className="font-bold text-stone-900 text-base leading-snug flex-1 mr-3" numberOfLines={2}>
             {event.title}
           </Text>
           <View style={{ backgroundColor: catStyle.bg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
@@ -85,32 +85,32 @@ function EventCard({ event, onAdd, adding }: { event: DiscoveredEvent; onAdd: (e
         </View>
 
         {event.organiser && (
-          <Text className="text-slate-400 text-xs mb-2">Organised by {event.organiser}</Text>
+          <Text className="text-stone-400 text-xs mb-2">Organised by {event.organiser}</Text>
         )}
 
-        <Text className="text-slate-600 text-sm leading-relaxed mb-3" numberOfLines={3}>
+        <Text className="text-stone-600 text-sm leading-relaxed mb-3" numberOfLines={3}>
           {event.description}
         </Text>
 
         <View className="flex-row flex-wrap gap-1.5 mb-3">
           {event.location && (
-            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
-              <Text className="text-slate-500 text-xs">📍 {event.location}</Text>
+            <View className="bg-stone-50 px-2.5 py-1 rounded-full">
+              <Text className="text-stone-500 text-xs">📍 {event.location}</Text>
             </View>
           )}
           {event.dateHint && (
-            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
-              <Text className="text-slate-500 text-xs">📅 {event.dateHint}</Text>
+            <View className="bg-stone-50 px-2.5 py-1 rounded-full">
+              <Text className="text-stone-500 text-xs">📅 {event.dateHint}</Text>
             </View>
           )}
           {event.estimatedFootfall && (
-            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
-              <Text className="text-slate-500 text-xs">👥 {event.estimatedFootfall}</Text>
+            <View className="bg-stone-50 px-2.5 py-1 rounded-full">
+              <Text className="text-stone-500 text-xs">👥 {event.estimatedFootfall}</Text>
             </View>
           )}
           {event.pitchFeeRange && (
-            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
-              <Text className="text-slate-500 text-xs">💷 {event.pitchFeeRange}</Text>
+            <View className="bg-stone-50 px-2.5 py-1 rounded-full">
+              <Text className="text-stone-500 text-xs">💷 {event.pitchFeeRange}</Text>
             </View>
           )}
         </View>
@@ -120,9 +120,9 @@ function EventCard({ event, onAdd, adding }: { event: DiscoveredEvent; onAdd: (e
             onPress={() => { if (event.url) Linking.openURL(event.url); }}
             accessibilityRole="link"
             accessibilityLabel={`Open ${event.title} application page`}
-            className="flex-1 border border-slate-200 py-2.5 rounded-xl items-center"
+            className="flex-1 border border-stone-200 py-2.5 rounded-xl items-center"
           >
-            <Text className="text-slate-600 font-medium text-sm">View & Apply ↗</Text>
+            <Text className="text-stone-600 font-medium text-sm">View & Apply ↗</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => onAdd(event)}
@@ -148,7 +148,7 @@ function CompanyCard({ company }: { company: DiscoveredEvent }) {
   const isIndustryBody = company.category === 'Industry Body';
 
   return (
-    <View className="bg-white rounded-2xl mb-3 border border-slate-100 overflow-hidden">
+    <View className="bg-white rounded-2xl mb-3 border border-stone-100 overflow-hidden">
       <View style={{ height: 6, backgroundColor: isIndustryBody ? '#94a3b8' : '#10b981' }} />
       <View className="p-4">
         <View className="flex-row items-start justify-between mb-1">
@@ -165,7 +165,7 @@ function CompanyCard({ company }: { company: DiscoveredEvent }) {
                 </View>
               )}
             </View>
-            <Text className="font-bold text-slate-900 text-base leading-snug">{company.title}</Text>
+            <Text className="font-bold text-stone-900 text-base leading-snug">{company.title}</Text>
           </View>
           <View style={{ backgroundColor: isIndustryBody ? '#f1f5f9' : '#d1fae5', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
             <Text style={{ color: isIndustryBody ? '#475569' : '#065f46', fontSize: 11, fontWeight: '500' }}>
@@ -174,24 +174,24 @@ function CompanyCard({ company }: { company: DiscoveredEvent }) {
           </View>
         </View>
 
-        <Text className="text-slate-600 text-sm leading-relaxed mb-3">{company.description}</Text>
+        <Text className="text-stone-600 text-sm leading-relaxed mb-3">{company.description}</Text>
 
         {company.eventsManaged && (
-          <View className="bg-slate-50 rounded-xl p-3 mb-3">
-            <Text className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Events They Run</Text>
-            <Text className="text-slate-700 text-sm leading-relaxed">{company.eventsManaged}</Text>
+          <View className="bg-stone-50 rounded-xl p-3 mb-3">
+            <Text className="text-xs font-bold text-stone-500 uppercase tracking-wide mb-1.5">Events They Run</Text>
+            <Text className="text-stone-700 text-sm leading-relaxed">{company.eventsManaged}</Text>
           </View>
         )}
 
         <View className="flex-row flex-wrap gap-2 mb-3">
           {company.location && (
-            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
-              <Text className="text-slate-500 text-xs">📍 {company.location}</Text>
+            <View className="bg-stone-50 px-2.5 py-1 rounded-full">
+              <Text className="text-stone-500 text-xs">📍 {company.location}</Text>
             </View>
           )}
           {company.pitchFeeRange && (
-            <View className="bg-slate-50 px-2.5 py-1 rounded-full">
-              <Text className="text-slate-500 text-xs">💷 {company.pitchFeeRange}</Text>
+            <View className="bg-stone-50 px-2.5 py-1 rounded-full">
+              <Text className="text-stone-500 text-xs">💷 {company.pitchFeeRange}</Text>
             </View>
           )}
           {company.contactPhone && (
@@ -390,12 +390,12 @@ export default function DiscoverScreen() {
   const currentCount = activeTab === 'events' ? filteredEvents.length : filteredCompanies.length;
 
   return (
-    <View className="flex-1 bg-slate-50" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
       {/* Header */}
-      <View className="bg-white px-4 pt-3 pb-3 border-b border-slate-100">
+      <View className="bg-white px-4 pt-3 pb-3 border-b border-stone-100">
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <View>
-            <Text className="text-2xl font-bold text-slate-900">Discover</Text>
+            <Text className="text-2xl font-bold text-stone-900">Discover</Text>
             {lastSynced && (
               <Text className="text-stone-400 text-xs">
                 Last synced: {formatRelativeTime(lastSynced)}
@@ -448,10 +448,10 @@ export default function DiscoverScreen() {
         </View>
 
         {/* Search bar */}
-        <View className="flex-row items-center bg-slate-100 rounded-xl px-3 py-2.5 mb-3">
-          <Text className="text-slate-400 mr-2">🔍</Text>
+        <View className="flex-row items-center bg-stone-100 rounded-xl px-3 py-2.5 mb-3">
+          <Text className="text-stone-400 mr-2">🔍</Text>
           <TextInput
-            className="flex-1 text-slate-900 text-sm"
+            className="flex-1 text-stone-900 text-sm"
             placeholder={activeTab === 'apply' ? 'Search concessions companies...' : 'Search festivals, markets...'}
             placeholderTextColor="#94a3b8"
             value={searchText}
@@ -460,7 +460,7 @@ export default function DiscoverScreen() {
           />
           {searchText.length > 0 && (
             <TouchableOpacity onPress={() => setSearchText('')}>
-              <Text className="text-slate-400 text-lg">×</Text>
+              <Text className="text-stone-400 text-lg">×</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -521,16 +521,16 @@ export default function DiscoverScreen() {
       {isLoading ? (
         <View className="flex-1 items-center justify-center gap-3">
           <ActivityIndicator size="large" color="#f59e0b" />
-          <Text className="text-slate-500 text-sm">Loading directory...</Text>
+          <Text className="text-stone-500 text-sm">Loading directory...</Text>
         </View>
       ) : error ? (
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-4xl mb-3">⚠️</Text>
-          <Text className="font-semibold text-slate-700 text-center mb-2">Could not load directory</Text>
-          <Text className="text-slate-400 text-xs text-center mb-1">
+          <Text className="font-semibold text-stone-700 text-center mb-2">Could not load directory</Text>
+          <Text className="text-stone-400 text-xs text-center mb-1">
             {error instanceof Error ? error.message : 'Database error'}
           </Text>
-          <Text className="text-slate-400 text-xs text-center mb-4">
+          <Text className="text-stone-400 text-xs text-center mb-4">
             Run the Migration 003 SQL in your Supabase dashboard, then tap Retry.
           </Text>
           <TouchableOpacity onPress={() => refetch()} className="mt-2 bg-amber-500 px-6 py-3 rounded-xl">
@@ -542,17 +542,17 @@ export default function DiscoverScreen() {
           className="flex-1 px-4 pt-4"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#f59e0b" />}
         >
-          <Text className="text-slate-400 text-xs mb-3">{currentCount} {activeTab === 'apply' ? 'companies' : 'events'} found</Text>
+          <Text className="text-stone-400 text-xs mb-3">{currentCount} {activeTab === 'apply' ? 'companies' : 'events'} found</Text>
 
           {currentCount === 0 ? (
             <View className="items-center py-16 px-6">
               <Text className="text-4xl mb-3">{activeTab === 'apply' ? '🏢' : '🔍'}</Text>
-              <Text className="font-semibold text-slate-700 text-center text-base">Nothing matches your search</Text>
+              <Text className="font-semibold text-stone-700 text-center text-base">Nothing matches your search</Text>
               <TouchableOpacity
                 onPress={() => { setSearchText(''); setRegion('All UK'); setCategory('All'); }}
-                className="mt-4 border border-slate-200 px-5 py-2.5 rounded-xl"
+                className="mt-4 border border-stone-200 px-5 py-2.5 rounded-xl"
               >
-                <Text className="text-slate-600 font-medium text-sm">Clear filters</Text>
+                <Text className="text-stone-600 font-medium text-sm">Clear filters</Text>
               </TouchableOpacity>
             </View>
           ) : activeTab === 'apply' ? (

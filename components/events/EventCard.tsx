@@ -23,7 +23,7 @@ export const EventCard = React.memo(function EventCard({ event }: Props) {
       onPress={() => router.push(`/(tabs)/events/${event.id}`)}
       accessibilityRole="button"
       accessibilityLabel={`Open event ${event.name}`}
-      className="bg-white rounded-2xl mb-3 border border-slate-100 overflow-hidden"
+      className="bg-white rounded-2xl mb-3 border border-stone-100 overflow-hidden"
       activeOpacity={0.7}
       style={{
         elevation: 2,
@@ -46,14 +46,14 @@ export const EventCard = React.memo(function EventCard({ event }: Props) {
           <View className="flex-row items-start justify-between mb-1.5">
             <View className="flex-1 mr-3">
               <Text
-                className="font-bold text-slate-900 text-[15px] leading-snug"
+                className="font-bold text-stone-900 text-[15px] leading-snug"
                 numberOfLines={2}
               >
                 {event.name}
               </Text>
               <View className="flex-row items-center mt-1">
                 <Ionicons name="location-outline" size={12} color="#94a3b8" />
-                <Text className="text-slate-500 text-xs ml-1" numberOfLines={1}>
+                <Text className="text-stone-500 text-xs ml-1" numberOfLines={1}>
                   {event.location}
                 </Text>
               </View>
@@ -64,14 +64,14 @@ export const EventCard = React.memo(function EventCard({ event }: Props) {
           <View className="flex-row items-center flex-wrap gap-x-3 gap-y-1 mt-1">
             <View className="flex-row items-center">
               <Ionicons name="calendar-outline" size={11} color="#a8a29e" />
-              <Text className="text-slate-400 text-xs ml-1">
+              <Text className="text-stone-400 text-xs ml-1">
                 {formatDateRange(event.date, event.end_date)}
               </Text>
             </View>
             {event.concessions_companies && (
               <View className="flex-row items-center">
                 <Ionicons name="business-outline" size={11} color="#a8a29e" />
-                <Text className="text-slate-400 text-xs ml-1" numberOfLines={1}>
+                <Text className="text-stone-400 text-xs ml-1" numberOfLines={1}>
                   {event.concessions_companies.name}
                 </Text>
               </View>
@@ -79,7 +79,7 @@ export const EventCard = React.memo(function EventCard({ event }: Props) {
             {unitName && (
               <View className="flex-row items-center">
                 <Ionicons name="car-outline" size={11} color="#a8a29e" />
-                <Text className="text-slate-400 text-xs ml-1" numberOfLines={1}>
+                <Text className="text-stone-400 text-xs ml-1" numberOfLines={1}>
                   {unitName}
                 </Text>
               </View>
@@ -93,15 +93,15 @@ export const EventCard = React.memo(function EventCard({ event }: Props) {
           </View>
 
           {fin && fin.gross_sales > 0 && (
-            <View className="flex-row mt-3 pt-3 border-t border-slate-50 gap-5">
+            <View className="flex-row mt-3 pt-3 border-t border-stone-50 gap-5">
               <View>
-                <Text className="text-slate-400 text-[10px] uppercase tracking-wide">Gross Sales</Text>
-                <Text className="font-bold text-slate-900 text-sm mt-0.5">
+                <Text className="text-stone-400 text-[10px] uppercase tracking-wide">Gross Sales</Text>
+                <Text className="font-bold text-stone-900 text-sm mt-0.5">
                   {formatCurrency(fin.gross_sales)}
                 </Text>
               </View>
               <View>
-                <Text className="text-slate-400 text-[10px] uppercase tracking-wide">Net Profit</Text>
+                <Text className="text-stone-400 text-[10px] uppercase tracking-wide">Net Profit</Text>
                 <Text
                   className={`font-bold text-sm mt-0.5 ${
                     calc.netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'
@@ -111,7 +111,7 @@ export const EventCard = React.memo(function EventCard({ event }: Props) {
                 </Text>
               </View>
               <View>
-                <Text className="text-slate-400 text-[10px] uppercase tracking-wide">Margin</Text>
+                <Text className="text-stone-400 text-[10px] uppercase tracking-wide">Margin</Text>
                 <Text
                   className={`font-bold text-sm mt-0.5 ${
                     calc.profitMargin >= 20

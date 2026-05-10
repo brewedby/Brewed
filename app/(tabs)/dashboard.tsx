@@ -225,12 +225,12 @@ export default function DashboardScreen() {
                   {stats.unitStatuses.map((unit: UnitWithStatus) => (
                     <View
                       key={unit.id}
-                      className="bg-white rounded-2xl p-3 border border-slate-100 w-40 overflow-hidden"
+                      className="bg-white rounded-2xl p-3 border border-stone-100 w-40 overflow-hidden"
                       style={{ borderLeftWidth: 3, borderLeftColor: UNIT_STATUS_COLORS[unit.status].dot }}
                     >
-                      <Text className="font-bold text-slate-900 text-sm" numberOfLines={1}>{unit.name}</Text>
+                      <Text className="font-bold text-stone-900 text-sm" numberOfLines={1}>{unit.name}</Text>
                       {unit.registration ? (
-                        <Text className="text-xs text-slate-400 mt-0.5">{unit.registration}</Text>
+                        <Text className="text-xs text-stone-400 mt-0.5">{unit.registration}</Text>
                       ) : null}
                       <View className="mt-1.5">
                         {unit.currentEvent ? (
@@ -254,17 +254,17 @@ export default function DashboardScreen() {
               <View>
                 <Text className="font-bold text-stone-900 mb-3">Milk Used (YTD) — {year}</Text>
                 <View className="flex-row gap-3">
-                  <View className="flex-1 bg-white rounded-xl p-3 border border-slate-100">
-                    <Text className="text-slate-700 font-semibold text-sm">
+                  <View className="flex-1 bg-white rounded-xl p-3 border border-stone-100">
+                    <Text className="text-stone-700 font-semibold text-sm">
                       🥛 {stats.totalFreshMilkLitres.toFixed(1)} L
                     </Text>
-                    <Text className="text-slate-400 text-xs mt-0.5">Fresh Milk</Text>
+                    <Text className="text-stone-400 text-xs mt-0.5">Fresh Milk</Text>
                   </View>
-                  <View className="flex-1 bg-white rounded-xl p-3 border border-slate-100">
-                    <Text className="text-slate-700 font-semibold text-sm">
+                  <View className="flex-1 bg-white rounded-xl p-3 border border-stone-100">
+                    <Text className="text-stone-700 font-semibold text-sm">
                       🌱 {stats.totalAltMilkLitres.toFixed(1)} L
                     </Text>
-                    <Text className="text-slate-400 text-xs mt-0.5">Alt Milk</Text>
+                    <Text className="text-stone-400 text-xs mt-0.5">Alt Milk</Text>
                   </View>
                 </View>
               </View>
@@ -281,11 +281,11 @@ export default function DashboardScreen() {
             {/* Reports quick access */}
             <TouchableOpacity
               onPress={() => router.push('/(tabs)/reports')}
-              className="bg-white rounded-2xl p-4 border border-slate-100 flex-row items-center justify-between"
+              className="bg-white rounded-2xl p-4 border border-stone-100 flex-row items-center justify-between"
             >
               <View className="flex-1 mr-3">
-                <Text className="font-bold text-slate-900 text-sm">📈 Reports</Text>
-                <Text className="text-slate-400 text-xs mt-0.5">Annual P&L, top events, export CSV</Text>
+                <Text className="font-bold text-stone-900 text-sm">📈 Reports</Text>
+                <Text className="text-stone-400 text-xs mt-0.5">Annual P&L, top events, export CSV</Text>
               </View>
               <Text className="text-amber-600 font-medium text-sm">View →</Text>
             </TouchableOpacity>
