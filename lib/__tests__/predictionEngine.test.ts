@@ -554,6 +554,51 @@ import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
     `drivers="${drivers}"`);
 }
 
+// 31m. getActiveTradeType handles every "missing-ish" profile shape sanely.
+//      The Settings UI showed Coffee selected because the local state defaulted
+//      to Coffee, but the prediction card was reading raw business_type and
+//      getting empty / null / whitespace — which the engine treated as Other.
+//      The helper now centralises the resolution and the loader defaults
+//      empty strings to Coffee, so every consumer agrees.
+{
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { getActiveTradeType, normalizeTradeType } = require('@/lib/tradeTypeConfig');
+
+  // Variant 1: profile is null entirely (auth/load failure)
+  expect('getActive_null_profile_returns_other',
+    getActiveTradeType(null) === 'Other',
+    `result=${getActiveTradeType(null)}`);
+
+  // Variant 2: profile has explicit Coffee
+  expect('getActive_explicit_coffee',
+    getActiveTradeType({ business_type: 'Coffee' }) === 'Coffee',
+    `result=${getActiveTradeType({ business_type: 'Coffee' })}`);
+
+  // Variant 3: profile has empty string — engine should fall back to Other
+  //           (the profile loader is what defaults empty -> Coffee at fetch time)
+  expect('getActive_empty_string_returns_other_directly',
+    getActiveTradeType({ business_type: '' }) === 'Other',
+    `result=${getActiveTradeType({ business_type: '' })}`);
+
+  // Variant 4: profile has whitespace-only — same behaviour
+  expect('getActive_whitespace_returns_other_directly',
+    getActiveTradeType({ business_type: '   ' }) === 'Other',
+    `result=${getActiveTradeType({ business_type: '   ' })}`);
+
+  // Variant 5: profile has alias variants — all resolve to canonical Coffee
+  for (const alias of ['coffee', 'COFFEE', 'Coffee Van', 'coffee_cart', 'Espresso bar']) {
+    const got = getActiveTradeType({ business_type: alias });
+    expect(`getActive_alias_${alias.replace(/\s+/g, '_')}_to_coffee`,
+      got === 'Coffee',
+      `${alias} -> ${got}`);
+  }
+
+  // Variant 6: normalize handles plain "Coffee" identity
+  expect('normalize_coffee_identity',
+    normalizeTradeType('Coffee') === 'Coffee',
+    `normalize('Coffee')=${normalizeTradeType('Coffee')}`);
+}
+
 // 31l. Percentage splits sum to exactly 100 across every kind that has a split.
 //      Math.round() on independent values can drift to 99/101 — we round once
 //      and derive the complement, so the two %s always add up.
