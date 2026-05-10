@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
+import * as LegacyFS from 'expo-file-system/legacy';
 import { supabase } from '@/lib/supabase';
 import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
 import { reconcileLines } from '@/lib/parsers/productMatcher';
@@ -24,63 +25,68 @@ export interface UploadAndReconcileResult {
   summary: ReconciliationSummary;
 }
 
-/**
- * Read the picked CSV file as text. Tries strategies in order:
- *  1. expo-file-system readAsStringAsync (most reliable on iOS)
- *  2. fetch(asset.uri) (handles some content:// URIs and dev-server cases)
- *  3. Base64 read + utf-8 decode (fallback for iCloud / sandboxed paths)
- * Returns '' if every strategy yields empty content; the caller surfaces a
- * useful error rather than silently treating that as "file empty".
- */
-async function readCsvContent(asset: { uri: string; name: string }): Promise<string> {
-  // 1. FileSystem direct read
-  try {
-    const text = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'utf8' });
-    if (text && text.trim().length > 0) return text;
-  } catch {
-    // fall through
-  }
-  // 2. fetch the URI
-  try {
-    const response = await fetch(asset.uri);
-    if (response.ok) {
-      const text = await response.text();
-      if (text && text.trim().length > 0) return text;
-    }
-  } catch {
-    // fall through
-  }
-  // 3. Base64 read + manual UTF-8 decode (helps with iCloud-hosted picker URIs)
-  try {
-    const b64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'base64' });
-    if (b64 && b64.length > 0) {
-      const decoded = decodeBase64Utf8(b64);
-      if (decoded && decoded.trim().length > 0) return decoded;
-    }
-  } catch {
-    // give up
-  }
-  return '';
+type ReadAttempt = { strategy: string; ok: boolean; bytes?: number; reason?: string };
+
+interface ReadResult {
+  text: string;
+  /** True only when we positively confirmed the picked file is genuinely 0 bytes,
+   *  rather than failing to read it. Lets the caller distinguish "empty export"
+   *  from "iCloud not synced / API failure". */
+  fileEmptyOnDisk: boolean;
+  attempts: ReadAttempt[];
 }
 
-function decodeBase64Utf8(b64: string): string {
-  // Decode base64 → bytes → utf-8 string. global.atob exists in Hermes RN.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const atob = (globalThis as any).atob as undefined | ((s: string) => string);
-  if (!atob) return '';
+/**
+ * Read the picked CSV file as text. expo-file-system v19 (SDK 54) deprecated
+ * the top-level legacy functions and they THROW at runtime — the previous
+ * `await FileSystem.readAsStringAsync(...)` was silently failing every time
+ * in production builds. We use the new `File` class as the primary path and
+ * fall back to the legacy namespace + plain fetch for content:// URIs.
+ */
+async function readCsvContent(asset: { uri: string; name: string }): Promise<ReadResult> {
+  const attempts: ReadAttempt[] = [];
+
+  // 1. New File class API (SDK 54+ canonical path).
   try {
-    const binary = atob(b64);
-    const len = binary.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-    if (typeof TextDecoder !== 'undefined') {
-      return new TextDecoder('utf-8').decode(bytes);
+    const file = new File(asset.uri);
+    if (!file.exists) {
+      attempts.push({ strategy: 'File.exists', ok: false, reason: 'file does not exist at uri' });
+    } else if (file.size === 0) {
+      // The file resolved but has zero bytes locally. Distinct from a read
+      // failure — almost always means iCloud hasn't downloaded it yet.
+      attempts.push({ strategy: 'File.text', ok: false, bytes: 0, reason: '0 bytes on disk' });
+      return { text: '', fileEmptyOnDisk: true, attempts };
+    } else {
+      const text = await file.text();
+      attempts.push({ strategy: 'File.text', ok: text.length > 0, bytes: text.length });
+      if (text && text.trim().length > 0) return { text, fileEmptyOnDisk: false, attempts };
     }
-    // Fallback: best-effort latin-1 decode
-    return binary;
-  } catch {
-    return '';
+  } catch (e) {
+    attempts.push({ strategy: 'File.text', ok: false, reason: e instanceof Error ? e.message : String(e) });
   }
+
+  // 2. Legacy namespace import. Works on dev builds where the new API may
+  //    not yet be linked, and as a Belt-and-braces fallback for edge cases.
+  try {
+    const text = await LegacyFS.readAsStringAsync(asset.uri, { encoding: 'utf8' as 'utf8' });
+    attempts.push({ strategy: 'legacy.readAsStringAsync', ok: !!text, bytes: text?.length ?? 0 });
+    if (text && text.trim().length > 0) return { text, fileEmptyOnDisk: false, attempts };
+  } catch (e) {
+    attempts.push({ strategy: 'legacy.readAsStringAsync', ok: false, reason: e instanceof Error ? e.message : String(e) });
+  }
+
+  // 3. fetch the URI. Helps on Android content:// and on simulator dev where
+  //    file:// URIs resolve via the JS bridge.
+  try {
+    const response = await fetch(asset.uri);
+    const text = response.ok ? await response.text() : '';
+    attempts.push({ strategy: 'fetch', ok: response.ok && text.length > 0, bytes: text.length, reason: response.ok ? undefined : `HTTP ${response.status}` });
+    if (text && text.trim().length > 0) return { text, fileEmptyOnDisk: false, attempts };
+  } catch (e) {
+    attempts.push({ strategy: 'fetch', ok: false, reason: e instanceof Error ? e.message : String(e) });
+  }
+
+  return { text: '', fileEmptyOnDisk: false, attempts };
 }
 
 /**
@@ -132,20 +138,47 @@ export function useUploadSalesReport() {
       if (isCSV) {
         // --- CSV: try multiple read strategies; each produces different
         // failure modes on iOS / Android / dev / TestFlight builds. ---
-        const content = await readCsvContent(asset);
+        const read = await readCsvContent(asset);
 
-        if (!content || content.trim().length === 0) {
-          const sizeNote = asset.size ? ` (file size: ${asset.size} bytes)` : '';
+        if (__DEV__) {
+          // Dev-only — never logs raw line content, only attempt outcomes.
+          // eslint-disable-next-line no-console
+          console.log('[CSV read]', {
+            file: asset.name,
+            assetSize: asset.size,
+            mime: asset.mimeType,
+            attempts: read.attempts,
+            fileEmptyOnDisk: read.fileEmptyOnDisk,
+          });
+        }
+
+        if (!read.text || read.text.trim().length === 0) {
+          if (read.fileEmptyOnDisk && asset.size && asset.size > 0) {
+            // File exists but local copy is 0 bytes despite picker reporting
+            // bytes — this is the iCloud-not-yet-downloaded case.
+            throw new Error(
+              `"${asset.name}" hasn't fully downloaded from iCloud (Files reports ${asset.size} bytes but the local copy is empty).\n\n` +
+              'Open the Files app, tap-and-hold the CSV, choose "Download Now", wait for the cloud icon to disappear, then try again.',
+            );
+          }
+          if (read.fileEmptyOnDisk) {
+            throw new Error(
+              `"${asset.name}" is empty (0 bytes). Re-export the report from your EPOS and try again.`,
+            );
+          }
+          // All read strategies failed for non-empty file. Surface the failure
+          // reasons so a real iOS issue is visible instead of "empty file".
+          const reasons = read.attempts.map((a) => `${a.strategy}: ${a.ok ? 'ok' : a.reason ?? 'failed'}`).join(' | ');
           throw new Error(
-            `Couldn't read the file "${asset.name}"${sizeNote}.\n` +
-            'The file may not have downloaded fully from iCloud, or your EPOS export may have produced an empty file. ' +
-            'Try saving the CSV to your Files app first, then upload it from there.',
+            `Couldn't read "${asset.name}"${asset.size ? ` (${asset.size} bytes)` : ''}. ` +
+            'Try saving the file to your Files app first and uploading from there. ' +
+            (__DEV__ ? `\n\nDiagnostics: ${reasons}` : ''),
           );
         }
 
         let parsed;
         try {
-          parsed = parseCSVSalesReport(content, asset.size ?? null);
+          parsed = parseCSVSalesReport(read.text, asset.size ?? null);
         } catch (e) {
           const detail = e instanceof Error ? e.message : String(e);
           throw new Error(`Couldn't read this CSV. ${detail}`);
@@ -153,7 +186,7 @@ export function useUploadSalesReport() {
         if (__DEV__ && parsed.diagnostics) {
           // Dev-only — never logs raw line content, only counts and column names.
           // eslint-disable-next-line no-console
-          console.log('[CSV import]', {
+          console.log('[CSV parse]', {
             file: asset.name,
             size: parsed.diagnostics.fileSizeBytes,
             rawLines: parsed.diagnostics.rawLineCount,
@@ -191,12 +224,21 @@ export function useUploadSalesReport() {
 
         if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
-        // Call Edge Function to parse the PDF
+        // Call Edge Function to parse the PDF.
         const { data: edgeResult, error: edgeError } = await supabase.functions.invoke(
           'parse-pdf',
           { body: { storagePath, eventId } },
         );
-        if (edgeError) throw new Error(`PDF parsing failed: ${edgeError.message}`);
+        if (edgeError) {
+          // PDF parsing runs server-side — when it fails the user can't debug it.
+          // Steer them to the CSV path which is parsed locally and is reliable.
+          throw new Error(
+            "We couldn't read this PDF on the server. " +
+            'Most EPOS systems also export CSV — try that format instead, ' +
+            'it imports faster and we can match line items directly to your catalog.\n\n' +
+            `Server detail: ${edgeError.message}`,
+          );
+        }
 
         const parsedLines = (edgeResult as { lines: typeof lines }).lines ?? [];
         lines = reconcileLines(parsedLines, catalog);
