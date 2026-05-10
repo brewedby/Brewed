@@ -21,6 +21,7 @@ import { useTheme } from '@/lib/themeContext';
 import { BackBar } from '@/components/shared/BackBar';
 import { pushTrail } from '@/lib/navTrail';
 import { useProfile } from '@/lib/queries/profile';
+import { getActiveTradeType } from '@/lib/tradeTypeConfig';
 import { farStatus, STATUS_DOT } from '@/lib/theme';
 import { formatDateRange, formatDate, toISODateString } from '@/lib/formatters';
 import { STATUSES, STATUS_LABELS } from '@/constants';
@@ -109,7 +110,11 @@ export default function EventDetailScreen() {
 
   const { data: event, isLoading, refetch } = useEvent(id);
   const { data: profile, isLoading: profileLoading } = useProfile(user?.id);
-  const tradeType = profile?.business_type ?? null;
+  // Single source of truth: getActiveTradeType normalises the profile's
+  // business_type into a canonical key (Coffee / Burgers / Pizza / …).
+  // Passing the canonical value to the card removes any chance of
+  // case-mismatch, whitespace, or alias surprises downstream.
+  const tradeType = getActiveTradeType(profile);
   const deleteEvent = useDeleteEvent();
   const createEvent = useCreateEvent();
   const [refreshing, setRefreshing] = useState(false);
