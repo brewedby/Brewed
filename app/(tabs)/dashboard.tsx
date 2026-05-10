@@ -10,6 +10,7 @@ import { StatusPieChart } from '@/components/dashboard/StatusPieChart';
 import { EventCard } from '@/components/events/EventCard';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { QueryError } from '@/components/shared/QueryError';
+import { EditionStrip } from '@/components/shared/EditionStrip';
 import { useAuth } from '@/lib/auth';
 import { useProfile } from '@/lib/queries/profile';
 import { UNIT_STATUS_COLORS } from '@/constants';
@@ -78,24 +79,19 @@ export default function DashboardScreen() {
 
   return (
     <View className="flex-1 bg-stone-50" style={{ paddingTop: insets.top }}>
-      {/* Header */}
-      <View className="bg-white px-4 pt-2 pb-3 border-b border-stone-100">
-        <View className="flex-row items-center gap-2 mb-2">
-          <View className="w-8 h-8 bg-amber-700 rounded-lg items-center justify-center">
-            <Text className="text-base">☕</Text>
-          </View>
-          <View>
-            <Text className="font-bold text-stone-900 text-base">{profile?.business_name ?? 'My Business'}</Text>
-            <Text className="text-stone-400 text-xs">{user?.email}</Text>
-          </View>
-        </View>
+      {/* Newspaper masthead */}
+      <EditionStrip businessName={profile?.business_name ?? 'My Business'} />
 
-        {/* Year selector */}
+      {/* Year selector */}
+      <View className="bg-white px-4 py-3 border-b border-stone-100">
         <View className="flex-row gap-2">
           {YEARS.map((y) => (
             <TouchableOpacity
               key={y}
               onPress={() => setYear(y)}
+              accessibilityRole="button"
+              accessibilityLabel={`Show ${y}`}
+              accessibilityState={{ selected: year === y }}
               className={`px-4 py-1.5 rounded-full ${year === y ? 'bg-amber-700' : 'bg-stone-100'}`}
             >
               <Text className={`text-sm font-medium ${year === y ? 'text-white' : 'text-stone-600'}`}>{y}</Text>

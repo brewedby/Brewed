@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useReports } from '@/lib/queries/reports';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { EventStatusBadge } from '@/components/shared/EventStatusBadge';
-import { formatCurrency, formatPercent, formatDate } from '@/lib/formatters';
+import { formatCurrency, formatCurrencyInt, formatPercent, formatDate } from '@/lib/formatters';
 import { useAuth } from '@/lib/auth';
 import { useProfile } from '@/lib/queries/profile';
 
@@ -131,12 +131,12 @@ export default function ReportsScreen() {
               <View key={m.month} className="flex-row px-4 py-2.5 border-b border-stone-50">
                 <Text className="text-stone-700 text-xs font-medium flex-1">{m.monthLabel}</Text>
                 <Text className="text-stone-600 text-xs flex-1 text-right">{m.eventCount}</Text>
-                <Text className="text-stone-700 text-xs flex-1 text-right font-medium">£{m.grossSales.toFixed(0)}</Text>
+                <Text className="text-stone-700 text-xs flex-1 text-right font-medium">{formatCurrencyInt(m.grossSales)}</Text>
                 <Text className={`text-xs flex-1 text-right font-medium ${m.netProfit >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                  £{m.netProfit.toFixed(0)}
+                  {formatCurrencyInt(m.netProfit)}
                 </Text>
                 <Text className={`text-xs flex-1 text-right ${m.profitMargin >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                  {m.profitMargin.toFixed(0)}%
+                  {formatPercent(m.profitMargin, 0)}
                 </Text>
               </View>
             ))}

@@ -28,12 +28,16 @@ export function ConfirmSheet({
               <TouchableOpacity
                 className={`py-4 rounded-xl items-center ${destructive ? 'bg-red-600' : 'bg-amber-700'}`}
                 onPress={onConfirm}
+                accessibilityRole="button"
+                accessibilityLabel={confirmLabel}
               >
                 <Text className="text-white font-semibold">{confirmLabel}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 className="py-4 rounded-xl items-center bg-stone-100"
                 onPress={onCancel}
+                accessibilityRole="button"
+                accessibilityLabel={cancelLabel}
               >
                 <Text className="text-stone-700 font-semibold">{cancelLabel}</Text>
               </TouchableOpacity>

@@ -19,7 +19,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.brewedbyboon.app"
+      "bundleIdentifier": "com.brewedbyboon.app",
+      "deploymentTarget": "15.1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {

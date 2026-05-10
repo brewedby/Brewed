@@ -67,3 +67,9 @@ export const BRAND = {
   dark:      '#1c1917',
   light:     '#fdf8f0',
 };
+
+// User-facing support + privacy URLs (App Store requirement)
+// Update these to your real hosted URLs before public submission.
+export const SUPPORT_EMAIL = 'support@brewedbyboon.com';
+export const PRIVACY_POLICY_URL = 'https://brewedbyboon.com/privacy';
+export const TERMS_URL = 'https://brewedbyboon.com/terms';

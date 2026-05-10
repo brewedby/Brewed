@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Switch, RefreshControl } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Switch, RefreshControl, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/lib/auth';
 import { useProfile, useUpdateProfile } from '@/lib/queries/profile';
 import type { Metric } from '@/lib/queries/profile';
-import { BUSINESS_TYPES } from '@/constants';
+import { BUSINESS_TYPES, SUPPORT_EMAIL, PRIVACY_POLICY_URL } from '@/constants';
 const CURRENCIES = [
   { code: 'GBP', symbol: '£', label: 'GBP (£)' },
   { code: 'EUR', symbol: '€', label: 'EUR (€)' },
@@ -277,6 +277,29 @@ export default function SettingsScreen() {
         >
           <Text className="text-stone-600 font-medium">Sign Out</Text>
         </TouchableOpacity>
+
+        {/* ── Help & Legal ── */}
+        <Text className="text-xs font-bold text-stone-400 uppercase tracking-wide mb-2">Help & Legal</Text>
+        <View className="bg-white rounded-2xl border border-stone-100 mb-6 overflow-hidden">
+          <TouchableOpacity
+            onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=Brewed%20support`)}
+            accessibilityRole="link"
+            accessibilityLabel={`Email support at ${SUPPORT_EMAIL}`}
+            className="px-4 py-3.5 flex-row items-center justify-between border-b border-stone-100"
+          >
+            <Text className="text-stone-700 text-sm">Contact Support</Text>
+            <Text className="text-stone-400 text-xs">{SUPPORT_EMAIL} ›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+            accessibilityRole="link"
+            accessibilityLabel="Open privacy policy"
+            className="px-4 py-3.5 flex-row items-center justify-between"
+          >
+            <Text className="text-stone-700 text-sm">Privacy Policy</Text>
+            <Text className="text-stone-400 text-xs">›</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* App version */}
         <Text className="text-stone-300 text-xs text-center mb-8">Version {APP_VERSION}</Text>
