@@ -22,9 +22,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Alert, Platform } from 'react-native';
-import { Alert, Platform } from 'react-native';
-import Constants from 'expo-constants';                       // <-- ADD THIS
-import { useQueryClient } from '@tanstack/react-query';
+import Constants from 'expo-constants';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { useProfile } from '@/lib/queries/profile';
@@ -56,10 +54,17 @@ type IapModule = {
 function loadIap(): IapModule | null {
   // Only iOS has Apple IAP; Android would use Google Play Billing.
   if (Platform.OS !== 'ios') return null;
-  if (Constants.appOwnership === 'expo') return null;         // <-- ADD THIS
+  // Skip in Expo Go (legacy + modern SDK detection). expo-iap is a native
+  // module that is not linked into Expo Go's runtime.
+  if ((Constants as unknown as { appOwnership?: string }).appOwnership === 'expo') return null;
+  if (Constants.executionEnvironment === 'storeClient') return null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require('expo-iap') as IapModule;
+  } catch {
+    return null;
+  }
+}
   } catch {
     return null;
   }
