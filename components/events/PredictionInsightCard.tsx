@@ -15,8 +15,8 @@
 // COGS guarantee: we never display, suggest, or compute cost-of-goods
 // here. The engine reads only quantities and revenue.
 
-import React, { useEffect, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/themeContext';
@@ -27,7 +27,9 @@ import { getTradeConfig, normalizeTradeType } from '@/lib/tradeTypeConfig';
 import { CATEGORY_DEFINITIONS } from '@/types/cogs';
 import { predict, type PredictionResult, type Confidence } from '@/lib/predictionEngine';
 import { useSavePrediction } from '@/lib/mutations/predictions';
+import { useUpdateProfile } from '@/lib/queries/profile';
 import { useAuth } from '@/lib/auth';
+import { BUSINESS_TYPES } from '@/constants';
 
 // Categories shown in "PLAN STOCK FOR" when the engine returns drink_split.
 // Coffee/drink traders never see food mains/sides/extras chips.
@@ -56,11 +58,48 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
 
   const { user } = useAuth();
   const savePrediction = useSavePrediction();
+  const updateProfile = useUpdateProfile();
   const savedRef = useRef<string | null>(null);
+  const [showInlinePicker, setShowInlinePicker] = useState(false);
+  const [savingTradeType, setSavingTradeType] = useState(false);
 
   const { data: observations = [], isLoading: obsLoading } = useEventObservations();
   const { data: dailyTakings = [], isLoading: dtLoading } = useAllDailyTakings();
   const loading = obsLoading || dtLoading || !!isProfileLoading;
+
+  // Dev-only: log how the trade type was resolved so a "showing OTHER but
+  // I selected COFFEE" mismatch becomes visible in the Metro console.
+  // Production builds skip this entirely (no raw profile data logged either).
+  if (__DEV__) {
+    // eslint-disable-next-line no-console
+    console.log('[Prediction]', {
+      rawTradeType: tradeType,
+      canonical: canonicalTradeType,
+      configLabel: config.label,
+      isProfileLoading: !!isProfileLoading,
+      eventId,
+    });
+  }
+
+  // Inline trade-type picker handler. When the user is sitting on the
+  // OTHER fallback and they tap a real trade type from the picker, we
+  // write it back to their profile so every screen converges to the
+  // same answer immediately — no need to navigate to Settings.
+  async function pickTradeType(picked: string) {
+    if (!user) return;
+    setSavingTradeType(true);
+    try {
+      await updateProfile.mutateAsync({
+        userId: user.id,
+        updates: { business_type: picked },
+      });
+      setShowInlinePicker(false);
+    } catch (e) {
+      Alert.alert('Could not save', e instanceof Error ? e.message : 'Please try again.');
+    } finally {
+      setSavingTradeType(false);
+    }
+  }
 
   const result: PredictionResult | null = useMemo(() => {
     if (loading) return null;
@@ -118,6 +157,10 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
             palette={p}
             canonicalTradeType={canonicalTradeType}
             onOpenSettings={() => router.push('/(tabs)/settings')}
+            showInlinePicker={showInlinePicker}
+            onTogglePicker={() => setShowInlinePicker((v) => !v)}
+            onPickTradeType={pickTradeType}
+            savingTradeType={savingTradeType}
           />
         )}
       </View>
@@ -139,6 +182,7 @@ function LoadingForecast({ tagline }: { tagline: string }) {
 function ForecastCard({
   result, tagline, tradeLabel, tradeMenuCategories, forecastTempC, isDark, palette,
   canonicalTradeType, onOpenSettings,
+  showInlinePicker, onTogglePicker, onPickTradeType, savingTradeType,
 }: {
   result: PredictionResult;
   tagline: string;
@@ -149,6 +193,10 @@ function ForecastCard({
   palette: ReturnType<typeof useTheme>['tokens']['palette'];
   canonicalTradeType: string;
   onOpenSettings: () => void;
+  showInlinePicker: boolean;
+  onTogglePicker: () => void;
+  onPickTradeType: (picked: string) => void;
+  savingTradeType: boolean;
 }) {
   const p = palette;
   const conf = confidencePresentation(result.confidence, isDark, p);
@@ -180,17 +228,17 @@ function ForecastCard({
           </Text>
         </View>
         {isUnsetTradeType && (
-          <TouchableOpacity onPress={onOpenSettings} accessibilityRole="button" accessibilityLabel="Open settings to set trade type">
-            <Text style={{ fontSize: 11, color: p.brand, fontWeight: '700' }}>Change →</Text>
+          <TouchableOpacity onPress={onTogglePicker} accessibilityRole="button" accessibilityLabel="Pick trade type inline">
+            <Text style={{ fontSize: 11, color: p.brand, fontWeight: '700' }}>{showInlinePicker ? 'Hide' : 'Change'} →</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Prominent CTA when trade type isn't set — this is the actual fix for
-          users who never realised the engine fell back to General. */}
-      {isUnsetTradeType && (
+      {/* Prominent CTA when trade type isn't set — opens the inline picker
+          right here so the user doesn't have to navigate to Settings. */}
+      {isUnsetTradeType && !showInlinePicker && (
         <TouchableOpacity
-          onPress={onOpenSettings}
+          onPress={onTogglePicker}
           accessibilityRole="button"
           accessibilityLabel="Set your trade type for sharper forecasts"
           style={{
@@ -203,7 +251,7 @@ function ForecastCard({
           <Ionicons name="information-circle-outline" size={16} color={p.brand} />
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 12, fontWeight: '700', color: p.text }}>
-              Set your trade type for a sharper forecast
+              Pick your trade type for a sharper forecast
             </Text>
             <Text style={{ fontSize: 11, color: p.textMuted, marginTop: 2, lineHeight: 15 }}>
               Coffee gets a hot/iced split, food gets attach rates, ice cream is weather-led.
@@ -212,6 +260,45 @@ function ForecastCard({
           </View>
           <Ionicons name="chevron-forward" size={14} color={p.brand} />
         </TouchableOpacity>
+      )}
+
+      {/* Inline picker — let the user pick their trade type from the
+          prediction card itself. Saves to profile.business_type and the
+          card immediately re-renders with the right kind of forecast. */}
+      {isUnsetTradeType && showInlinePicker && (
+        <View style={{
+          borderWidth: 1, borderColor: p.brand,
+          backgroundColor: p.surfaceAlt,
+          padding: 12, marginBottom: 12,
+        }}>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: p.text, marginBottom: 8 }}>
+            What do you sell?
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {BUSINESS_TYPES.map((t) => (
+              <TouchableOpacity
+                key={t}
+                onPress={() => onPickTradeType(t)}
+                disabled={savingTradeType}
+                accessibilityRole="radio"
+                accessibilityLabel={t}
+                style={{
+                  paddingHorizontal: 10, paddingVertical: 6,
+                  borderWidth: 1, borderColor: p.borderStrong,
+                  backgroundColor: 'transparent',
+                  opacity: savingTradeType ? 0.5 : 1,
+                }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '600', color: p.text }}>{t}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {savingTradeType && (
+            <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 8 }}>
+              Saving…
+            </Text>
+          )}
+        </View>
       )}
 
       {/* Header: tagline + confidence badge */}
