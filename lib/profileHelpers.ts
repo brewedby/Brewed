@@ -65,3 +65,34 @@ export function isExplicitTradeTypeFor(
 // Supabase client upgrade that changes the code can be caught in
 // tests rather than silently regressing the self-heal path.
 export const POSTGREST_NO_ROWS = 'PGRST116';
+
+/**
+ * Single source of truth for "has the user finished signup?". The app
+ * gates the onboarding redirect on this — it must NOT fire while the
+ * profile is still loading or in an error state, otherwise a transient
+ * fetch failure bounces the user into onboarding every time the
+ * layout's redirect useEffect re-runs (e.g. on every tab navigation).
+ *
+ * Setup is considered complete iff the profile has loaded AND
+ * business_name is a non-empty string. Empty/whitespace counts as
+ * unset — the same rule the original onboarding form enforced via
+ * its `.trim()` check.
+ *
+ * Contract:
+ *   isProfileSetupComplete(undefined) === false  // not loaded yet
+ *   isProfileSetupComplete({}) === false         // loaded, no name
+ *   isProfileSetupComplete({ business_name: '' }) === false
+ *   isProfileSetupComplete({ business_name: '   ' }) === false
+ *   isProfileSetupComplete({ business_name: 'X' }) === true
+ *
+ * Callers MUST also gate on `profileLoading` separately — this
+ * predicate only inspects the value, not the load state.
+ */
+export function isProfileSetupComplete(
+  profile: { business_name?: string | null } | null | undefined,
+): boolean {
+  if (!profile) return false;
+  const name = profile.business_name;
+  if (typeof name !== 'string') return false;
+  return name.trim().length > 0;
+}

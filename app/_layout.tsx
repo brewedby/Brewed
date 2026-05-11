@@ -11,6 +11,7 @@ import * as Linking from 'expo-linking';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ThemeProvider, useTheme } from '@/lib/themeContext';
 import { useProfile } from '@/lib/queries/profile';
+import { isProfileSetupComplete } from '@/lib/profileHelpers';
 import { SubscriptionProvider, useSubscription } from '@/lib/iap/SubscriptionContext';
 import { supabase } from '@/lib/supabase';
 import { useNetworkStatus } from '@/lib/useNetworkStatus';
@@ -64,13 +65,34 @@ function RootLayoutNav() {
     const onPaywall = inModal && segs[1] === 'paywall';
     const onPrivacy = inModal && segs[1] === 'privacy';
 
+    // Sign-in routing — purely auth-driven, doesn't depend on profile.
     if (!session && !inAuthGroup) {
       router.replace('/(auth)/sign-in');
       return;
     }
 
+    // Every redirect below this point inspects `profile.business_name`.
+    // Wait for the profile fetch to settle before deciding — otherwise
+    // a transient loading/error state evaluates `!profile?.business_name`
+    // as truthy (undefined is falsy) and bounces a fully-onboarded user
+    // into onboarding. That was the cause of the "click Events, get
+    // onboarding" loop after useProfile started throwing on errors
+    // instead of silently returning null.
+    //
+    // `profile` undefined post-loading means the query errored (React
+    // Query keeps previous data on background refetch errors, so this
+    // only triggers on a hard initial failure). Don't redirect — let
+    // React Query retry. The user stays where they are; if they're on
+    // a screen that doesn't render without a profile, that screen
+    // shows its own loading / error UI.
+    if (profileLoading) return;
+    if (!profile) return;
+
+    const setupComplete = isProfileSetupComplete(profile);
+
+    // Post-sign-in routing.
     if (session && inAuthGroup) {
-      if (!profile?.business_name) {
+      if (!setupComplete) {
         router.replace('/onboarding');
       } else if (!isEntitled && subReady) {
         router.replace('/(modal)/paywall');
@@ -80,8 +102,8 @@ function RootLayoutNav() {
       return;
     }
 
-    // Onboarding gate (must complete profile before paywall)
-    if (session && !inAuthGroup && !inOnboarding && !profile?.business_name && profile !== null && !profileLoading) {
+    // Onboarding gate (must complete profile before paywall).
+    if (session && !inAuthGroup && !inOnboarding && !setupComplete) {
       router.replace('/onboarding');
       return;
     }
@@ -90,7 +112,7 @@ function RootLayoutNav() {
     // Allow privacy modal so users can read the privacy summary from paywall.
     if (
       session &&
-      profile?.business_name &&
+      setupComplete &&
       !isEntitled &&
       subReady &&
       !onPaywall &&
