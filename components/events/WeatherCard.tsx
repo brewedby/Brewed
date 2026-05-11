@@ -3,6 +3,7 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import { differenceInDays, parseISO, eachDayOfInterval, format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/lib/themeContext';
+import { normalizeTradeType } from '@/lib/tradeTypeConfig';
 
 interface OMDay {
   date: string;
@@ -139,13 +140,21 @@ export function WeatherCard({
   endDate,
   eventId,
   onTempFetched,
+  tradeType,
 }: {
   location: string;
   startDate: string;
   endDate?: string | null;
   eventId?: string;
   onTempFetched?: (avgTemp: number) => void;
+  /** Canonical trade type. Only used to gate the "Prepare: X% Hot /
+   *  Y% Iced" prep recommendation — that's drink-trade-specific and
+   *  was previously shown to every trader (a wrong-type crossover). */
+  tradeType?: string | null;
 }) {
+  // Canonicalise once so the gate below is alias-tolerant.
+  const canonicalTrade = normalizeTradeType(tradeType);
+  const showHotIcedSplit = canonicalTrade === 'Coffee';
   const { tokens, isDark } = useTheme();
   const p = tokens.palette;
   const [days, setDays] = useState<DualDay[] | null>(null);
@@ -383,18 +392,24 @@ export function WeatherCard({
         </View>
       )}
 
-      {/* Hot vs Iced split */}
-      <Text style={{ fontSize: 11, color: p.textMuted, fontWeight: '700', letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase' }}>
-        Prepare: {hot}% Hot / {iced}% Iced
-      </Text>
-      <View style={{ flexDirection: 'row', borderRadius: 8, overflow: 'hidden', height: 14 }}>
-        <View style={{ flex: hot, backgroundColor: hotColor }} />
-        <View style={{ flex: iced, backgroundColor: icedBg }} />
-      </View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-        <Text style={{ fontSize: 11, color: hotColor }}>☕ {hot}% Hot</Text>
-        <Text style={{ fontSize: 11, color: icedColor }}>🧊 {iced}% Iced</Text>
-      </View>
+      {/* Hot vs Iced split — drink-trade-specific advice. Only shown to
+          Coffee traders so non-coffee businesses don't see a coffee
+          prep prompt that has no bearing on their stock decisions. */}
+      {showHotIcedSplit && (
+        <>
+          <Text style={{ fontSize: 11, color: p.textMuted, fontWeight: '700', letterSpacing: 1, marginBottom: 6, textTransform: 'uppercase' }}>
+            Prepare: {hot}% Hot / {iced}% Iced
+          </Text>
+          <View style={{ flexDirection: 'row', borderRadius: 8, overflow: 'hidden', height: 14 }}>
+            <View style={{ flex: hot, backgroundColor: hotColor }} />
+            <View style={{ flex: iced, backgroundColor: icedBg }} />
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+            <Text style={{ fontSize: 11, color: hotColor }}>☕ {hot}% Hot</Text>
+            <Text style={{ fontSize: 11, color: icedColor }}>🧊 {iced}% Iced</Text>
+          </View>
+        </>
+      )}
     </View>
   );
 }
