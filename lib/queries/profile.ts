@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { normalizeTradeType } from '@/lib/tradeTypeConfig';
 
 export interface Metric {
   id: string;
@@ -55,19 +56,20 @@ export function useProfile(userId: string | undefined) {
         .eq('id', userId)
         .single();
       if (error) return null;
-      // Defensive default: nullish coalescing (??) misses empty strings and
-      // whitespace-only values that legacy rows can have. Treat any
-      // "no usable value" state as "Coffee" so the prediction engine and
-      // every other consumer get a canonical key. The user's explicit
-      // choice of Other / Burgers / etc. is a non-empty string and never
-      // hits this default.
-      const rawBusinessType = (data.business_type ?? '').toString().trim();
-      const businessType = rawBusinessType.length > 0 ? rawBusinessType : 'Coffee';
+      // Return business_type as stored. Previously this loader coerced
+      // empty/whitespace to 'Coffee' as a "defensive default" — but that
+      // hid the real DB state from every downstream consumer (including
+      // the picker's dev strip) and quietly disagreed with the central
+      // resolver, which canonicalises empty → 'Other'. Now the resolver
+      // is the single fallback authority; the loader just surfaces what
+      // the DB actually has so silent miswrites stop being invisible.
+      const rawBusinessType =
+        typeof data.business_type === 'string' ? data.business_type : '';
 
       return {
         id: data.id,
         business_name: data.business_name,
-        business_type: businessType,
+        business_type: rawBusinessType,
         currency: data.currency ?? 'GBP',
         custom_metrics: (data.custom_metrics ?? []) as Metric[],
         subscription_status: (data.subscription_status ?? 'none') as SubscriptionStatus,
@@ -109,6 +111,29 @@ export function useUpdateProfile() {
         .select()
         .single();
       if (error) throw error;
+      // Verify the server actually applied each requested field. Without
+      // this check a successful round-trip can still leave the DB
+      // unchanged: a stale auth.uid() can let the UPDATE match zero rows
+      // (returning the old SELECT row via PostgREST), or a future RLS
+      // column-policy / BEFORE-UPDATE trigger could silently rewrite the
+      // value. We canonicalise both sides via normalizeTradeType so a
+      // server that title-cases ("coffee" → "Coffee") doesn't trip the
+      // check.
+      for (const key of Object.keys(updates) as Array<keyof EditableProfileFields>) {
+        const sent = updates[key];
+        const got = (data as Record<string, unknown>)[key];
+        if (sent === undefined) continue;
+        if (key === 'business_type') {
+          const sentNorm = normalizeTradeType(sent as string);
+          const gotNorm = normalizeTradeType(got as string | null);
+          if (sentNorm !== gotNorm) {
+            throw new Error(
+              `Server did not persist business_type='${String(sent)}' — ` +
+              `read back '${String(got)}'. Check RLS policy and triggers on profiles table.`
+            );
+          }
+        }
+      }
       return data;
     },
     onSuccess: async (_, { userId }) => {

@@ -37,6 +37,11 @@ const DRINK_SPLIT_PLAN_CATEGORIES = ['hot_drinks', 'cold_drinks', 'bakes'];
 
 interface Props {
   tradeType: string | null;
+  /** Raw, untransformed value of profile.business_type — used ONLY for
+   *  the dev-strip diagnostic so devs can see exactly what's stored in
+   *  the DB vs what the resolver returned. Optional: callers that don't
+   *  have access can omit it. */
+  rawBusinessType?: string | null;
   forecastTempC: number;
   /** Date of the upcoming event — used by the engine for recency
    *  weighting of historical observations. */
@@ -49,7 +54,7 @@ interface Props {
   isProfileLoading?: boolean;
 }
 
-export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eventId, isProfileLoading }: Props) {
+export function PredictionInsightCard({ tradeType, rawBusinessType, forecastTempC, eventDate, eventId, isProfileLoading }: Props) {
   const config = getTradeConfig(tradeType);
   const canonicalTradeType = normalizeTradeType(tradeType);
   const { tokens, isDark } = useTheme();
@@ -70,20 +75,24 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
   const { data: dailyTakings = [], isLoading: dtLoading } = useAllDailyTakings();
   const loading = obsLoading || dtLoading || !!isProfileLoading;
 
-  // Dev-only logging — fires ONLY when the resolved trade type changes,
-  // not on every render. The previous version logged in the component body
-  // and produced one line per re-render, which spammed the Metro console.
+  // Dev-only logging — fires ONLY after the profile has loaded and the
+  // resolved trade type changes. Skipping the loading state matters: the
+  // first render runs with profile=undefined, which resolves to 'Other'
+  // via the fallback path and used to spam the console with a misleading
+  // "canonical: Other" line *before* the real profile arrived. Logs only
+  // the diagnostic fields needed to debug a wrong-trade-type bug — no
+  // user-identifying data, no observation data.
   useEffect(() => {
     if (!__DEV__) return;
+    if (isProfileLoading) return;
     // eslint-disable-next-line no-console
     console.log('[Prediction]', {
-      rawTradeType: tradeType,
+      rawBusinessType,
       canonical: canonicalTradeType,
       configLabel: config.label,
-      isProfileLoading: !!isProfileLoading,
       eventId,
     });
-  }, [canonicalTradeType, isProfileLoading, eventId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canonicalTradeType, isProfileLoading, eventId, rawBusinessType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Inline trade-type picker handler. When the user is sitting on the
   // OTHER fallback and they tap a real trade type from the picker, we
@@ -132,9 +141,20 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
   }, [tradeType, forecastTempC, eventDate, observations, dailyTakings, loading]);
 
   // Persist the prediction snapshot once per event+temp so we can
-  // compare against actuals later. The ref guard prevents re-saving on re-renders.
+  // compare against actuals later. The ref guard prevents re-saving on
+  // re-renders.
+  //
+  // Don't persist a snapshot when the trade type is the fallback 'Other'
+  // *and* the user hasn't actually chosen Other — i.e. the profile row
+  // has no usable business_type yet. Otherwise event_predictions fills
+  // up with rows tagged trade_type='Other' that don't reflect the
+  // trader's real business, which corrupts later accuracy analysis.
+  // A canonical 'Other' from an explicit raw='Other' is allowed through.
+  const isExplicitTradeType =
+    typeof rawBusinessType === 'string' && rawBusinessType.trim().length > 0;
   useEffect(() => {
     if (!result || !user || !eventId) return;
+    if (!isExplicitTradeType) return;
     const key = `${eventId}:${forecastTempC}`;
     if (savedRef.current === key) return;
     savedRef.current = key;
@@ -146,7 +166,7 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
       weatherSummary: null,
       prediction: result,
     });
-  }, [result, user, eventId, forecastTempC, canonicalTradeType]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [result, user, eventId, forecastTempC, canonicalTradeType, isExplicitTradeType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const lens = config.predictionLenses[0];
   if (!lens) return null;
@@ -176,7 +196,7 @@ export function PredictionInsightCard({ tradeType, forecastTempC, eventDate, eve
             isDark={isDark}
             palette={p}
             canonicalTradeType={canonicalTradeType}
-            rawTradeType={tradeType}
+            rawBusinessType={rawBusinessType ?? null}
             onOpenSettings={() => router.push('/(tabs)/settings')}
             showInlinePicker={showInlinePicker}
             onTogglePicker={() => { setShowInlinePicker((v) => !v); setPickerError(null); }}
@@ -205,7 +225,7 @@ function LoadingForecast({ tagline }: { tagline: string }) {
 
 function ForecastCard({
   result, tagline, tradeLabel, tradeMenuCategories, forecastTempC, isDark, palette,
-  canonicalTradeType, rawTradeType, onOpenSettings,
+  canonicalTradeType, rawBusinessType, onOpenSettings,
   showInlinePicker, onTogglePicker, onPickTradeType, savingTradeType, pendingTradeType,
   pickerError, pickerSuccess,
 }: {
@@ -217,7 +237,7 @@ function ForecastCard({
   isDark: boolean;
   palette: ReturnType<typeof useTheme>['tokens']['palette'];
   canonicalTradeType: string;
-  rawTradeType: string | null;
+  rawBusinessType: string | null;
   onOpenSettings: () => void;
   showInlinePicker: boolean;
   onTogglePicker: () => void;
@@ -370,7 +390,7 @@ function ForecastCard({
           )}
           {__DEV__ && (
             <Text style={{ fontSize: 9, color: p.textFaint, marginTop: 10, fontFamily: 'Menlo' }}>
-              dev: profile.business_type = {JSON.stringify(rawTradeType)} → canonical {canonicalTradeType}
+              dev: profile.business_type = {JSON.stringify(rawBusinessType)} → canonical {canonicalTradeType}
             </Text>
           )}
         </View>
