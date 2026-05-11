@@ -444,6 +444,7 @@ export default function EventDetailScreen() {
           <View style={{ marginBottom: 16 }}>
             <PredictionInsightCard
               tradeType={tradeType}
+              rawBusinessType={profile?.business_type ?? null}
               forecastTempC={forecastTemp}
               eventDate={event.date}
               eventId={id}

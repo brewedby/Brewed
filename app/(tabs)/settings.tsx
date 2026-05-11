@@ -14,6 +14,7 @@ import { FarMasthead } from '@/components/far/Masthead';
 import { useTheme } from '@/lib/themeContext';
 import type { ThemeMode } from '@/lib/themeContext';
 import { BUSINESS_TYPES } from '@/constants';
+import { normalizeTradeType } from '@/lib/tradeTypeConfig';
 
 const APPLE_MANAGE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscriptions';
 const SUPPORT_EMAIL = 'support@brewedbyboon.com';
@@ -70,7 +71,14 @@ export default function SettingsScreen() {
     if (profile && !hydratedRef.current) {
       hydratedRef.current = true;
       setBusinessName(profile.business_name ?? '');
-      setBusinessType(profile.business_type ?? 'Coffee');
+      // Settings hydrates the picker from the canonical resolver, NOT a
+      // raw '?? Coffee' fallback. The previous fallback hid the "no
+      // trade type set" state and silently chose Coffee for the user.
+      // normalizeTradeType returns 'Other' for empty/null — which is
+      // the right starting point for the user to make an explicit
+      // choice. (Imported as a top-level singleton to keep this hot
+      // path cheap.)
+      setBusinessType(normalizeTradeType(profile.business_type));
       setCurrency(profile.currency ?? 'GBP');
       if (profile.custom_metrics?.length > 0) {
         setMetrics(profile.custom_metrics);
