@@ -109,7 +109,7 @@ export default function EventDetailScreen() {
   const S = farStatus(isDark);
 
   const { data: event, isLoading, refetch } = useEvent(id);
-  const { data: profile, isLoading: profileLoading } = useProfile(user?.id);
+  const { data: profile, isLoading: profileLoading, isError: profileError, isSuccess: profileLoaded } = useProfile(user?.id);
   // Single source of truth: getActiveTradeType normalises the profile's
   // business_type into a canonical key (Coffee / Burgers / Pizza / …).
   // Passing the canonical value to the card removes any chance of
@@ -434,6 +434,7 @@ export default function EventDetailScreen() {
                 endDate={event.end_date}
                 eventId={event.id}
                 onTempFetched={setForecastTemp}
+                tradeType={tradeType}
               />
             </View>
           </View>
@@ -449,6 +450,8 @@ export default function EventDetailScreen() {
               eventDate={event.date}
               eventId={id}
               isProfileLoading={profileLoading}
+              isProfileError={profileError}
+              isProfileLoaded={profileLoaded}
             />
           </View>
         )}
