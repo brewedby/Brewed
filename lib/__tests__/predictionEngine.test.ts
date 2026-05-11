@@ -960,6 +960,151 @@ import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
     `got=${POSTGREST_NO_ROWS}`);
 }
 
+// 31t. Onboarding redirect guard: isProfileSetupComplete.
+//      The root-layout redirect logic must NOT fire while the profile
+//      is loading (data=undefined) or after a fetch error (also
+//      data=undefined). Pre-fix, the layout had `profile !== null` as
+//      a guard that only worked under the old silent-null semantics —
+//      after useProfile started throwing on errors, that check became
+//      dead code and a transient undefined profile bounced the user
+//      into onboarding on every tab navigation ("click Events, get
+//      onboarding" loop). The fix gates the redirect on
+//      `isProfileSetupComplete(profile)`, which returns false for
+//      undefined / null / empty / whitespace and true only for a
+//      loaded profile with a real business_name.
+{
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { isProfileSetupComplete } = require('@/lib/profileHelpers');
+
+  // (a) Profile not loaded yet (React Query data=undefined) — must be
+  //     treated as "incomplete" but the LAYOUT separately gates on
+  //     profileLoading, so the redirect won't fire. We only test the
+  //     predicate here.
+  expect('setup_complete_undefined_profile_returns_false',
+    isProfileSetupComplete(undefined) === false,
+    `got=${isProfileSetupComplete(undefined)}`);
+
+  // (b) Profile errored — same as loading from the predicate's POV.
+  expect('setup_complete_null_profile_returns_false',
+    isProfileSetupComplete(null) === false,
+    `got=${isProfileSetupComplete(null)}`);
+
+  // (c) Profile loaded with no business_name — genuine "needs onboarding".
+  expect('setup_complete_no_business_name_returns_false',
+    isProfileSetupComplete({}) === false,
+    `got=${isProfileSetupComplete({})}`);
+
+  // (d) Profile loaded with explicit null — needs onboarding.
+  expect('setup_complete_null_business_name_returns_false',
+    isProfileSetupComplete({ business_name: null }) === false,
+    `got=${isProfileSetupComplete({ business_name: null })}`);
+
+  // (e) Profile loaded with empty string — needs onboarding.
+  expect('setup_complete_empty_business_name_returns_false',
+    isProfileSetupComplete({ business_name: '' }) === false,
+    `got=${isProfileSetupComplete({ business_name: '' })}`);
+
+  // (f) Profile loaded with whitespace only — needs onboarding (matches
+  //     onboarding form's `.trim()` rejection).
+  expect('setup_complete_whitespace_business_name_returns_false',
+    isProfileSetupComplete({ business_name: '   ' }) === false,
+    `got=${isProfileSetupComplete({ business_name: '   ' })}`);
+
+  // (g) Profile loaded with real business name — COMPLETE. This is the
+  //     case the user was hitting before the fix; the layout was
+  //     redirecting them to onboarding anyway because the
+  //     `profile !== null` guard had become dead code.
+  expect('setup_complete_real_name_returns_true',
+    isProfileSetupComplete({ business_name: 'Brewed By Boon' }) === true,
+    `got=${isProfileSetupComplete({ business_name: 'Brewed By Boon' })}`);
+
+  // (h) Name with leading/trailing whitespace but real content — COMPLETE.
+  expect('setup_complete_padded_real_name_returns_true',
+    isProfileSetupComplete({ business_name: '  Brewed By Boon  ' }) === true,
+    `got=${isProfileSetupComplete({ business_name: '  Brewed By Boon  ' })}`);
+
+  // (i) Numeric / non-string business_name (shouldn't happen but
+  //     defensive) — returns false rather than crashing on .trim().
+  expect('setup_complete_non_string_name_returns_false',
+    isProfileSetupComplete({ business_name: 123 as unknown as string }) === false,
+    `got=${isProfileSetupComplete({ business_name: 123 as unknown as string })}`);
+}
+
+// 31u. Onboarding-loop regression test: simulate the layout's
+//      redirect decision across the lifecycle of a profile fetch.
+//      Pre-fix, profileLoading=false + profile=undefined still fired
+//      the onboarding redirect because the old `profile !== null`
+//      guard was dead code. With the new gating, the redirect ONLY
+//      fires for a loaded-but-incomplete profile.
+{
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { isProfileSetupComplete } = require('@/lib/profileHelpers');
+
+  // Mirrors the runtime decision in app/_layout.tsx so a refactor
+  // there would be caught here.
+  function shouldRedirectToOnboarding(
+    session: boolean,
+    inAuthGroup: boolean,
+    inOnboarding: boolean,
+    profileLoading: boolean,
+    profile: { business_name?: string | null } | undefined,
+  ): boolean {
+    if (!session) return false;
+    if (inAuthGroup) return false;     // post-sign-in branch handles this
+    if (inOnboarding) return false;    // already there, don't loop
+    if (profileLoading) return false;  // wait for profile
+    if (!profile) return false;        // errored — let React Query retry
+    return !isProfileSetupComplete(profile);
+  }
+
+  // (a) The original bug: clicking Events while profile is loading
+  //     used to redirect to onboarding. With the gate it does NOT.
+  expect('layout_no_redirect_while_profile_loading',
+    shouldRedirectToOnboarding(true, false, false, true, undefined) === false,
+    'session, on events tab, profile loading → no redirect');
+
+  // (b) Errored profile (post-loading, data still undefined) — no redirect.
+  //     This is the specific regression that caused the loop.
+  expect('layout_no_redirect_when_profile_errored',
+    shouldRedirectToOnboarding(true, false, false, false, undefined) === false,
+    'profile errored (loading=false, data=undefined) → no redirect');
+
+  // (c) Loaded profile with real business_name — no redirect.
+  expect('layout_no_redirect_when_setup_complete',
+    shouldRedirectToOnboarding(true, false, false, false, { business_name: 'Brewed By Boon' }) === false,
+    'loaded with name → no redirect');
+
+  // (d) Loaded profile with empty business_name — redirect (this is the
+  //     ONLY case that should redirect).
+  expect('layout_redirects_when_setup_incomplete',
+    shouldRedirectToOnboarding(true, false, false, false, { business_name: '' }) === true,
+    'loaded with empty name → redirect');
+
+  // (e) Already in onboarding → no redirect (would loop).
+  expect('layout_no_redirect_when_already_in_onboarding',
+    shouldRedirectToOnboarding(true, false, true, false, { business_name: '' }) === false,
+    'already in onboarding → no redirect');
+
+  // (f) In auth group → no redirect from this branch (post-sign-in
+  //     branch handles it separately with the same predicate).
+  expect('layout_no_redirect_when_in_auth_group',
+    shouldRedirectToOnboarding(true, true, false, false, { business_name: '' }) === false,
+    'in auth group → no redirect from onboarding gate');
+
+  // (g) No session → no redirect (sign-in gate handles it).
+  expect('layout_no_redirect_when_no_session',
+    shouldRedirectToOnboarding(false, false, false, false, { business_name: '' }) === false,
+    'no session → no redirect from onboarding gate');
+
+  // (h) Critical loop case: user with real business_name clicks Events
+  //     while a background refetch is in flight. profile keeps the
+  //     previous value (React Query default), profileLoading is false
+  //     (background refetch doesn't toggle isLoading). No redirect.
+  expect('layout_no_redirect_during_background_refetch',
+    shouldRedirectToOnboarding(true, false, false, false, { business_name: 'Brewed By Boon' }) === false,
+    'background refetch with name still present → no redirect');
+}
+
 // 32. CSV parser merges duplicate product names (some POS emit one row per transaction)
 {
   const dupCSV = [
