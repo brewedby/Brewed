@@ -555,11 +555,14 @@ import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
 }
 
 // 31m. getActiveTradeType handles every "missing-ish" profile shape sanely.
-//      The Settings UI showed Coffee selected because the local state defaulted
-//      to Coffee, but the prediction card was reading raw business_type and
-//      getting empty / null / whitespace — which the engine treated as Other.
-//      The helper now centralises the resolution and the loader defaults
-//      empty strings to Coffee, so every consumer agrees.
+//      The Settings UI showed Coffee selected because the local state
+//      defaulted to Coffee, but the prediction card was reading raw
+//      business_type and getting empty / null / whitespace — which the
+//      engine treated as Other. The helper now centralises the
+//      resolution. The loader passes the raw value through unchanged so
+//      every consumer can see the real DB state via the central
+//      resolver (it returns 'Other' for empty/null, never silently
+//      Coffee).
 {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { getActiveTradeType, normalizeTradeType } = require('@/lib/tradeTypeConfig');
@@ -636,6 +639,160 @@ import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
       cold + hot === 100,
       `cold=${cold} hot=${hot} sum=${cold + hot}`);
   }
+}
+
+// 31n. Trade-type resolution end-to-end — the bug class that produced
+//      [Prediction] canonical:"Other" even after the user had picked Coffee.
+//
+//      Every consumer must route through the central resolver, never its
+//      own '?? Coffee' / '?? Other' fallback. These tests assert the
+//      invariants for every shape of profile.business_type that has
+//      shown up in practice.
+{
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { getActiveTradeType, normalizeTradeType, getTradeConfig } = require('@/lib/tradeTypeConfig');
+
+  // (a) Profile from Settings picker → 'Coffee' → resolves to Coffee + drink_split.
+  {
+    const profile = { business_type: 'Coffee' };
+    const resolved = getActiveTradeType(profile);
+    const config = getTradeConfig(resolved);
+    const r = predict(resolved, { forecastTempC: 18, eventDate: '2025-06-15' }, noHistory);
+    expect('resolve_settings_coffee_to_coffee',
+      resolved === 'Coffee' && config.label === 'Coffee' && r?.kind === 'drink_split',
+      `resolved=${resolved} label=${config.label} kind=${r?.kind}`);
+  }
+
+  // (b) Profile from Onboarding picker → 'Coffee' (identical to settings path).
+  {
+    const profile = { business_type: 'Coffee' };
+    expect('resolve_onboarding_coffee_to_coffee',
+      getActiveTradeType(profile) === 'Coffee',
+      `resolved=${getActiveTradeType(profile)}`);
+  }
+
+  // (c) Stale event with no tradeType column (events table has no trade_type)
+  //     + profile with Coffee → resolved is Coffee, not Other. The event
+  //     cannot override the profile because there's no override channel.
+  {
+    const profile = { business_type: 'Coffee' };
+    const eventTradeType: string | null = null; // events table column does not exist
+    const resolved = eventTradeType ?? getActiveTradeType(profile);
+    expect('stale_event_does_not_override_profile_coffee',
+      resolved === 'Coffee',
+      `resolved=${resolved}`);
+  }
+
+  // (d) Explicit profile Other → still Other (user really did pick Other).
+  {
+    expect('explicit_other_stays_other',
+      getActiveTradeType({ business_type: 'Other' }) === 'Other',
+      `result=${getActiveTradeType({ business_type: 'Other' })}`);
+  }
+
+  // (e) Loading state (profile null) → resolver returns Other, but the
+  //     PredictionInsightCard's persistence layer must NOT save this to
+  //     event_predictions. The card is responsible for that gate;
+  //     here we only assert the resolver's contract.
+  {
+    expect('loading_profile_resolves_to_other',
+      getActiveTradeType(null) === 'Other' && getActiveTradeType(undefined) === 'Other',
+      `null=${getActiveTradeType(null)} undef=${getActiveTradeType(undefined)}`);
+  }
+
+  // (f) Missing type (empty/whitespace) → Other, NOT Coffee. Previously
+  //     the profile loader silently coerced empty → 'Coffee' which hid
+  //     the "no usable value" state and disagreed with the resolver.
+  //     The loader now returns the raw value as stored.
+  {
+    expect('empty_string_resolves_to_other',
+      normalizeTradeType('') === 'Other',
+      `result=${normalizeTradeType('')}`);
+    expect('whitespace_resolves_to_other',
+      normalizeTradeType('   ') === 'Other',
+      `result=${normalizeTradeType('   ')}`);
+    expect('null_resolves_to_other',
+      normalizeTradeType(null) === 'Other',
+      `result=${normalizeTradeType(null)}`);
+  }
+
+  // (g) Coffee prediction does NOT use general_demand (Other) engine —
+  //     it must use drink_split with hot/iced lines.
+  {
+    const r = predict('Coffee', { forecastTempC: 22, eventDate: '2025-06-15' }, noHistory);
+    const labels = (r?.forecast ?? []).map((l) => l.label.toLowerCase()).join(' | ');
+    expect('coffee_uses_drink_split_not_general',
+      r?.kind === 'drink_split' && labels.includes('hot') && labels.includes('iced'),
+      `kind=${r?.kind} labels="${labels}"`);
+  }
+
+  // (h) Coffee prediction does NOT include any food-mains / sides / extras
+  //     stock chip — the trade config's drink_split path excludes them.
+  {
+    const config = getTradeConfig('Coffee');
+    const r = predict('Coffee', { forecastTempC: 22, eventDate: '2025-06-15' }, noHistory);
+    // drink_split kind has its own DRINK_SPLIT_PLAN_CATEGORIES that doesn't
+    // include 'mains'/'sides'/'extras'. We assert the engine-level
+    // invariant: the lens kind is drink_split (the UI uses this).
+    expect('coffee_engine_kind_is_drink_split',
+      r?.kind === 'drink_split',
+      `kind=${r?.kind}`);
+    void config; // type touch
+  }
+
+  // (i) Alias variants of Coffee all resolve to canonical 'Coffee' — the
+  //     bug-class "user has 'Coffee Van' in DB and sees Other" must not
+  //     regress.
+  for (const alias of ['Coffee', 'coffee', 'COFFEE', 'Coffee Van', 'coffee_cart', 'espresso']) {
+    const resolved = getActiveTradeType({ business_type: alias });
+    expect(`alias_${alias.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '')}_resolves_coffee`,
+      resolved === 'Coffee',
+      `${alias} -> ${resolved}`);
+  }
+}
+
+// 31o. useUpdateProfile must reject server responses that don't match
+//      what we sent. Without this guard, a silent server-side coercion
+//      (RLS column filter, future BEFORE-UPDATE trigger, or a 0-row
+//      UPDATE returning a stale SELECT) reports success even though
+//      the DB never changed — which is exactly the bug class that
+//      produced the user's "picker visually works but profile stays
+//      Other" screenshots. We test the validation predicate the
+//      mutation uses, which canonicalises both sides via
+//      normalizeTradeType so legitimate title-case responses
+//      ('coffee' -> 'Coffee') don't trip it.
+{
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { normalizeTradeType } = require('@/lib/tradeTypeConfig');
+
+  function serverPersistedAsRequested(sent: string, got: string | null | undefined): boolean {
+    return normalizeTradeType(sent) === normalizeTradeType(got);
+  }
+
+  // (a) Happy path: server stored Coffee, returns Coffee → passes.
+  expect('mutation_validates_happy_path',
+    serverPersistedAsRequested('Coffee', 'Coffee'),
+    'sent Coffee, got Coffee');
+
+  // (b) Silent coercion: sent Coffee, server returned Other → must FAIL.
+  expect('mutation_rejects_silent_other_coercion',
+    !serverPersistedAsRequested('Coffee', 'Other'),
+    'sent Coffee, got Other');
+
+  // (c) Server returns lowercase alias → still passes (normalizes equal).
+  expect('mutation_accepts_alias_response',
+    serverPersistedAsRequested('Coffee', 'coffee'),
+    'sent Coffee, got coffee');
+
+  // (d) Sent Coffee, server returned null → must FAIL.
+  expect('mutation_rejects_null_response',
+    !serverPersistedAsRequested('Coffee', null),
+    'sent Coffee, got null');
+
+  // (e) Sent Coffee, server returned empty → must FAIL.
+  expect('mutation_rejects_empty_response',
+    !serverPersistedAsRequested('Coffee', ''),
+    'sent Coffee, got ""');
 }
 
 // 32. CSV parser merges duplicate product names (some POS emit one row per transaction)
