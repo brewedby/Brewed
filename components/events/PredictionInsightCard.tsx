@@ -27,7 +27,7 @@ import { getTradeConfig, normalizeTradeType } from '@/lib/tradeTypeConfig';
 import { CATEGORY_DEFINITIONS } from '@/types/cogs';
 import { predict, type PredictionResult, type Confidence } from '@/lib/predictionEngine';
 import { useSavePrediction } from '@/lib/mutations/predictions';
-import { useUpdateProfile } from '@/lib/queries/profile';
+import { useUpdateProfile, isExplicitTradeTypeFor } from '@/lib/queries/profile';
 import { useAuth } from '@/lib/auth';
 import { BUSINESS_TYPES } from '@/constants';
 
@@ -52,9 +52,27 @@ interface Props {
    *  computing a forecast against tradeType=null and showing a transient
    *  general_demand frame before the real trade type arrives. */
   isProfileLoading?: boolean;
+  /** True when the profile query failed (network, RLS, etc.). Distinct
+   *  from "loaded with no trade type set" — we show a recovery banner
+   *  rather than the picker fallback when the profile itself didn't
+   *  load, so the user understands the difference. */
+  isProfileError?: boolean;
+  /** True once the profile has actually resolved with a real row.
+   *  Gates the [Prediction] log and the explicit-Other guard so we
+   *  don't write a fallback-Other snapshot before profile arrives. */
+  isProfileLoaded?: boolean;
 }
 
-export function PredictionInsightCard({ tradeType, rawBusinessType, forecastTempC, eventDate, eventId, isProfileLoading }: Props) {
+export function PredictionInsightCard({
+  tradeType,
+  rawBusinessType,
+  forecastTempC,
+  eventDate,
+  eventId,
+  isProfileLoading,
+  isProfileError,
+  isProfileLoaded,
+}: Props) {
   const config = getTradeConfig(tradeType);
   const canonicalTradeType = normalizeTradeType(tradeType);
   const { tokens, isDark } = useTheme();
@@ -75,24 +93,35 @@ export function PredictionInsightCard({ tradeType, rawBusinessType, forecastTemp
   const { data: dailyTakings = [], isLoading: dtLoading } = useAllDailyTakings();
   const loading = obsLoading || dtLoading || !!isProfileLoading;
 
-  // Dev-only logging — fires ONLY after the profile has loaded and the
-  // resolved trade type changes. Skipping the loading state matters: the
-  // first render runs with profile=undefined, which resolves to 'Other'
-  // via the fallback path and used to spam the console with a misleading
-  // "canonical: Other" line *before* the real profile arrived. Logs only
-  // the diagnostic fields needed to debug a wrong-trade-type bug — no
-  // user-identifying data, no observation data.
+  // Dev-only logging — fires ONLY after the profile has actually
+  // resolved with a real row. Three reasons for this gating:
+  //   • isProfileLoading=true → the resolver returns 'Other' via the
+  //     fallback path, which used to spam the console with a misleading
+  //     "canonical: Other" line *before* the real profile arrived.
+  //   • isProfileError=true → the resolver also returns 'Other', but
+  //     it's a load failure (network/RLS), not "no trade set". Logging
+  //     it as "Other" would be misleading; we surface the failure
+  //     through the error banner instead.
+  //   • isProfileLoaded=false → defensive guard for callers that don't
+  //     pass the explicit loaded flag.
+  // Logs only the diagnostic fields needed to debug a wrong-trade-type
+  // bug — no user-identifying data, no observation data.
   useEffect(() => {
     if (!__DEV__) return;
     if (isProfileLoading) return;
+    if (isProfileError) return;
+    if (isProfileLoaded === false) return;
     // eslint-disable-next-line no-console
     console.log('[Prediction]', {
       rawBusinessType,
       canonical: canonicalTradeType,
       configLabel: config.label,
       eventId,
+      source: rawBusinessType
+        ? 'profile.business_type'
+        : 'fallback (no value in profile)',
     });
-  }, [canonicalTradeType, isProfileLoading, eventId, rawBusinessType]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canonicalTradeType, isProfileLoading, isProfileError, isProfileLoaded, eventId, rawBusinessType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Inline trade-type picker handler. When the user is sitting on the
   // OTHER fallback and they tap a real trade type from the picker, we
@@ -150,8 +179,15 @@ export function PredictionInsightCard({ tradeType, rawBusinessType, forecastTemp
   // up with rows tagged trade_type='Other' that don't reflect the
   // trader's real business, which corrupts later accuracy analysis.
   // A canonical 'Other' from an explicit raw='Other' is allowed through.
-  const isExplicitTradeType =
-    typeof rawBusinessType === 'string' && rawBusinessType.trim().length > 0;
+  // Also gate on isProfileLoaded — during load/error rawBusinessType
+  // can be null (profile undefined) and we must not race a snapshot
+  // write against a profile that hasn't arrived yet. The predicate
+  // is exported from queries/profile.ts so the test suite asserts
+  // exactly the runtime behaviour.
+  const isExplicitTradeType = isExplicitTradeTypeFor(
+    isProfileLoaded !== false,
+    rawBusinessType,
+  );
   useEffect(() => {
     if (!result || !user || !eventId) return;
     if (!isExplicitTradeType) return;
@@ -179,6 +215,35 @@ export function PredictionInsightCard({ tradeType, rawBusinessType, forecastTemp
     : result?.kind === 'general_demand'
       ? 'Demand Forecast'
       : lens.title;
+
+  // Profile load failure: render a recovery banner instead of the
+  // picker CTA. The Other fallback that the resolver returns during
+  // an error state shouldn't be treated as a user choice to make —
+  // it's a load failure and tapping the picker would just hit the
+  // same broken loader. The card stays visible (so the rest of the
+  // event detail still scrolls), but only as the banner.
+  if (isProfileError) {
+    return (
+      <View style={{ marginBottom: 16 }}>
+        <FarSectionRule label={sectionLabel} />
+        <View style={{
+          marginTop: 12,
+          backgroundColor: p.surface,
+          borderWidth: 1,
+          borderColor: p.brand,
+          padding: 14,
+        }}>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: p.text, marginBottom: 4 }}>
+            Couldn't load your trader profile
+          </Text>
+          <Text style={{ fontSize: 11, color: p.textMuted, lineHeight: 16 }}>
+            We can't compute a tailored forecast without it. Check your
+            connection and pull-to-refresh, or sign out and back in.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={{ marginBottom: 16 }}>
