@@ -17,6 +17,7 @@ import {
 } from '@/types/cogs';
 import type { ProductFormValues } from '@/lib/validations/product.schema';
 import { useProfile } from '@/lib/queries/profile';
+import { getActiveTradeType } from '@/lib/tradeTypeConfig';
 
 type ScreenView = 'list' | 'add' | 'edit';
 
@@ -46,7 +47,11 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
   const [editing, setEditing] = useState<ProductCatalogItem | null>(null);
   const [search, setSearch] = useState('');
 
-  const tradeType = profile?.business_type ?? null;
+  // Use the central resolver — getCategoriesForTrade does an exact-key
+  // lookup against TRADE_CATEGORIES (it isn't alias-tolerant), so a raw
+  // value like 'coffee' or 'Coffee Cart' would silently fall through to
+  // DEFAULT_CATEGORIES even though the user *did* set a trade.
+  const tradeType = getActiveTradeType(profile);
 
   const filtered = useMemo(() =>
     products.filter((prod) =>

@@ -1,36 +1,25 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { normalizeTradeType } from '@/lib/tradeTypeConfig';
+import {
+  mapProfileRow,
+  isExplicitTradeTypeFor,
+  POSTGREST_NO_ROWS,
+  type ProfileRow,
+} from '@/lib/profileHelpers';
+import type {
+  Metric,
+  SubscriptionStatus,
+  UserProfile,
+} from '@/lib/queries/profile.types';
 
-export interface Metric {
-  id: string;
-  name: string;
-  unit: string;
-  enabled: boolean;
-  builtin?: boolean;
-  [key: string]: unknown;
-}
-
-export type SubscriptionStatus =
-  | 'none'
-  | 'active'
-  | 'in_grace_period'
-  | 'in_billing_retry'
-  | 'expired'
-  | 'revoked';
-
-export interface UserProfile {
-  id: string;
-  business_name: string | null;
-  business_type: string;
-  currency: string;
-  custom_metrics: Metric[];
-  subscription_status: SubscriptionStatus;
-  subscription_product_id: string | null;
-  subscription_expires_at: string | null;
-  subscription_will_renew: boolean;
-  reviewer_grandfathered: boolean;
-}
+// Re-export types + pure helpers so existing call sites importing
+// from this module keep working unchanged. The pure helpers live in
+// lib/profileHelpers.ts so the test suite can require them without
+// dragging in the Supabase client (which needs env vars at import
+// time and would otherwise crash the tsx runner).
+export type { Metric, SubscriptionStatus, UserProfile };
+export { mapProfileRow, isExplicitTradeTypeFor };
 
 const PROFILE_FIELDS = `
   id,
@@ -48,36 +37,46 @@ const PROFILE_FIELDS = `
 export function useProfile(userId: string | undefined) {
   return useQuery({
     queryKey: ['profile', userId],
-    queryFn: async (): Promise<UserProfile | null> => {
-      if (!userId) return null;
+    queryFn: async (): Promise<UserProfile> => {
+      if (!userId) {
+        // Should not happen because enabled: !!userId, but be explicit.
+        throw new Error('useProfile called without a userId');
+      }
       const { data, error } = await supabase
         .from('profiles')
         .select(PROFILE_FIELDS)
         .eq('id', userId)
-        .single();
-      if (error) return null;
-      // Return business_type as stored. Previously this loader coerced
-      // empty/whitespace to 'Coffee' as a "defensive default" — but that
-      // hid the real DB state from every downstream consumer (including
-      // the picker's dev strip) and quietly disagreed with the central
-      // resolver, which canonicalises empty → 'Other'. Now the resolver
-      // is the single fallback authority; the loader just surfaces what
-      // the DB actually has so silent miswrites stop being invisible.
-      const rawBusinessType =
-        typeof data.business_type === 'string' ? data.business_type : '';
+        .single<ProfileRow>();
 
-      return {
-        id: data.id,
-        business_name: data.business_name,
-        business_type: rawBusinessType,
-        currency: data.currency ?? 'GBP',
-        custom_metrics: (data.custom_metrics ?? []) as Metric[],
-        subscription_status: (data.subscription_status ?? 'none') as SubscriptionStatus,
-        subscription_product_id: data.subscription_product_id ?? null,
-        subscription_expires_at: data.subscription_expires_at ?? null,
-        subscription_will_renew: data.subscription_will_renew ?? false,
-        reviewer_grandfathered: data.reviewer_grandfathered ?? false,
-      };
+      // Self-heal: the auth-trigger that creates a profile row on
+      // signup doesn't fire for every account (manual SQL, OAuth flows
+      // that bypass the trigger, accounts created before the trigger
+      // existed). Previously, a missing row caused this function to
+      // silently return null, which left every downstream consumer
+      // falling through to the 'Other' fallback while the user thought
+      // their saves were succeeding. Insert the row here, idempotently.
+      // RLS policy "Users can insert own profile" gates this on
+      // auth.uid() = id, so this can only insert the caller's row.
+      if (error && error.code === POSTGREST_NO_ROWS) {
+        const { data: inserted, error: insertError } = await supabase
+          .from('profiles')
+          .insert({ id: userId })
+          .select(PROFILE_FIELDS)
+          .single<ProfileRow>();
+        if (insertError) throw insertError;
+        if (!inserted) {
+          throw new Error('Profile self-heal insert returned no row');
+        }
+        return mapProfileRow(inserted);
+      }
+      // Any other error is real — surface it to React Query so the UI
+      // can render an error state instead of silently rendering the
+      // "Other" fallback.
+      if (error) throw error;
+      if (!data) {
+        throw new Error('Profile select returned no row and no error');
+      }
+      return mapProfileRow(data);
     },
     enabled: !!userId,
     // The profile is the source of truth for business_name, business_type
@@ -100,25 +99,31 @@ export function useUpdateProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ userId, updates }: { userId: string; updates: Partial<EditableProfileFields> }) => {
-      // The profile row is auto-created on signup by an auth trigger, so a
-      // plain UPDATE is safer than UPSERT — it never accidentally inserts a
-      // partial row, and surfaces RLS / column errors instead of no-op-ing.
-      // Subscription columns are excluded — the DB trigger blocks client writes anyway.
+      // Upsert so a missing profile row gets recovered transparently.
+      // Previously we used UPDATE — which silently matched zero rows
+      // for users whose auth-trigger didn't fire, leaving the picker
+      // in a state where "Saved — Coffee forecast loading…" appeared
+      // but the row was never actually written. Upsert with onConflict
+      // on the PK collapses both paths: existing row → update, missing
+      // row → insert. RLS policies cover both ("Users can update own
+      // profile" / "Users can insert own profile") and both gate on
+      // auth.uid() = id, so this can still only touch the caller's row.
+      // Subscription columns are excluded — the DB trigger blocks them
+      // anyway, and they're not in EditableProfileFields.
       const { data, error } = await supabase
         .from('profiles')
-        .update(updates)
-        .eq('id', userId)
+        .upsert({ id: userId, ...updates }, { onConflict: 'id' })
         .select()
         .single();
       if (error) throw error;
       // Verify the server actually applied each requested field. Without
       // this check a successful round-trip can still leave the DB
-      // unchanged: a stale auth.uid() can let the UPDATE match zero rows
-      // (returning the old SELECT row via PostgREST), or a future RLS
-      // column-policy / BEFORE-UPDATE trigger could silently rewrite the
-      // value. We canonicalise both sides via normalizeTradeType so a
-      // server that title-cases ("coffee" → "Coffee") doesn't trip the
-      // check.
+      // unchanged: a stale auth.uid() can let the upsert match zero
+      // rows (returning the old SELECT row via PostgREST), or a future
+      // RLS column-policy / BEFORE-UPDATE trigger could silently
+      // rewrite the value. We canonicalise both sides via
+      // normalizeTradeType so a server that title-cases ("coffee" →
+      // "Coffee") doesn't trip the check.
       for (const key of Object.keys(updates) as Array<keyof EditableProfileFields>) {
         const sent = updates[key];
         const got = (data as Record<string, unknown>)[key];
