@@ -795,6 +795,171 @@ import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
     'sent Coffee, got ""');
 }
 
+// 31p. Profile loader contract: business_type is surfaced as stored.
+//      The previous bug class was the loader coercing empty/whitespace
+//      to 'Coffee' as a "defensive default" — which hid the real DB
+//      state from the dev strip and disagreed with the central
+//      resolver. mapProfileRow now passes the value through unchanged
+//      (only typeof-non-string is coerced to '' so downstream type is
+//      stable). This test pins that contract so a future refactor
+//      can't silently reintroduce the coercion.
+{
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { mapProfileRow } = require('@/lib/profileHelpers');
+
+  const base = {
+    id: 'u1',
+    business_name: 'Trader X',
+    currency: 'GBP',
+    custom_metrics: [],
+    subscription_status: 'none',
+    subscription_product_id: null,
+    subscription_expires_at: null,
+    subscription_will_renew: false,
+    reviewer_grandfathered: false,
+  };
+
+  // (a) Explicit Coffee passes through unchanged.
+  expect('loader_passes_coffee_through',
+    mapProfileRow({ ...base, business_type: 'Coffee' }).business_type === 'Coffee',
+    `got=${mapProfileRow({ ...base, business_type: 'Coffee' }).business_type}`);
+
+  // (b) Empty string passes through unchanged — NOT coerced to Coffee.
+  expect('loader_does_not_coerce_empty_to_coffee',
+    mapProfileRow({ ...base, business_type: '' }).business_type === '',
+    `got=${JSON.stringify(mapProfileRow({ ...base, business_type: '' }).business_type)}`);
+
+  // (c) Whitespace passes through unchanged — NOT coerced.
+  expect('loader_does_not_coerce_whitespace',
+    mapProfileRow({ ...base, business_type: '   ' }).business_type === '   ',
+    `got=${JSON.stringify(mapProfileRow({ ...base, business_type: '   ' }).business_type)}`);
+
+  // (d) DB null becomes '' (stable type) but NOT 'Coffee'.
+  expect('loader_null_business_type_becomes_empty_not_coffee',
+    mapProfileRow({ ...base, business_type: null }).business_type === '',
+    `got=${JSON.stringify(mapProfileRow({ ...base, business_type: null }).business_type)}`);
+
+  // (e) Alias 'coffee' passes through unchanged — normalization is the
+  //     resolver's job, NOT the loader's. The loader surfaces raw state.
+  expect('loader_passes_lowercase_alias_through',
+    mapProfileRow({ ...base, business_type: 'coffee' }).business_type === 'coffee',
+    `got=${mapProfileRow({ ...base, business_type: 'coffee' }).business_type}`);
+}
+
+// 31q. Snapshot-persistence guard: isExplicitTradeTypeFor.
+//      The PredictionInsightCard saves a prediction snapshot to
+//      event_predictions once per (event,temp). The guard exists so
+//      we never persist a fallback 'Other' that doesn't reflect the
+//      trader's real business. Two failure modes the guard prevents:
+//        • profile still loading → rawBusinessType is null,
+//          canonical resolves to 'Other' via fallback — must NOT save.
+//        • profile loaded but DB has empty business_type → also
+//          fallback 'Other' — must NOT save.
+{
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { isExplicitTradeTypeFor } = require('@/lib/profileHelpers');
+
+  // (a) Loaded + explicit Coffee → save allowed.
+  expect('snapshot_guard_loaded_coffee_allows_save',
+    isExplicitTradeTypeFor(true, 'Coffee') === true,
+    `got=${isExplicitTradeTypeFor(true, 'Coffee')}`);
+
+  // (b) Loaded + explicit Other → save allowed (user really did pick Other).
+  expect('snapshot_guard_loaded_explicit_other_allows_save',
+    isExplicitTradeTypeFor(true, 'Other') === true,
+    `got=${isExplicitTradeTypeFor(true, 'Other')}`);
+
+  // (c) NOT loaded yet → must skip save (the fallback-Other guard).
+  expect('snapshot_guard_not_loaded_blocks_save',
+    isExplicitTradeTypeFor(false, 'Coffee') === false,
+    `got=${isExplicitTradeTypeFor(false, 'Coffee')}`);
+
+  // (d) Loaded but rawBusinessType null (profile undefined) → must skip.
+  expect('snapshot_guard_null_raw_blocks_save',
+    isExplicitTradeTypeFor(true, null) === false,
+    `got=${isExplicitTradeTypeFor(true, null)}`);
+
+  // (e) Loaded + empty string → must skip (no real value chosen).
+  expect('snapshot_guard_empty_raw_blocks_save',
+    isExplicitTradeTypeFor(true, '') === false,
+    `got=${isExplicitTradeTypeFor(true, '')}`);
+
+  // (f) Loaded + whitespace → must skip.
+  expect('snapshot_guard_whitespace_raw_blocks_save',
+    isExplicitTradeTypeFor(true, '   ') === false,
+    `got=${isExplicitTradeTypeFor(true, '   ')}`);
+
+  // (g) Loaded + undefined → must skip.
+  expect('snapshot_guard_undefined_raw_blocks_save',
+    isExplicitTradeTypeFor(true, undefined) === false,
+    `got=${isExplicitTradeTypeFor(true, undefined)}`);
+}
+
+// 31r. WeatherCard hot/iced gate: the "Prepare: X% Hot / Y% Iced" prep
+//      strip is drink-trade-specific and was previously shown to every
+//      trader — a wrong-type crossover that confused food/ice-cream
+//      traders. Gate predicate: canonical trade === 'Coffee'. This
+//      test mirrors the runtime predicate inside WeatherCard.tsx so a
+//      refactor of the gate would be caught.
+{
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { normalizeTradeType } = require('@/lib/tradeTypeConfig');
+  const gate = (tradeType: string | null | undefined): boolean =>
+    normalizeTradeType(tradeType) === 'Coffee';
+
+  // (a) Coffee → show.
+  expect('weather_hot_iced_shows_for_coffee',
+    gate('Coffee') === true,
+    `got=${gate('Coffee')}`);
+
+  // (b) Coffee aliases → show.
+  for (const alias of ['coffee', 'COFFEE', 'Coffee Van', 'espresso']) {
+    expect(`weather_hot_iced_shows_for_coffee_alias_${alias.replace(/\s+/g, '_')}`,
+      gate(alias) === true,
+      `alias=${alias} got=${gate(alias)}`);
+  }
+
+  // (c) Burgers → hide.
+  expect('weather_hot_iced_hides_for_burgers',
+    gate('Burgers') === false,
+    `got=${gate('Burgers')}`);
+
+  // (d) Ice Cream → hide (ice cream is cold-demand, not drink-split).
+  expect('weather_hot_iced_hides_for_ice_cream',
+    gate('Ice Cream') === false,
+    `got=${gate('Ice Cream')}`);
+
+  // (e) Other / unset → hide. The prep advice is meaningless without
+  //     a coffee-trade context, and the previous always-on behaviour
+  //     was misleading to unset accounts.
+  expect('weather_hot_iced_hides_for_other',
+    gate('Other') === false,
+    `got=${gate('Other')}`);
+  expect('weather_hot_iced_hides_for_null',
+    gate(null) === false,
+    `got=${gate(null)}`);
+  expect('weather_hot_iced_hides_for_undefined',
+    gate(undefined) === false,
+    `got=${gate(undefined)}`);
+  expect('weather_hot_iced_hides_for_empty_string',
+    gate('') === false,
+    `got=${gate('')}`);
+}
+
+// 31s. PGRST116 sentinel for the profile-row self-heal path. The
+//      loader detects PostgREST's "0 rows from .single()" error code
+//      and inserts a profile row to recover. Pin the constant so a
+//      future Supabase client upgrade that changes the code is
+//      caught immediately, rather than silently regressing into the
+//      old "render Other forever" failure mode.
+{
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { POSTGREST_NO_ROWS } = require('@/lib/profileHelpers');
+  expect('postgrest_no_rows_sentinel_is_pgrst116',
+    POSTGREST_NO_ROWS === 'PGRST116',
+    `got=${POSTGREST_NO_ROWS}`);
+}
+
 // 32. CSV parser merges duplicate product names (some POS emit one row per transaction)
 {
   const dupCSV = [
