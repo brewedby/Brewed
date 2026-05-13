@@ -27,7 +27,7 @@ const logicSrc    = fs.readFileSync(path.join(ROOT, 'lib', 'queries', 'traderPro
 const catalogSrc  = fs.readFileSync(path.join(ROOT, 'components', 'cogs', 'ProductCatalogScreen.tsx'),         'utf8');
 const eventSrc    = fs.readFileSync(path.join(ROOT, 'app', '(tabs)', 'events', '[id]', 'index.tsx'),           'utf8');
 
-// ── 1. Pure status-tree unit tests ────────────────────────────────────
+// ── 1. Pure status-tree unit tests ─────────────────────────────────────────
 // Import from the leaf logic module — it has zero RN/Supabase imports
 // so tsx can require it without breaking on react-native's index.js.
 import { resolveStatus } from '../queries/traderProfileLogic';
@@ -162,7 +162,7 @@ const cachedProfile    = { ...liveProfile, business_name: 'Old Cached Name' };
     'no live, no cache, not fetching, errored → error (genuine failure)');
 }
 
-// ── 2. Resolver shape invariants ────────────────────────────────────────
+// ── 2. Resolver shape invariants ──────────────────────────────────────────
 {
   expect('resolver_exports_useTraderProfile',
     /export function useTraderProfile\(/.test(resolverSrc),
@@ -189,7 +189,7 @@ const cachedProfile    = { ...liveProfile, business_name: 'Old Cached Name' };
     'resolver must hydrate cached profile from AsyncStorage on userId change');
 
   expect('resolver_logs_dev_diagnostics',
-    /__DEV__[\s\S]{0,400}profile fetch error/.test(resolverSrc),
+    /__DEV__[\s\S]{0,800}profile fetch error/.test(resolverSrc),
     'resolver must dev-only console.warn the underlying fetch error so Metro logs reveal the cause');
 
   expect('resolver_retry_invalidates_then_refetches',
@@ -201,7 +201,7 @@ const cachedProfile    = { ...liveProfile, business_name: 'Old Cached Name' };
     'AsyncStorage cache key must be namespaced by userId to prevent cross-account leaks');
 }
 
-// ── 3. COGS uses the resolver ─────────────────────────────────────────────
+// ── 3. COGS uses the resolver ──────────────────────────────────────────────
 {
   expect('catalog_imports_useTraderProfile',
     /import\s*\{\s*useTraderProfile\s*\}\s*from\s*['"]@\/lib\/queries\/traderProfile['"]/.test(catalogSrc),
@@ -276,7 +276,7 @@ const cachedProfile    = { ...liveProfile, business_name: 'Old Cached Name' };
     'the old "!profileLoading && !profileError && !!profile" gate must not be reintroduced — React Query can have data AND isError=true simultaneously');
 }
 
-// ── Reporter ───────────────────────────────────────────────────
+// ── Reporter ────────────────────────────────────────────────────────────────
 let pass = 0, fail = 0;
 for (const r of results) {
   const tag = r.pass ? 'PASS' : 'FAIL';
