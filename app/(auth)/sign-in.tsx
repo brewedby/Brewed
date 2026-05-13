@@ -216,7 +216,7 @@ export default function SignInScreen() {
           <TouchableOpacity
             onPress={() => setRememberMe((v) => !v)}
             accessibilityRole="checkbox"
-            accessibilityLabel="Keep me signed in on this van"
+            accessibilityLabel="Keep me signed in on this device"
             accessibilityState={{ checked: rememberMe }}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 }}
           >
@@ -226,7 +226,7 @@ export default function SignInScreen() {
             }}>
               {rememberMe && <View style={{ width: 8, height: 8, backgroundColor: p.text }} />}
             </View>
-            <Text style={{ fontSize: 12, color: p.textMuted }}>Keep me signed in on this van</Text>
+            <Text style={{ fontSize: 12, color: p.textMuted }}>Keep me signed in</Text>
           </TouchableOpacity>
 
           {/* Sign in */}

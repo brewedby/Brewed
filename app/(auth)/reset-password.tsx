@@ -40,7 +40,7 @@ export default function ResetPasswordScreen() {
   const [loading, setLoading] = useState(false);
   const confirmRef = useRef<TextInput>(null);
   const router = useRouter();
-  const { setIsRecoveryMode } = useAuth();
+  const { signOut } = useAuth();
 
   const strength = scorePassword(password);
   const mismatch = confirm.length > 0 && password !== confirm;
@@ -62,8 +62,11 @@ export default function ResetPasswordScreen() {
         [{ text: 'OK' }],
       );
     } else {
-      setIsRecoveryMode(false);
-      await supabase.auth.signOut();
+      // Route through useAuth().signOut() so the biometric refresh
+      // token gets cleared too — otherwise the user who reset their
+      // password would still see "Sign in with Face ID" against a
+      // refresh token that's about to be revoked by Supabase.
+      await signOut();
       Alert.alert(
         'Password updated',
         'Your password has been changed. Sign in with your new password.',
@@ -73,8 +76,7 @@ export default function ResetPasswordScreen() {
   }
 
   async function handleBack() {
-    setIsRecoveryMode(false);
-    await supabase.auth.signOut();
+    await signOut();
     router.replace('/(auth)/sign-in');
   }
 
