@@ -121,14 +121,17 @@ export function useUpdateProfile() {
       // unchanged: a stale auth.uid() can let the upsert match zero
       // rows (returning the old SELECT row via PostgREST), or a future
       // RLS column-policy / BEFORE-UPDATE trigger could silently
-      // rewrite the value. We canonicalise both sides via
-      // normalizeTradeType so a server that title-cases ("coffee" →
-      // "Coffee") doesn't trip the check.
+      // rewrite the value. We compare per-field so a silent miswrite
+      // on ANY editable column ("Saved!" alert but business name still
+      // blank on next view) surfaces as an error rather than passing.
       for (const key of Object.keys(updates) as Array<keyof EditableProfileFields>) {
         const sent = updates[key];
         const got = (data as Record<string, unknown>)[key];
         if (sent === undefined) continue;
+
         if (key === 'business_type') {
+          // Canonicalise via normalizeTradeType so a server that
+          // title-cases ("coffee" → "Coffee") doesn't trip the check.
           const sentNorm = normalizeTradeType(sent as string);
           const gotNorm = normalizeTradeType(got as string | null);
           if (sentNorm !== gotNorm) {
@@ -137,6 +140,37 @@ export function useUpdateProfile() {
               `read back '${String(got)}'. Check RLS policy and triggers on profiles table.`
             );
           }
+          continue;
+        }
+
+        if (key === 'business_name' || key === 'currency') {
+          // Plain string comparison (trim defensively — the server
+          // shouldn't be adding whitespace but if it does, the user
+          // still entered what they entered).
+          const sentStr = typeof sent === 'string' ? sent.trim() : '';
+          const gotStr = typeof got === 'string' ? got.trim() : '';
+          if (sentStr !== gotStr) {
+            throw new Error(
+              `Server did not persist ${key}='${sentStr}' — ` +
+              `read back '${gotStr}'. Check RLS policy and triggers on profiles table.`
+            );
+          }
+          continue;
+        }
+
+        // custom_metrics: shape comparison is fragile, so just verify
+        // the array length matches what we sent. A trigger that
+        // replaced the array would show a different length.
+        if (key === 'custom_metrics') {
+          const sentLen = Array.isArray(sent) ? sent.length : -1;
+          const gotLen = Array.isArray(got) ? got.length : -1;
+          if (sentLen !== gotLen) {
+            throw new Error(
+              `Server did not persist custom_metrics (length ${sentLen} → ${gotLen}). ` +
+              `Check RLS policy and triggers on profiles table.`
+            );
+          }
+          continue;
         }
       }
       return data;

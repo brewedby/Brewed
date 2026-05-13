@@ -145,3 +145,39 @@ export function useReorderProducts() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['product_catalog'] }),
   });
 }
+
+/**
+ * Bulk-update product categories. Used by the "Auto-fix legacy categories"
+ * button on the menu screen — the caller computes the mapping with
+ * mapLegacyCategoryForTrade() then submits the result here. Per-row
+ * failures are surfaced (we don't silently lose updates).
+ */
+export function useRecategorizeProducts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      mappings,
+    }: {
+      mappings: Array<{ id: string; newCategory: string }>;
+    }) => {
+      if (mappings.length === 0) return;
+      const results = await Promise.all(
+        mappings.map(({ id, newCategory }) =>
+          supabase
+            .from('product_catalog')
+            .update({ category: newCategory })
+            .eq('id', id)
+        )
+      );
+      const errored = results.filter((r) => r.error);
+      if (errored.length > 0) {
+        const first = errored[0].error;
+        throw new Error(
+          `${errored.length} of ${mappings.length} products failed to re-categorise. ` +
+          `First error: ${first?.message ?? 'unknown'}`
+        );
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['product_catalog'] }),
+  });
+}

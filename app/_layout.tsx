@@ -65,33 +65,33 @@ function RootLayoutNav() {
     const onPaywall = inModal && segs[1] === 'paywall';
     const onPrivacy = inModal && segs[1] === 'privacy';
 
-    // Sign-in routing — purely auth-driven, doesn't depend on profile.
+    // 1. No session and we're outside the auth group → bounce to sign-in.
+    //    Doesn't depend on profile.
     if (!session && !inAuthGroup) {
       router.replace('/(auth)/sign-in');
       return;
     }
 
-    // Every redirect below this point inspects `profile.business_name`.
-    // Wait for the profile fetch to settle before deciding — otherwise
-    // a transient loading/error state evaluates `!profile?.business_name`
-    // as truthy (undefined is falsy) and bounces a fully-onboarded user
-    // into onboarding. That was the cause of the "click Events, get
-    // onboarding" loop after useProfile started throwing on errors
-    // instead of silently returning null.
-    //
-    // `profile` undefined post-loading means the query errored (React
-    // Query keeps previous data on background refetch errors, so this
-    // only triggers on a hard initial failure). Don't redirect — let
-    // React Query retry. The user stays where they are; if they're on
-    // a screen that doesn't render without a profile, that screen
-    // shows its own loading / error UI.
-    if (profileLoading) return;
-    if (!profile) return;
-
-    const setupComplete = isProfileSetupComplete(profile);
-
-    // Post-sign-in routing.
+    // 2. We have a session but we're stuck in the auth group → must escape,
+    //    even if the profile is missing or errored. Previously this branch
+    //    sat behind `if (!profile) return` further down, which meant a
+    //    profile-load failure right after sign-in trapped the user on the
+    //    sign-in screen forever (no spinner, no error — just nothing). We
+    //    wait for the initial fetch to *settle* (so we know whether to
+    //    head for onboarding or dashboard) but never indefinitely block
+    //    the escape on profile being defined.
     if (session && inAuthGroup) {
+      if (profileLoading) return;
+      if (!profile) {
+        // Profile errored on the initial post-sign-in fetch. Leaving the
+        // user on the sign-in screen looks like sign-in failed. Send
+        // them to the dashboard — the prediction card and other surfaces
+        // render their own profile-error banners with a Retry CTA, and
+        // React Query's retry policy will refetch in the background.
+        router.replace('/(tabs)/dashboard');
+        return;
+      }
+      const setupComplete = isProfileSetupComplete(profile);
       if (!setupComplete) {
         router.replace('/onboarding');
       } else if (!isEntitled && subReady) {
@@ -102,8 +102,23 @@ function RootLayoutNav() {
       return;
     }
 
+    // Below this point we're signed in and outside the auth group. Every
+    // remaining redirect inspects `profile.business_name`, so wait for
+    // the profile fetch to settle. A transient undefined would otherwise
+    // bounce a fully-onboarded user into /onboarding on every tab nav.
+    //
+    // `profile` undefined post-loading means the query errored (React
+    // Query keeps previous data on background refetch errors, so this
+    // only triggers on a hard initial failure). Don't redirect — let
+    // React Query retry. The user stays where they are; the screen
+    // they're on shows its own loading / error UI.
+    if (profileLoading) return;
+    if (!profile) return;
+
+    const setupComplete = isProfileSetupComplete(profile);
+
     // Onboarding gate (must complete profile before paywall).
-    if (session && !inAuthGroup && !inOnboarding && !setupComplete) {
+    if (!inOnboarding && !setupComplete) {
       router.replace('/onboarding');
       return;
     }
@@ -111,20 +126,18 @@ function RootLayoutNav() {
     // Subscription gate — keep paywall up unless entitled.
     // Allow privacy modal so users can read the privacy summary from paywall.
     if (
-      session &&
       setupComplete &&
       !isEntitled &&
       subReady &&
       !onPaywall &&
-      !onPrivacy &&
-      !inAuthGroup
+      !onPrivacy
     ) {
       router.replace('/(modal)/paywall');
       return;
     }
 
     // Entitled user landed on paywall (e.g. after restore) → leave it
-    if (session && isEntitled && onPaywall) {
+    if (isEntitled && onPaywall) {
       router.replace('/(tabs)/dashboard');
     }
   }, [session, loading, segments, profile, profileLoading, isRecoveryMode, isEntitled, subReady]);
