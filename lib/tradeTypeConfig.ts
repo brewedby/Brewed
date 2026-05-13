@@ -372,7 +372,7 @@ export function normalizeTradeType(raw: string | null | undefined): string {
     [/\bsoft\s?serve/,    'Ice Cream'],
     [/\bdessert/,         'Desserts'],
     [/\bcake/,            'Desserts'],
-    [/\bbakery|baker|bake\b/, 'Bakery'],
+    [/\b(bakery|baker|bake)\b/, 'Bakery'],
     [/\bbread\b/,         'Bakery'],
     [/\bpastr/,           'Bakery'],
     [/\bcocktail/,        'Cocktails'],

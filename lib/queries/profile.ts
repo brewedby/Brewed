@@ -54,20 +54,25 @@ export function useProfile(userId: string | undefined) {
       // existed). Previously, a missing row caused this function to
       // silently return null, which left every downstream consumer
       // falling through to the 'Other' fallback while the user thought
-      // their saves were succeeding. Insert the row here, idempotently.
+      // their saves were succeeding.
+      //
+      // Use UPSERT (not INSERT) so a race condition — the row being
+      // created between our SELECT and this write — doesn't produce a
+      // duplicate-key error. ON CONFLICT DO UPDATE SET id=id is a
+      // no-op for existing rows; RETURNING * still returns the row.
       // RLS policy "Users can insert own profile" gates this on
-      // auth.uid() = id, so this can only insert the caller's row.
-      if (error && error.code === POSTGREST_NO_ROWS) {
-        const { data: inserted, error: insertError } = await supabase
+      // auth.uid() = id, so this can only touch the caller's row.
+      if (error && error.code === POSTGREST_NO_ROWS) { // PGRST116
+        const { data: healed, error: healError } = await supabase
           .from('profiles')
-          .insert({ id: userId })
+          .upsert({ id: userId }, { onConflict: 'id' })
           .select(PROFILE_FIELDS)
           .single<ProfileRow>();
-        if (insertError) throw insertError;
-        if (!inserted) {
-          throw new Error('Profile self-heal insert returned no row');
+        if (healError) throw healError;
+        if (!healed) {
+          throw new Error('Profile self-heal upsert returned no row');
         }
-        return mapProfileRow(inserted);
+        return mapProfileRow(healed);
       }
       // Any other error is real — surface it to React Query so the UI
       // can render an error state instead of silently rendering the
