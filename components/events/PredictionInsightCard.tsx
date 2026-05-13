@@ -62,6 +62,14 @@ interface Props {
    *  Gates the [Prediction] log and the explicit-Other guard so we
    *  don't write a fallback-Other snapshot before profile arrives. */
   isProfileLoaded?: boolean;
+  /** Display preferences from the profile's custom_metrics. Controls which
+   *  sections appear on the forecast card. All default true so users who
+   *  haven't set prefs see the full card. */
+  forecastPrefs?: {
+    showWeather:   boolean;
+    showDrivers:   boolean;
+    showPlanStock: boolean;
+  };
 }
 
 export function PredictionInsightCard({
@@ -73,6 +81,7 @@ export function PredictionInsightCard({
   isProfileLoading,
   isProfileError,
   isProfileLoaded,
+  forecastPrefs,
 }: Props) {
   const config = getTradeConfig(tradeType);
   const canonicalTradeType = normalizeTradeType(tradeType);
@@ -314,6 +323,9 @@ export function PredictionInsightCard({
             pendingTradeType={pendingTradeType}
             pickerError={pickerError}
             pickerSuccess={pickerSuccess}
+            showWeather={forecastPrefs?.showWeather ?? true}
+            showDrivers={forecastPrefs?.showDrivers ?? true}
+            showPlanStock={forecastPrefs?.showPlanStock ?? true}
           />
         )}
       </View>
@@ -337,6 +349,7 @@ function ForecastCard({
   canonicalTradeType, rawBusinessType, onOpenSettings,
   showInlinePicker, onTogglePicker, onPickTradeType, savingTradeType, pendingTradeType,
   pickerError, pickerSuccess,
+  showWeather, showDrivers, showPlanStock,
 }: {
   result: PredictionResult;
   tagline: string;
@@ -355,6 +368,9 @@ function ForecastCard({
   pendingTradeType: string | null;
   pickerError: string | null;
   pickerSuccess: string | null;
+  showWeather: boolean;
+  showDrivers: boolean;
+  showPlanStock: boolean;
 }) {
   const p = palette;
   const conf = confidencePresentation(result.confidence, isDark, p);
@@ -577,27 +593,31 @@ function ForecastCard({
         ))}
       </View>
 
-      {/* Weather impact */}
-      <View style={{
-        flexDirection: 'row', alignItems: 'center', gap: 8,
-        backgroundColor: p.surfaceAlt, padding: 10, marginTop: 12,
-        borderWidth: 1, borderColor: p.border,
-      }}>
-        <Ionicons name="partly-sunny-outline" size={14} color={p.textMuted} />
-        <Text style={{ fontSize: 11, color: p.text, flex: 1, lineHeight: 16 }}>
-          {result.weatherImpact} (forecast {forecastTempC.toFixed(0)}°C)
-        </Text>
-      </View>
+      {showWeather && (
+        /* Weather impact — respects forecast_weather preference */
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', gap: 8,
+          backgroundColor: p.surfaceAlt, padding: 10, marginTop: 12,
+          borderWidth: 1, borderColor: p.border,
+        }}>
+          <Ionicons name="partly-sunny-outline" size={14} color={p.textMuted} />
+          <Text style={{ fontSize: 11, color: p.text, flex: 1, lineHeight: 16 }}>
+            {result.weatherImpact} (forecast {forecastTempC.toFixed(0)}°C)
+          </Text>
+        </View>
+      )}
 
-      {/* Drivers */}
-      <View style={{ marginTop: 12, gap: 6 }}>
-        {result.drivers.map((d, i) => (
-          <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
-            <Ionicons name="ellipse" size={5} color={p.textFaint} style={{ marginTop: 6 }} />
-            <Text style={{ fontSize: 11, color: p.textMuted, flex: 1, lineHeight: 16 }}>{d}</Text>
-          </View>
-        ))}
-      </View>
+      {/* Drivers — respects forecast_drivers preference */}
+      {showDrivers && (
+        <View style={{ marginTop: 12, gap: 6 }}>
+          {result.drivers.map((d, i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+              <Ionicons name="ellipse" size={5} color={p.textFaint} style={{ marginTop: 6 }} />
+              <Text style={{ fontSize: 11, color: p.textMuted, flex: 1, lineHeight: 16 }}>{d}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* Confidence reason + privacy note */}
       <View style={{ borderTopWidth: 1, borderTopColor: p.border, borderStyle: 'dashed', marginTop: 12, paddingTop: 10, gap: 6 }}>
@@ -609,10 +629,10 @@ function ForecastCard({
         </Text>
       </View>
 
-      {/* Plan-stock-for chip strip.
+      {/* Plan-stock-for chip strip — respects forecast_plan_stock preference.
           Hidden for general_demand — the top CTA already conveys the prompt.
           drink_split (Coffee): only drink categories, never food. */}
-      {result.kind === 'general_demand' ? null : planCategories.length > 0 ? (
+      {!showPlanStock || result.kind === 'general_demand' ? null : planCategories.length > 0 ? (
         <View style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: p.border, borderStyle: 'dashed' }}>
           <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1, fontWeight: '700', marginBottom: 6 }}>
             PLAN STOCK FOR
