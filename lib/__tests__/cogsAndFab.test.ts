@@ -56,17 +56,21 @@ const predictSrc    = fs.readFileSync(path.join(ROOT, 'lib', 'predictionEngine.t
 
 // ── 2. ProductCatalogScreen gates on profile load ─────────────────────
 {
-  // (a) The screen pulls isLoading/isError from useProfile so it can branch
-  //     on the load state rather than silently using 'Other'.
-  expect('catalog_pulls_profile_loading_state',
-    /isLoading:\s*profileLoading[\s\S]{0,200}isError:\s*profileError/.test(catalogSrc),
-    'ProductCatalogScreen must destructure isLoading/isError from useProfile');
+  // (a) The screen consumes the shared resolver (not raw useProfile) —
+  //     this is what stops React Query's "data present but isError=true"
+  //     refetch-failure case from flipping the picker into the error
+  //     banner. See lib/queries/traderProfile.ts for the cache-fallback
+  //     contract.
+  expect('catalog_uses_traderProfile_resolver',
+    /useTraderProfile\(/.test(catalogSrc),
+    'ProductCatalogScreen must consume the shared useTraderProfile() resolver');
 
-  // (b) A profileReady predicate gates the body (early-return for
-  //     loading + error, no fall-through to picker with 'Other').
-  expect('catalog_uses_profileReady_predicate',
-    /profileReady\s*=\s*!profileLoading\s*&&\s*!profileError\s*&&\s*!!profile/.test(catalogSrc),
-    'ProductCatalogScreen must define profileReady = !profileLoading && !profileError && !!profile');
+  // (b) profileReady is derived from trader.status === ready, NOT the
+  //     old "!isLoading && !isError && !!profile" gate which silently
+  //     lost user data on background refetch failures.
+  expect('catalog_profileReady_uses_resolver_status',
+    /profileReady\s*=\s*trader\.status\s*===\s*['"]ready['"]/.test(catalogSrc),
+    'ProductCatalogScreen profileReady must be derived from trader.status === "ready"');
 
   // (c) Add/Edit views are gated by profileReady so ProductForm never
   //     receives tradeType='Other' from the loading fallback.
@@ -222,7 +226,7 @@ const predictSrc    = fs.readFileSync(path.join(ROOT, 'lib', 'predictionEngine.t
     'event detail must pass isProfileLoaded to PredictionInsightCard');
 }
 
-// ── Reporter ─────────────────────────────────────────────────────
+// ── Reporter ────────────────────────────────────────────────
 let pass = 0, fail = 0;
 for (const r of results) {
   const tag = r.pass ? 'PASS' : 'FAIL';

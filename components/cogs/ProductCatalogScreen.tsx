@@ -22,8 +22,7 @@ import {
   type ProductCatalogItem,
 } from '@/types/cogs';
 import type { ProductFormValues } from '@/lib/validations/product.schema';
-import { useProfile } from '@/lib/queries/profile';
-import { getActiveTradeType } from '@/lib/tradeTypeConfig';
+import { useTraderProfile } from '@/lib/queries/traderProfile';
 
 type ScreenView = 'list' | 'add' | 'edit';
 
@@ -43,12 +42,11 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
   const { tokens } = useTheme();
   const p = tokens.palette;
   const { user } = useAuth();
-  const {
-    data: profile,
-    isLoading: profileLoading,
-    isError: profileError,
-    refetch: refetchProfile,
-  } = useProfile(user?.id);
+  // Shared trader profile resolver — caches last-known-good in
+  // AsyncStorage so a transient fetch failure (network blip, JWT race
+  // post sign-in, RLS hiccup) doesn't lock the user out of their menu.
+  // Status: 'loading' | 'ready' | 'incomplete' | 'error'.
+  const trader = useTraderProfile();
   const { data: products = [], isLoading } = useProductCatalog();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
@@ -59,17 +57,12 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
   const [editing, setEditing] = useState<ProductCatalogItem | null>(null);
   const [search, setSearch] = useState('');
 
-  // Use the central resolver — getCategoriesForTrade does an exact-key
-  // lookup against TRADE_CATEGORIES (it isn't alias-tolerant), so a raw
-  // value like 'coffee' or 'Coffee Cart' would silently fall through to
-  // DEFAULT_CATEGORIES even though the user *did* set a trade.
-  //
-  // While the profile query is in flight or errored, getActiveTradeType
-  // falls back to 'Other' — which would render the wrong picker for a
-  // Coffee trader. The early-return loading/error gates below prevent
-  // any list / picker UI from rendering with this stale 'Other' value.
-  const tradeType = getActiveTradeType(profile);
-  const profileReady = !profileLoading && !profileError && !!profile;
+  // The resolver guarantees `tradeType` is canonical and only resolves
+  // to 'Other' when the profile is genuinely empty (status='incomplete')
+  // or pre-auth. The early-return gates below keep the list / picker
+  // UI from rendering during 'loading' / 'error' / 'incomplete' states.
+  const tradeType = trader.tradeType;
+  const profileReady = trader.status === 'ready';
 
   const filtered = useMemo(() =>
     products.filter((prod) =>
@@ -348,29 +341,36 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
           )}
         </View>
 
-        {!profileReady ? (
-          profileError ? (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 12 }}>
-              <Text style={{ fontFamily: tokens.type.display, fontSize: 22, color: p.text, marginBottom: 6 }}>
-                Couldn’t load your trader profile
-              </Text>
-              <Text style={{ color: p.textMuted, textAlign: 'center', fontSize: 13, lineHeight: 20, marginBottom: 8 }}>
-                Your trade type drives which categories appear here. Try again.
-              </Text>
-              <TouchableOpacity
-                onPress={() => refetchProfile()}
-                accessibilityRole="button"
-                accessibilityLabel="Retry loading your trader profile"
-                style={{ borderWidth: 1, borderColor: p.brand, paddingHorizontal: 16, paddingVertical: 10 }}
-              >
-                <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.brand }}>RETRY</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <ActivityIndicator color={p.brand} />
-            </View>
-          )
+        {trader.status === 'loading' ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color={p.brand} />
+          </View>
+        ) : trader.status === 'error' ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 12 }}>
+            <Text style={{ fontFamily: tokens.type.display, fontSize: 22, color: p.text, marginBottom: 6 }}>
+              Couldn’t load your trader profile
+            </Text>
+            <Text style={{ color: p.textMuted, textAlign: 'center', fontSize: 13, lineHeight: 20, marginBottom: 8 }}>
+              {trader.error?.message ?? 'Your trade type drives which categories appear here. Try again.'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => trader.retry()}
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading your trader profile"
+              style={{ borderWidth: 1, borderColor: p.brand, paddingHorizontal: 16, paddingVertical: 10 }}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.brand }}>RETRY</Text>
+            </TouchableOpacity>
+          </View>
+        ) : trader.status === 'incomplete' ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 12 }}>
+            <Text style={{ fontFamily: tokens.type.display, fontSize: 22, color: p.text, marginBottom: 6 }}>
+              Pick your trade type first
+            </Text>
+            <Text style={{ color: p.textMuted, textAlign: 'center', fontSize: 13, lineHeight: 20, marginBottom: 8 }}>
+              Set your trade type in Settings and Menu &amp; COGS will show the matching categories — Hot Drinks, Cold Drinks, Bakes for Coffee, Mains/Sides/Drinks for food traders, and so on.
+            </Text>
+          </View>
         ) : view === 'list' && (
           <>
             {/* Summary strip */}
