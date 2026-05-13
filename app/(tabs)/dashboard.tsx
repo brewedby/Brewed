@@ -5,7 +5,6 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDashboard } from '@/lib/queries/dashboard';
 import { formatCurrencyCompact, formatCurrency, formatDateRange } from '@/lib/formatters';
-import { QuickSalesSheet } from '@/components/dashboard/QuickSalesSheet';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { QueryError } from '@/components/shared/QueryError';
 import { ProductCatalogScreen } from '@/components/cogs/ProductCatalogScreen';
@@ -138,7 +137,6 @@ export default function DashboardScreen() {
   const [yearPickerOpen, setYearPickerOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showFees, setShowFees] = useState(false);
-  const [quickSalesOpen, setQuickSalesOpen] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
   const [sealed, setSealed] = useState(false);
   const [tagIdx, setTagIdx] = useState(0);
@@ -572,32 +570,6 @@ export default function DashboardScreen() {
         </ScrollView>
       )}
 
-      {/* Quick Sales FAB */}
-      <TouchableOpacity
-        onPress={() => setQuickSalesOpen(true)}
-        accessibilityLabel="Log today's sales"
-        accessibilityRole="button"
-        style={{
-          position: 'absolute',
-          bottom: 24 + insets.bottom,
-          right: 20,
-          width: 52,
-          height: 52,
-          borderRadius: 26,
-          backgroundColor: p.brand,
-          alignItems: 'center',
-          justifyContent: 'center',
-          shadowColor: '#000',
-          shadowOpacity: 0.2,
-          shadowRadius: 8,
-          shadowOffset: { width: 0, height: 3 },
-          elevation: 6,
-        }}
-      >
-        <Text style={{ fontSize: 22, color: '#fff', fontFamily: tokens.type.display }}>£</Text>
-      </TouchableOpacity>
-
-      <QuickSalesSheet visible={quickSalesOpen} onClose={() => setQuickSalesOpen(false)} />
       <ProductCatalogScreen visible={showCatalog} onClose={() => setShowCatalog(false)} />
     </View>
   );
