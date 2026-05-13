@@ -119,7 +119,7 @@ export interface ReconciliationSummary {
   coveragePercent: number;
 }
 
-// ── Category catalogue ───────────────────────────────────────
+// ── Category catalogue ──────────────────────────────
 // Every category that can appear in any trade type, keyed by snake_case.
 // `vatable: true` means the selling price includes 20% UK standard-rate VAT
 // (hot food, hot drinks, alcohol, ready-to-eat). Cold/take-away food is
@@ -157,7 +157,7 @@ export const CATEGORY_DEFINITIONS: Record<string, CategoryDefinition> = {
   other:         { label: 'Other',         emoji: '📦', vatable: false },
 };
 
-// ── Trade-type → ordered category list ────────────────────────────────
+// ── Trade-type → ordered category list ─────────────────────────
 // Defines the default category set surfaced in the menu builder for
 // each business type. Users can pick categories from any list — these
 // are just sensible defaults to make the menu feel relevant.
@@ -190,6 +190,55 @@ export function getCategoriesForTrade(
 ): (CategoryDefinition & { value: string })[] {
   const keys = (tradeType && TRADE_CATEGORIES[tradeType]) || DEFAULT_CATEGORIES;
   return keys.map((k) => ({ value: k, ...(CATEGORY_DEFINITIONS[k] ?? CATEGORY_DEFINITIONS.other) }));
+}
+
+// ── Legacy → modern category mapping ─────────────────────────────
+// Trade-aware remap from the pre-categorisation generic values ('food',
+// 'drinks') to the closest modern equivalent in that trade's list. Used
+// by the COGS screen's "Auto-fix" button so users don't have to edit 30+
+// products one by one after a trade-type change.
+//
+// Any legacy key not listed for a trade falls through to 'other' (which
+// is always valid in every trade's TRADE_CATEGORIES list).
+const LEGACY_TO_MODERN: Record<string, Record<string, string>> = {
+  Coffee:              { food: 'bakes',    drinks: 'cold_drinks' },
+  'Street Food':       { food: 'mains',    drinks: 'drinks' },
+  Pizza:               { food: 'mains',    drinks: 'drinks' },
+  Burgers:             { food: 'mains',    drinks: 'drinks' },
+  Desserts:            { food: 'desserts', drinks: 'drinks' },
+  Bakery:              { food: 'bakes',    drinks: 'hot_drinks' },
+  'Ice Cream':         { food: 'desserts', drinks: 'drinks' },
+  Crepes:              { food: 'mains',    drinks: 'drinks' },
+  Waffles:             { food: 'mains',    drinks: 'drinks' },
+  Cocktails:           { food: 'sides',    drinks: 'alcohol' },
+  'Craft Beer':        { food: 'sides',    drinks: 'alcohol' },
+  Wine:                { food: 'sides',    drinks: 'alcohol' },
+  'Juice & Smoothies': { food: 'mains',    drinks: 'cold_drinks' },
+  'Asian Food':        { food: 'mains',    drinks: 'drinks' },
+  'Mexican Food':      { food: 'mains',    drinks: 'drinks' },
+  Other:               { food: 'mains',    drinks: 'drinks' },
+};
+
+/**
+ * Map a single legacy/non-trade category to the closest modern category
+ * for the given trade type. Pure function — no I/O, safe to test.
+ *
+ * Contract:
+ *  - If the input category is already valid for the trade, returned
+ *    unchanged.
+ *  - If a trade-specific mapping is defined, returns that mapping's
+ *    target.
+ *  - Otherwise returns 'other' (always valid).
+ */
+export function mapLegacyCategoryForTrade(
+  legacyCategory: string,
+  tradeType: string,
+): string {
+  const validKeys = TRADE_CATEGORIES[tradeType] ?? DEFAULT_CATEGORIES;
+  if (validKeys.includes(legacyCategory)) return legacyCategory;
+  const mapping = LEGACY_TO_MODERN[tradeType] ?? LEGACY_TO_MODERN.Other;
+  if (mapping[legacyCategory]) return mapping[legacyCategory];
+  return 'other';
 }
 
 export function isVatableCategory(category: string | null | undefined): boolean {
