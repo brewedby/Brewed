@@ -111,13 +111,14 @@ const prodMutSrc  = fs.readFileSync(PRODMUT_PATH, 'utf8');
     'banner must mention retry, not direct user to sign-out only');
 }
 
-// 4. Event detail pull-to-refresh must also invalidate the profile
-//    query — otherwise the recovery banner stays sticky even after the
-//    user pulls down to refresh.
+// 4. Event detail pull-to-refresh must also refresh the shared trader
+//    profile. The resolver's retry() invalidates + refetches the
+//    profile query internally, so calling it is equivalent to the old
+//    inline qc.invalidateQueries(['profile', userId]) flow.
 {
-  expect('event_refresh_invalidates_profile',
-    /handleRefresh[\s\S]{0,800}invalidateQueries[\s\S]{0,200}\['profile'/.test(eventSrc),
-    'event detail handleRefresh must invalidate the profile query');
+  expect('event_refresh_invokes_trader_retry',
+    /handleRefresh[\s\S]{0,800}trader\.retry\(\)/.test(eventSrc),
+    'event detail handleRefresh must invoke trader.retry() (which invalidates+refetches profile)');
 }
 
 // 5. COGS legacy reminder: the "Re-categorise reminder" must offer an
@@ -223,7 +224,7 @@ const prodMutSrc  = fs.readFileSync(PRODMUT_PATH, 'utf8');
     firstBad ?? 'every (legacy, trade) pair maps to a category in that trade\'s TRADE_CATEGORIES list');
 }
 
-// ── Reporter ──────────────────────────────────────────────
+// ── Reporter ──────────────────────────────────
 let pass = 0, fail = 0;
 for (const r of results) {
   const tag = r.pass ? 'PASS' : 'FAIL';

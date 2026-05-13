@@ -20,8 +20,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { useTheme } from '@/lib/themeContext';
 import { BackBar } from '@/components/shared/BackBar';
 import { pushTrail } from '@/lib/navTrail';
-import { useProfile } from '@/lib/queries/profile';
-import { getActiveTradeType } from '@/lib/tradeTypeConfig';
+import { useTraderProfile } from '@/lib/queries/traderProfile';
 import { farStatus, STATUS_DOT } from '@/lib/theme';
 import { formatDateRange, formatDate, toISODateString } from '@/lib/formatters';
 import { STATUSES, STATUS_LABELS } from '@/constants';
@@ -109,12 +108,23 @@ export default function EventDetailScreen() {
   const S = farStatus(isDark);
 
   const { data: event, isLoading, refetch } = useEvent(id);
-  const { data: profile, isLoading: profileLoading, isError: profileError, isSuccess: profileLoaded } = useProfile(user?.id);
-  // Single source of truth: getActiveTradeType normalises the profile's
-  // business_type into a canonical key (Coffee / Burgers / Pizza / …).
-  // Passing the canonical value to the card removes any chance of
-  // case-mismatch, whitespace, or alias surprises downstream.
-  const tradeType = getActiveTradeType(profile);
+  // Shared trader profile resolver — see lib/queries/traderProfile.ts.
+  // Returns canonical tradeType plus a four-state status so the card
+  // can never render an error banner when the user actually has
+  // perfectly valid profile data sitting in React Query / AsyncStorage
+  // cache. Layout still uses raw useProfile() for the onboarding gate
+  // (it needs the entitlement columns the resolver doesn't expose).
+  const trader = useTraderProfile();
+  const profile = trader.profile;
+  const tradeType = trader.tradeType;
+
+  // Translate the resolver's status into the loading flags the card
+  // already expects, so we don't have to refactor the card's own
+  // gating logic. 'incomplete' is intentionally NOT an error here —
+  // the card has an inline trade-type picker that handles it.
+  const profileLoading = trader.status === 'loading';
+  const profileError   = trader.status === 'error';
+  const profileLoaded  = trader.status === 'ready' || trader.status === 'incomplete';
 
   // Extract forecast display preferences from the profile's custom_metrics.
   // Entries with id prefix 'forecast_' control which sections the card renders.
@@ -150,19 +160,11 @@ export default function EventDetailScreen() {
 
   async function handleRefresh() {
     setRefreshing(true);
-    // Refresh both the event and the profile. useProfile has a 5-min
-    // staleTime, so a previous network error would otherwise stay
-    // pinned (and the prediction card's recovery banner with it) until
-    // the user signs out. Invalidating profile on pull-to-refresh gives
-    // the user a direct path to recover without leaving the screen.
-    await Promise.all([
-      refetch(),
-      user
-        ? qc.invalidateQueries({ queryKey: ['profile', user.id] }).then(
-            () => qc.refetchQueries({ queryKey: ['profile', user.id] }),
-          )
-        : Promise.resolve(),
-    ]);
+    // Refresh both the event and the trader profile. The resolver's
+    // retry() invalidates the profile query and refetches — so pull-
+    // to-refresh always lands the user on the freshest data, even if
+    // a transient error had pinned the recovery banner.
+    await Promise.all([refetch(), trader.retry()]);
     setRefreshing(false);
   }
 
