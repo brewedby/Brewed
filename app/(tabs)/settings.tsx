@@ -32,6 +32,15 @@ const DEFAULT_METRICS: Metric[] = [
   { id: 'drinks',   name: 'Drinks Sold',  unit: 'drinks', enabled: false, builtin: true },
 ];
 
+// Forecast display prefs — stored alongside dashboard metrics in custom_metrics
+// (prefix 'forecast_' distinguishes them). All default ON so the full card
+// is visible until the user explicitly trims it.
+const DEFAULT_FORECAST_PREFS: Metric[] = [
+  { id: 'forecast_weather',    name: 'Weather impact',   unit: 'show/hide', enabled: true,  builtin: true },
+  { id: 'forecast_drivers',    name: 'Demand drivers',   unit: 'show/hide', enabled: true,  builtin: true },
+  { id: 'forecast_plan_stock', name: 'Stock prep guide', unit: 'show/hide', enabled: true,  builtin: true },
+];
+
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 const THEME_OPTIONS: Array<{ id: ThemeMode; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = [
@@ -57,9 +66,10 @@ export default function SettingsScreen() {
   const subscription = useSubscription();
 
   const [businessName, setBusinessName] = useState('');
-  const [businessType, setBusinessType] = useState('Coffee');
+  const [businessType, setBusinessType] = useState('');
   const [currency, setCurrency] = useState('GBP');
   const [metrics, setMetrics] = useState<Metric[]>(DEFAULT_METRICS);
+  const [forecastMetrics, setForecastMetrics] = useState<Metric[]>(DEFAULT_FORECAST_PREFS);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
@@ -80,16 +90,19 @@ export default function SettingsScreen() {
       // path cheap.)
       setBusinessType(normalizeTradeType(profile.business_type));
       setCurrency(profile.currency ?? 'GBP');
-      if (profile.custom_metrics?.length > 0) {
-        setMetrics(profile.custom_metrics);
-      } else {
-        setMetrics(DEFAULT_METRICS);
-      }
+      const allMetrics = profile.custom_metrics ?? [];
+      const dashMetrics = allMetrics.filter((m) => !m.id.startsWith('forecast_'));
+      const fcastPrefs  = allMetrics.filter((m) =>  m.id.startsWith('forecast_'));
+      setMetrics(dashMetrics.length > 0 ? dashMetrics : DEFAULT_METRICS);
+      setForecastMetrics(fcastPrefs.length > 0 ? fcastPrefs : DEFAULT_FORECAST_PREFS);
     }
   }, [profile]);
 
   async function handleRefresh() {
     setRefreshing(true);
+    // Reset so the form re-hydrates from the fresh server data.
+    // The user explicitly pulled to refresh — they want latest values.
+    hydratedRef.current = false;
     await refetch();
     setRefreshing(false);
   }
@@ -98,11 +111,19 @@ export default function SettingsScreen() {
     setMetrics((prev) => prev.map((m) => m.id === id ? { ...m, enabled } : m));
   }
 
+  function toggleForecastMetric(id: string, enabled: boolean) {
+    setForecastMetrics((prev) => prev.map((m) => m.id === id ? { ...m, enabled } : m));
+  }
+
   async function handleSave() {
     if (!user) return;
     const trimmedName = businessName.trim();
     if (!trimmedName) {
       Alert.alert('Required', 'Business name cannot be empty.');
+      return;
+    }
+    if (!businessType) {
+      Alert.alert('Required', 'Please select a business type.');
       return;
     }
     setSaving(true);
@@ -113,7 +134,7 @@ export default function SettingsScreen() {
           business_name: trimmedName,
           business_type: businessType,
           currency,
-          custom_metrics: metrics,
+          custom_metrics: [...forecastMetrics, ...metrics],
         },
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -413,6 +434,57 @@ export default function SettingsScreen() {
                           fontSize: 10, fontWeight: '700', letterSpacing: 1.5,
                           color: active ? p.bg : p.text,
                         }}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
+          </View>
+
+          {/* ── Forecast Preferences ── */}
+          <View>
+            <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 4 }}>
+              {'FORECAST PREFERENCES'}
+            </Text>
+            <Text style={{ fontSize: 12, color: p.textMuted, fontStyle: 'italic', marginBottom: 10 }}>
+              Choose which sections appear on the demand forecast card.
+            </Text>
+            {forecastMetrics.map((metric, idx) => (
+              <View
+                key={metric.id}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 12,
+                  paddingVertical: 12,
+                  borderTopWidth: 1, borderTopColor: p.border,
+                  borderBottomWidth: idx === forecastMetrics.length - 1 ? 1 : 0,
+                  borderBottomColor: p.border,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: tokens.type.display, fontSize: 16, color: p.text }}>{metric.name}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', borderWidth: 1, borderColor: p.text }}>
+                  {([{ id: 'on', label: 'ON' }, { id: 'off', label: 'OFF' }] as const).map((opt, i) => {
+                    const active = (opt.id === 'on') === metric.enabled;
+                    return (
+                      <TouchableOpacity
+                        key={opt.id}
+                        onPress={() => toggleForecastMetric(metric.id, opt.id === 'on')}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${opt.id === 'on' ? 'Show' : 'Hide'} ${metric.name} on forecast`}
+                        accessibilityState={{ selected: active }}
+                        style={{
+                          paddingHorizontal: 12, paddingVertical: 6, minWidth: 44,
+                          alignItems: 'center', justifyContent: 'center',
+                          borderLeftWidth: i === 0 ? 0 : 1,
+                          borderLeftColor: p.text,
+                          backgroundColor: active ? p.text : 'transparent',
+                        }}
+                      >
+                        <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1.5, color: active ? p.bg : p.text }}>
                           {opt.label}
                         </Text>
                       </TouchableOpacity>

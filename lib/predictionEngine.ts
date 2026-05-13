@@ -117,7 +117,7 @@ export function predict(
   }
 }
 
-// ── Recency weighting ─────────────────────────────────────────────
+// ── Recency weighting ──────────────────────────────────────────────────────
 
 /** Linear-ish decay: 1.0 today, 0.5 around 9 months old, floor at 0.2. */
 function recencyWeight(eventDate: string, refDate: string): number {
@@ -140,7 +140,7 @@ function similarityWeight(obs: EventObservation, context: PredictionContext): nu
   return recencyWeight(obs.date, context.eventDate) * tempSimilarity(context.forecastTempC, obs.avgTempC);
 }
 
-// ── Outlier detection ─────────────────────────────────────────────
+// ── Outlier detection ──────────────────────────────────────────────────────
 
 function filterOutlierObservations(
   observations: EventObservation[],
@@ -215,7 +215,7 @@ function tradeEmoji(tradeType: string | null): string {
     Burgers: '🍔',
     Pizza: '🍕',
     'Street Food': '🌮',
-    'Asian Food': '🍜',
+    'Asian Food': '🎜',
     'Mexican Food': '🌯',
     Crepes: '🥞',
     Waffles: '🧇',
@@ -228,7 +228,7 @@ function getFoodDefaults(tradeType: string | null): { sides: number; drinks: num
   return { sides: 0.55, drinks: 0.50, extras: 0.30 };
 }
 
-// ── Demand level + prep guidance from a clamped multiplier ─────────────
+// ── Demand level + prep guidance from a clamped multiplier ──────────────────
 
 /**
  * Map a (clamped) historical-vs-typical multiplier to a five-band demand
@@ -294,7 +294,7 @@ function clampedMultiplier(
   };
 }
 
-// ── Coffee — drink split (delegates to existing engine) ────────────────
+// ── Coffee — drink split (delegates to existing engine) ──────────────────────
 
 function predictForCoffee(
   context: PredictionContext,
@@ -329,7 +329,7 @@ function predictForCoffee(
     kind: 'drink_split',
     forecast: [
       { label: 'Hot drinks', value: `${split.hotPct}%`, emoji: '☕' },
-      { label: 'Iced drinks', value: `${split.icedPct}%`, emoji: '🧊' },
+      { label: 'Iced drinks', value: `${split.icedPct}%`, emoji: '🧢' },
     ],
     drivers: [
       `${tempBucketLabel(context.forecastTempC)} forecast`,
@@ -350,7 +350,7 @@ function predictForCoffee(
   };
 }
 
-// ── Food trades — mains + attachment rates ─────────────────────────
+// ── Food trades — mains + attachment rates ───────────────────────────────────
 
 const MAIN_CATEGORIES: ProductCategory[]    = ['mains'];
 const SIDE_CATEGORIES: ProductCategory[]    = ['sides'];
@@ -494,7 +494,7 @@ function predictForFood(
   };
 }
 
-// ── Cold-demand (Ice Cream / Juice) — strongly weather-led ─────────────
+// ── Cold-demand (Ice Cream / Juice) — strongly weather-led ──────────────────
 
 function predictForColdDemand(
   context: PredictionContext,
@@ -576,7 +576,7 @@ function predictForColdDemand(
   };
 }
 
-// ── Morning bake — front-loaded, weather mostly secondary ──────────────
+// ── Morning bake — front-loaded, weather mostly secondary ──────────────────
 
 function predictForBakery(
   context: PredictionContext,
@@ -644,7 +644,7 @@ function predictForBakery(
   };
 }
 
-// ── Dessert / evening sweet ─────────────────────────────────────────
+// ── Dessert / evening sweet ──────────────────────────────────────────────────
 
 function predictForDessert(
   context: PredictionContext,
@@ -704,7 +704,7 @@ function predictForDessert(
   };
 }
 
-// ── Bar / drinks-only traders ─────────────────────────────────────
+// ── Bar / drinks-only traders ───────────────────────────────────────────────
 
 function predictForBar(
   context: PredictionContext,
@@ -728,7 +728,7 @@ function predictForBar(
   const defaultAlcohol = context.forecastTempC >= 22 ? 0.62 : 0.70;
   const alcoholShare = totalWeight > 0 ? weightedAlcohol / totalWeight : defaultAlcohol;
   const tempLift = Math.max(0, Math.min(0.12, (context.forecastTempC - 18) * 0.015));
-  const adjustedSoft    = Math.min(0.95, (1 - alcoholShare) + tempLift);
+  const adjustedSoft    = Math.max(0, Math.min(0.95, (1 - alcoholShare) + tempLift));
   // Round once and derive the complement so the two %s always sum to exactly 100.
   const softPct = Math.round(adjustedSoft * 100);
   const alcoholPct = 100 - softPct;
@@ -770,7 +770,7 @@ function predictForBar(
   };
 }
 
-// ── General / fallback ──────────────────────────────────────────
+// ── General / fallback ──────────────────────────────────────────────────────
 
 function predictForGeneral(
   context: PredictionContext,
@@ -819,7 +819,7 @@ function predictForGeneral(
   };
 }
 
-// ── Shared helpers ────────────────────────────────────────────────
+// ── Shared helpers ────────────────────────────────────────────────────
 
 function totalRevenueOf(o: EventObservation): number {
   // Prefer VAT-split totals; fall back to gross_sales. Never uses cost_of_goods.
