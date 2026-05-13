@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Linking, Animated } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -115,6 +115,20 @@ export default function EventDetailScreen() {
   // Passing the canonical value to the card removes any chance of
   // case-mismatch, whitespace, or alias surprises downstream.
   const tradeType = getActiveTradeType(profile);
+
+  // Extract forecast display preferences from the profile's custom_metrics.
+  // Entries with id prefix 'forecast_' control which sections the card renders.
+  // Default true so users without saved prefs see the full card.
+  const forecastPrefs = useMemo(() => {
+    const fprefs = (profile?.custom_metrics ?? []).filter((m) => m.id.startsWith('forecast_'));
+    const get = (id: string) => fprefs.find((m) => m.id === id)?.enabled ?? true;
+    return {
+      showWeather:   get('forecast_weather'),
+      showDrivers:   get('forecast_drivers'),
+      showPlanStock: get('forecast_plan_stock'),
+    };
+  }, [profile?.custom_metrics]);
+
   const deleteEvent = useDeleteEvent();
   const createEvent = useCreateEvent();
   const [refreshing, setRefreshing] = useState(false);
@@ -464,6 +478,7 @@ export default function EventDetailScreen() {
               isProfileLoading={profileLoading}
               isProfileError={profileError}
               isProfileLoaded={profileLoaded}
+              forecastPrefs={forecastPrefs}
             />
           </View>
         )}
