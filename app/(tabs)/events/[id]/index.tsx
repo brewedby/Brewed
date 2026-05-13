@@ -136,7 +136,19 @@ export default function EventDetailScreen() {
 
   async function handleRefresh() {
     setRefreshing(true);
-    await refetch();
+    // Refresh both the event and the profile. useProfile has a 5-min
+    // staleTime, so a previous network error would otherwise stay
+    // pinned (and the prediction card's recovery banner with it) until
+    // the user signs out. Invalidating profile on pull-to-refresh gives
+    // the user a direct path to recover without leaving the screen.
+    await Promise.all([
+      refetch(),
+      user
+        ? qc.invalidateQueries({ queryKey: ['profile', user.id] }).then(
+            () => qc.refetchQueries({ queryKey: ['profile', user.id] }),
+          )
+        : Promise.resolve(),
+    ]);
     setRefreshing(false);
   }
 

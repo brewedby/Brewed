@@ -16,9 +16,10 @@
 // here. The engine reads only quantities and revenue.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '@/lib/themeContext';
 import { FarSectionRule } from '@/components/far/SectionRule';
 import { useEventObservations } from '@/lib/queries/eventObservations';
@@ -80,6 +81,7 @@ export function PredictionInsightCard({
   const router = useRouter();
 
   const { user } = useAuth();
+  const qc = useQueryClient();
   const savePrediction = useSavePrediction();
   const updateProfile = useUpdateProfile();
   const savedRef = useRef<string | null>(null);
@@ -88,6 +90,23 @@ export function PredictionInsightCard({
   const [pendingTradeType, setPendingTradeType] = useState<string | null>(null);
   const [pickerError, setPickerError] = useState<string | null>(null);
   const [pickerSuccess, setPickerSuccess] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+
+  // Force a fresh profile fetch when the user taps "Retry" on the error
+  // banner. Without this, useProfile's 5-min staleTime keeps the cached
+  // error state visible — even sign-out → sign-in could rehydrate into
+  // the same sticky error if it happened recently. We invalidate AND
+  // refetch synchronously so the user gets immediate feedback.
+  async function retryProfile() {
+    if (!user) return;
+    setRetrying(true);
+    try {
+      await qc.invalidateQueries({ queryKey: ['profile', user.id] });
+      await qc.refetchQueries({ queryKey: ['profile', user.id] });
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   const { data: observations = [], isLoading: obsLoading } = useEventObservations();
   const { data: dailyTakings = [], isLoading: dtLoading } = useAllDailyTakings();
@@ -236,10 +255,35 @@ export function PredictionInsightCard({
           <Text style={{ fontSize: 12, fontWeight: '700', color: p.text, marginBottom: 4 }}>
             Couldn't load your trader profile
           </Text>
-          <Text style={{ fontSize: 11, color: p.textMuted, lineHeight: 16 }}>
-            We can't compute a tailored forecast without it. Check your
-            connection and pull-to-refresh, or sign out and back in.
+          <Text style={{ fontSize: 11, color: p.textMuted, lineHeight: 16, marginBottom: 10 }}>
+            We can't compute a tailored forecast without it. Tap retry — or
+            check your connection and try again.
           </Text>
+          {/* Direct retry — invalidates + refetches the profile query
+              without forcing a sign-out. useProfile's 5-min staleTime
+              would otherwise pin a transient error for minutes. */}
+          <TouchableOpacity
+            onPress={retryProfile}
+            disabled={retrying}
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading trader profile"
+            accessibilityState={{ disabled: retrying }}
+            style={{
+              alignSelf: 'flex-start',
+              flexDirection: 'row', alignItems: 'center', gap: 8,
+              borderWidth: 1, borderColor: p.text,
+              paddingHorizontal: 12, paddingVertical: 8,
+              minHeight: 36,
+              opacity: retrying ? 0.5 : 1,
+            }}
+          >
+            {retrying
+              ? <ActivityIndicator color={p.text} size="small" />
+              : <Ionicons name="refresh" size={12} color={p.text} />}
+            <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.text }}>
+              {retrying ? 'RETRYING…' : 'RETRY'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     );

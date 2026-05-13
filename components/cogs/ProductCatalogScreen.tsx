@@ -7,12 +7,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/lib/themeContext';
 import { useAuth } from '@/lib/auth';
 import { useProductCatalog } from '@/lib/queries/productCatalog';
-import { useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/lib/mutations/productCatalog';
+import {
+  useCreateProduct,
+  useUpdateProduct,
+  useDeleteProduct,
+  useRecategorizeProducts,
+} from '@/lib/mutations/productCatalog';
 import { ProductForm } from './ProductForm';
 import {
   getCategoriesForTrade,
   getCategoryDefinition,
   isProductVatable,
+  mapLegacyCategoryForTrade,
   type ProductCatalogItem,
 } from '@/types/cogs';
 import type { ProductFormValues } from '@/lib/validations/product.schema';
@@ -42,6 +48,7 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
+  const recategorizeProducts = useRecategorizeProducts();
 
   const [view, setView] = useState<ScreenView>('list');
   const [editing, setEditing] = useState<ProductCatalogItem | null>(null);
@@ -83,6 +90,38 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
     () => products.filter((p) => !tradeCatKeys.has(p.category)).length,
     [products, tradeCatKeys],
   );
+
+  // Auto-fix all legacy categories in one tap. Map each legacy product
+  // to the closest modern category for the active trade, then bulk-update.
+  // Confirmation alert first because this writes to every legacy row.
+  function handleAutoFixLegacy() {
+    const legacy = products.filter((prod) => !tradeCatKeys.has(prod.category));
+    if (legacy.length === 0) return;
+    const mappings = legacy.map((prod) => ({
+      id: prod.id,
+      newCategory: mapLegacyCategoryForTrade(prod.category, tradeType),
+    }));
+    Alert.alert(
+      'Auto-fix categories?',
+      `Move ${legacy.length} legacy product${legacy.length === 1 ? '' : 's'} into the matching ${tradeType} categories. You can still edit any product afterwards.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Auto-fix',
+          onPress: async () => {
+            try {
+              await recategorizeProducts.mutateAsync({ mappings });
+            } catch (e) {
+              Alert.alert(
+                'Auto-fix failed',
+                e instanceof Error ? e.message : 'Some products could not be updated. Please try again.',
+              );
+            }
+          },
+        },
+      ],
+    );
+  }
 
   async function handleAdd(values: ProductFormValues) {
     if (!user) return;
@@ -342,9 +381,10 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
             </View>
 
             {/* Legacy category prompt — appears when products use categories
-                that aren't in the current trade type's list. Tapping a
-                product with a legacy category opens the edit form where
-                they can pick a new one. */}
+                that aren't in the current trade type's list. Auto-fix maps
+                each legacy category to the closest modern one for the
+                active trade and bulk-updates; the user can still ✎ any
+                product individually afterwards. */}
             {legacyCount > 0 && (
               <View style={{
                 marginHorizontal: 16, marginBottom: 8,
@@ -355,11 +395,32 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
                 <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.brand, textTransform: 'uppercase', marginBottom: 4 }}>
                   ● Re-categorise reminder
                 </Text>
-                <Text style={{ fontSize: 12, color: p.textMuted, lineHeight: 17 }}>
+                <Text style={{ fontSize: 12, color: p.textMuted, lineHeight: 17, marginBottom: 10 }}>
                   {legacyCount === 1
-                    ? '1 product uses a legacy category. Tap ✎ on it to pick a category that matches your trade type.'
-                    : `${legacyCount} products use legacy categories. Tap ✎ on each to pick a category that matches your trade type.`}
+                    ? `1 product uses a legacy category. Auto-fix moves it into the right ${tradeType} category, or tap ✎ to pick manually.`
+                    : `${legacyCount} products use legacy categories. Auto-fix moves them into the right ${tradeType} categories, or tap ✎ on each to pick manually.`}
                 </Text>
+                <TouchableOpacity
+                  onPress={handleAutoFixLegacy}
+                  disabled={recategorizeProducts.isPending}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Auto-fix ${legacyCount} legacy categories`}
+                  accessibilityState={{ disabled: recategorizeProducts.isPending }}
+                  style={{
+                    alignSelf: 'flex-start',
+                    flexDirection: 'row', alignItems: 'center', gap: 8,
+                    borderWidth: 1, borderColor: p.brand,
+                    paddingHorizontal: 12, paddingVertical: 6,
+                    minHeight: 32,
+                    opacity: recategorizeProducts.isPending ? 0.5 : 1,
+                  }}
+                >
+                  {recategorizeProducts.isPending
+                    ? <ActivityIndicator color={p.brand} size="small" />
+                    : <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.brand }}>
+                        AUTO-FIX ALL
+                      </Text>}
+                </TouchableOpacity>
               </View>
             )}
 
