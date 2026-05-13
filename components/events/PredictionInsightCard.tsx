@@ -235,14 +235,18 @@ export function PredictionInsightCard({
   const lens = config.predictionLenses[0];
   if (!lens) return null;
 
-  // Derive section label from prediction result kind when available,
-  // so a coffee trader with no profile trade type set still sees a
-  // sensible label once the engine resolves.
+  // Section label: derive from result kind once we have one.
+  // While profile is loading (or errored), tradeType='Other' and lens.title
+  // would be 'General demand forecast' — which shows as "GENERAL DEMAND
+  // FORECAST" even for Coffee traders before their profile arrives. Gate it
+  // to a neutral label so the heading doesn't flicker to the wrong trade.
   const sectionLabel = result?.kind === 'drink_split'
     ? 'Hot vs Iced Forecast'
     : result?.kind === 'general_demand'
       ? 'Demand Forecast'
-      : lens.title;
+      : (isProfileLoading || isProfileError)
+        ? 'Demand Forecast'
+        : lens.title;
 
   // Profile load failure: render a recovery banner instead of the
   // picker CTA. The Other fallback that the resolver returns during
@@ -303,7 +307,7 @@ export function PredictionInsightCard({
       <FarSectionRule label={sectionLabel} />
       <View style={{ marginTop: 12 }}>
         {loading || !result ? (
-          <LoadingForecast tagline={lens.tagline} />
+          <LoadingForecast tagline={isProfileLoading ? 'Loading your trading profile…' : lens.tagline} />
         ) : (
           <ForecastCard
             result={result}

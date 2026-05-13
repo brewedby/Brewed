@@ -142,6 +142,24 @@ const predictSrc   = fs.readFileSync(path.join(ROOT, 'components', 'events', 'Pr
     'ForecastCard must gate plan-stock strip on showPlanStock prop');
 }
 
+// ── 9. sectionLabel neutral during profile loading / error ───────────────────
+// During profile loading (isProfileLoading=true), tradeType='Other' and
+// lens.title = 'General demand forecast'. Without this guard the header
+// flickers to "GENERAL DEMAND FORECAST" for Coffee traders on cold start.
+{
+  expect('predict_card_neutral_label_on_profile_loading',
+    /isProfileLoading[\s\S]{0,200}Demand Forecast/.test(predictSrc),
+    'sectionLabel must fall back to "Demand Forecast" when isProfileLoading is true');
+
+  expect('predict_card_neutral_label_on_profile_error',
+    /isProfileError[\s\S]{0,200}Demand Forecast/.test(predictSrc),
+    'sectionLabel must fall back to "Demand Forecast" when isProfileError is true');
+
+  expect('predict_card_neutral_tagline_on_profile_loading',
+    /isProfileLoading[\s\S]{0,200}Loading your trading profile/.test(predictSrc),
+    'LoadingForecast tagline must use neutral text when isProfileLoading is true');
+}
+
 // ── Reporter ────────────────────────────────────────────────────────────────
 let pass = 0, fail = 0;
 for (const r of results) {
