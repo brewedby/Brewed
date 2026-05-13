@@ -145,16 +145,25 @@ export function useTraderProfile(): ResolvedTraderProfile {
     setCached(profile);
   }, [userId, profile]);
 
-  // Surface fetch errors to the Metro console once per error message
-  // (dev-only). Without this we can't tell why useProfile failed on a
-  // user's device; with it, Metro logs show the underlying Supabase
-  // error code so we can fix the root cause instead of guessing.
+  // Surface fetch errors to the Metro console (dev-only). Without this
+  // we can't tell why useProfile failed on a user's device; with it,
+  // Metro logs show the underlying Supabase error code so we can fix
+  // the root cause instead of guessing.
+  //
+  // Supabase's PostgrestError is a plain object (NOT an Error instance)
+  // with { code, message, details, hint }. String() on it gives the
+  // unhelpful "[object Object]" — so we destructure deliberately.
   useEffect(() => {
     if (!__DEV__) return;
     if (!profileIsError) return;
-    const msg = profileError instanceof Error ? profileError.message : String(profileError);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const e = profileError as any;
+    const code    = e?.code    ?? null;
+    const message = e?.message ?? (e instanceof Error ? e.message : String(e));
+    const details = e?.details ?? null;
+    const hint    = e?.hint    ?? null;
     // eslint-disable-next-line no-console
-    console.warn('[useTraderProfile] profile fetch error:', msg);
+    console.warn('[useTraderProfile] profile fetch error:', { code, message, details, hint });
   }, [profileIsError, profileError]);
 
   const retry = useCallback(async () => {
