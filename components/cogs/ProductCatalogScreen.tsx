@@ -43,7 +43,12 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
   const { tokens } = useTheme();
   const p = tokens.palette;
   const { user } = useAuth();
-  const { data: profile } = useProfile(user?.id);
+  const {
+    data: profile,
+    isLoading: profileLoading,
+    isError: profileError,
+    refetch: refetchProfile,
+  } = useProfile(user?.id);
   const { data: products = [], isLoading } = useProductCatalog();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
@@ -58,7 +63,13 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
   // lookup against TRADE_CATEGORIES (it isn't alias-tolerant), so a raw
   // value like 'coffee' or 'Coffee Cart' would silently fall through to
   // DEFAULT_CATEGORIES even though the user *did* set a trade.
+  //
+  // While the profile query is in flight or errored, getActiveTradeType
+  // falls back to 'Other' — which would render the wrong picker for a
+  // Coffee trader. The early-return loading/error gates below prevent
+  // any list / picker UI from rendering with this stale 'Other' value.
   const tradeType = getActiveTradeType(profile);
+  const profileReady = !profileLoading && !profileError && !!profile;
 
   const filtered = useMemo(() =>
     products.filter((prod) =>
@@ -337,7 +348,30 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
           )}
         </View>
 
-        {view === 'list' && (
+        {!profileReady ? (
+          profileError ? (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 12 }}>
+              <Text style={{ fontFamily: tokens.type.display, fontSize: 22, color: p.text, marginBottom: 6 }}>
+                Couldn’t load your trader profile
+              </Text>
+              <Text style={{ color: p.textMuted, textAlign: 'center', fontSize: 13, lineHeight: 20, marginBottom: 8 }}>
+                Your trade type drives which categories appear here. Try again.
+              </Text>
+              <TouchableOpacity
+                onPress={() => refetchProfile()}
+                accessibilityRole="button"
+                accessibilityLabel="Retry loading your trader profile"
+                style={{ borderWidth: 1, borderColor: p.brand, paddingHorizontal: 16, paddingVertical: 10 }}
+              >
+                <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.brand }}>RETRY</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator color={p.brand} />
+            </View>
+          )
+        ) : view === 'list' && (
           <>
             {/* Summary strip */}
             <View style={{ flexDirection: 'row', backgroundColor: p.surface, paddingVertical: 12, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: p.border, alignItems: 'center' }}>
@@ -474,7 +508,7 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
           </>
         )}
 
-        {view === 'add' && (
+        {profileReady && view === 'add' && (
           <ProductForm
             onSubmit={handleAdd}
             onCancel={() => setView('list')}
@@ -483,7 +517,7 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
           />
         )}
 
-        {view === 'edit' && editing && (
+        {profileReady && view === 'edit' && editing && (
           <ProductForm
             initial={editing}
             onSubmit={handleEdit}
