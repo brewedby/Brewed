@@ -5,10 +5,11 @@ import { useTheme } from '@/lib/themeContext';
 import { useAuth } from '@/lib/auth';
 import { useProductCatalog } from '@/lib/queries/productCatalog';
 import { useSalesReports } from '@/lib/queries/salesReports';
-import { useUploadSalesReport } from '@/lib/mutations/salesReports';
+import { useParseSalesReport, useSaveImportedReport } from '@/lib/mutations/salesReports';
 import { SalesReconciliation } from './SalesReconciliation';
 import { ProductCatalogScreen } from './ProductCatalogScreen';
-import type { SalesReport } from '@/types/cogs';
+import { ImportReviewModal } from './ImportReviewModal';
+import type { SalesReport, PendingImportData } from '@/types/cogs';
 
 interface Props {
   eventId: string;
@@ -22,10 +23,12 @@ export function CogsSection({ eventId, existingCogs }: Props) {
   const router = useRouter();
   const { data: catalog = [] } = useProductCatalog();
   const { data: reports = [], isLoading: reportsLoading } = useSalesReports(eventId);
-  const uploadReport = useUploadSalesReport();
+  const parseReport = useParseSalesReport();
+  const saveReport = useSaveImportedReport();
 
   const [showCatalog, setShowCatalog] = useState(false);
   const [deletedId, setDeletedId] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingImportData | null>(null);
 
   const visibleReports: SalesReport[] = reports.filter((r) => r.id !== deletedId);
 
@@ -43,16 +46,38 @@ export function CogsSection({ eventId, existingCogs }: Props) {
       return;
     }
     try {
-      await uploadReport.mutateAsync({ eventId, userId: user.id, catalog });
+      const result = await parseReport.mutateAsync({
+        eventId,
+        catalog,
+        existingReportCount: visibleReports.length,
+      });
+      setPending(result);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Upload failed';
       if (msg !== 'No file selected') Alert.alert('Error', msg);
     }
   }
 
+  async function handleConfirmImport() {
+    if (!pending || !user) return;
+    try {
+      await saveReport.mutateAsync({ pending, eventId, userId: user.id });
+      setPending(null);
+      router.replace(`/(tabs)/events/${eventId}`);
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Could not save the report. Please try again.');
+    }
+  }
+
+  function handleCancelImport() {
+    setPending(null);
+  }
+
   const latestCalcCogs = visibleReports[0]?.calculated_cogs ?? 0;
   const hasMismatch = existingCogs > 0 && latestCalcCogs > 0
     && Math.abs(latestCalcCogs - existingCogs) > 0.5;
+
+  const isProcessing = parseReport.isPending || saveReport.isPending;
 
   return (
     <View style={{ marginBottom: 16 }}>
@@ -98,29 +123,31 @@ export function CogsSection({ eventId, existingCogs }: Props) {
       {/* Upload button */}
       <TouchableOpacity
         onPress={handleUpload}
-        disabled={uploadReport.isPending}
+        disabled={isProcessing}
         accessibilityRole="button"
-        accessibilityLabel="Upload sales report CSV or PDF"
+        accessibilityLabel="Import sales report CSV or PDF"
         style={[
           {
             flexDirection: 'row', alignItems: 'center', gap: 12,
             borderWidth: 1, borderColor: p.border, borderStyle: 'dashed',
             padding: 14, backgroundColor: p.surface, marginBottom: 10,
           },
-          uploadReport.isPending && { opacity: 0.6 },
+          isProcessing && { opacity: 0.6 },
         ]}
       >
-        {uploadReport.isPending ? (
+        {isProcessing ? (
           <>
             <ActivityIndicator color={p.brand} size="small" />
-            <Text style={{ fontSize: 14, fontWeight: '600', color: p.textMuted }}>Processing…</Text>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: p.textMuted }}>
+              {parseReport.isPending ? 'Reading file…' : 'Saving…'}
+            </Text>
           </>
         ) : (
           <>
             <Text style={{ fontSize: 18, color: p.brand }}>↑</Text>
             <View>
               <Text style={{ fontSize: 14, fontWeight: '600', color: p.text }}>Import sales report</Text>
-              <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 1 }}>CSV or PDF · Square, SumUp, Toast, Lightspeed, etc.</Text>
+              <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 1 }}>CSV or PDF · Processed locally on your device</Text>
             </View>
           </>
         )}
@@ -160,6 +187,14 @@ export function CogsSection({ eventId, existingCogs }: Props) {
       <ProductCatalogScreen
         visible={showCatalog}
         onClose={() => setShowCatalog(false)}
+      />
+
+      {/* Review modal — shown before saving, gives user full visibility */}
+      <ImportReviewModal
+        pending={pending}
+        isSaving={saveReport.isPending}
+        onConfirm={handleConfirmImport}
+        onCancel={handleCancelImport}
       />
     </View>
   );

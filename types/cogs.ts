@@ -119,6 +119,24 @@ export interface ReconciliationSummary {
   coveragePercent: number;
 }
 
+// Parsed + reconciled data that is waiting for user confirmation before saving.
+// Created after file parsing completes; persisted to DB only after user taps "Import".
+export interface PendingImportData {
+  fileName: string;
+  fileSize: number | null;
+  mimeType: string | null;
+  sourceFormat: 'csv' | 'pdf';
+  lines: ReconciledLine[];
+  summary: ReconciliationSummary;
+  parseErrors: string[];
+  warnings: string[];
+  // PDF-specific metadata
+  reportDate: string | null;
+  pdfReason?: string;
+  // Duplicate detection
+  hasDuplicate: boolean;
+}
+
 // ── Category catalogue ──────────────────────────────
 // Every category that can appear in any trade type, keyed by snake_case.
 // `vatable: true` means the selling price includes 20% UK standard-rate VAT

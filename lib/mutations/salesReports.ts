@@ -4,8 +4,12 @@ import { File } from 'expo-file-system';
 import * as LegacyFS from 'expo-file-system/legacy';
 import { supabase } from '@/lib/supabase';
 import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
+import { parsePDFSalesReport } from '@/lib/parsers/pdfSales';
 import { reconcileLines } from '@/lib/parsers/productMatcher';
-import type { ProductCatalogItem, SalesReport, ReconciledLine, ReconciliationSummary } from '@/types/cogs';
+import type {
+  ProductCatalogItem, SalesReport, ReconciledLine,
+  ReconciliationSummary, PendingImportData,
+} from '@/types/cogs';
 
 function reportsTable() {
   return (supabase as unknown as {
@@ -29,59 +33,46 @@ type ReadAttempt = { strategy: string; ok: boolean; bytes?: number; reason?: str
 
 interface ReadResult {
   text: string;
-  /** True only when we positively confirmed the picked file is genuinely 0 bytes,
-   *  rather than failing to read it. Lets the caller distinguish "empty export"
-   *  from "iCloud not synced / API failure". */
   fileEmptyOnDisk: boolean;
   attempts: ReadAttempt[];
 }
 
 /**
- * Read the picked CSV file as text. expo-file-system v19 (SDK 54) deprecated
- * the top-level legacy functions and they THROW at runtime — the previous
- * `await FileSystem.readAsStringAsync(...)` was silently failing every time
- * in production builds. We use the new `File` class as the primary path and
- * fall back to the legacy namespace + plain fetch for content:// URIs.
+ * Read the picked file as text. Uses three strategies to handle iOS/Android quirks.
+ * SDK 54: prefers new File class API, falls back to legacy namespace, then fetch.
  */
-async function readCsvContent(asset: { uri: string; name: string }): Promise<ReadResult> {
+async function readFileAsText(asset: { uri: string; name: string }): Promise<ReadResult> {
   const attempts: ReadAttempt[] = [];
 
-  // 1. New File class API (SDK 54+ canonical path).
   try {
     const file = new File(asset.uri);
     if (!file.exists) {
-      attempts.push({ strategy: 'File.exists', ok: false, reason: 'file does not exist at uri' });
+      attempts.push({ strategy: 'File.exists', ok: false, reason: 'file does not exist' });
     } else if (file.size === 0) {
-      // The file resolved but has zero bytes locally. Distinct from a read
-      // failure — almost always means iCloud hasn't downloaded it yet.
       attempts.push({ strategy: 'File.text', ok: false, bytes: 0, reason: '0 bytes on disk' });
       return { text: '', fileEmptyOnDisk: true, attempts };
     } else {
       const text = await file.text();
       attempts.push({ strategy: 'File.text', ok: text.length > 0, bytes: text.length });
-      if (text && text.trim().length > 0) return { text, fileEmptyOnDisk: false, attempts };
+      if (text?.trim().length > 0) return { text, fileEmptyOnDisk: false, attempts };
     }
   } catch (e) {
     attempts.push({ strategy: 'File.text', ok: false, reason: e instanceof Error ? e.message : String(e) });
   }
 
-  // 2. Legacy namespace import. Works on dev builds where the new API may
-  //    not yet be linked, and as a Belt-and-braces fallback for edge cases.
   try {
     const text = await LegacyFS.readAsStringAsync(asset.uri, { encoding: 'utf8' as 'utf8' });
     attempts.push({ strategy: 'legacy.readAsStringAsync', ok: !!text, bytes: text?.length ?? 0 });
-    if (text && text.trim().length > 0) return { text, fileEmptyOnDisk: false, attempts };
+    if (text?.trim().length > 0) return { text, fileEmptyOnDisk: false, attempts };
   } catch (e) {
     attempts.push({ strategy: 'legacy.readAsStringAsync', ok: false, reason: e instanceof Error ? e.message : String(e) });
   }
 
-  // 3. fetch the URI. Helps on Android content:// and on simulator dev where
-  //    file:// URIs resolve via the JS bridge.
   try {
     const response = await fetch(asset.uri);
     const text = response.ok ? await response.text() : '';
-    attempts.push({ strategy: 'fetch', ok: response.ok && text.length > 0, bytes: text.length, reason: response.ok ? undefined : `HTTP ${response.status}` });
-    if (text && text.trim().length > 0) return { text, fileEmptyOnDisk: false, attempts };
+    attempts.push({ strategy: 'fetch', ok: response.ok && text.length > 0, bytes: text.length });
+    if (text?.trim().length > 0) return { text, fileEmptyOnDisk: false, attempts };
   } catch (e) {
     attempts.push({ strategy: 'fetch', ok: false, reason: e instanceof Error ? e.message : String(e) });
   }
@@ -90,31 +81,44 @@ async function readCsvContent(asset: { uri: string; name: string }): Promise<Rea
 }
 
 /**
- * Pick, parse, and reconcile a sales report (CSV or PDF).
- * CSV is parsed fully client-side.
- * PDF is uploaded to Supabase Storage and then parsed via Edge Function.
+ * Read the picked file as raw bytes (for PDF parsing).
+ * Returns null on failure.
  */
-export function useUploadSalesReport() {
-  const qc = useQueryClient();
+async function readFileAsBytes(asset: { uri: string }): Promise<Uint8Array | null> {
+  try {
+    const response = await fetch(asset.uri);
+    if (!response.ok) return null;
+    const buffer = await response.arrayBuffer();
+    return new Uint8Array(buffer);
+  } catch {
+    return null;
+  }
+}
 
+/**
+ * Parse the picked file and return PendingImportData for user review.
+ * Does NOT write anything to the database. The user must confirm first.
+ *
+ * PDF is parsed locally — no data is sent to any server during this step.
+ */
+export function useParseSalesReport() {
   return useMutation({
     mutationFn: async ({
       eventId,
-      userId,
       catalog,
+      existingReportCount,
     }: {
       eventId: string;
-      userId: string;
       catalog: ProductCatalogItem[];
-    }): Promise<UploadAndReconcileResult> => {
+      existingReportCount: number;
+    }): Promise<PendingImportData> => {
 
-      // 1. Pick file. Some iOS UTIs don't include "csv" in the MIME string, so
-      //    we accept a wide list and fall back to filename suffix detection below.
       const result = await DocumentPicker.getDocumentAsync({
         type: [
           'text/csv', 'text/comma-separated-values', 'application/csv',
-          'application/vnd.ms-excel', // iOS occasionally hands CSVs back as this
-          'application/pdf', 'text/plain', 'text/tab-separated-values',
+          'application/vnd.ms-excel',
+          'application/pdf',
+          'text/plain', 'text/tab-separated-values',
           '*/*',
         ],
         copyToCacheDirectory: true,
@@ -126,22 +130,71 @@ export function useUploadSalesReport() {
 
       const asset = result.assets[0];
       const lowerName = asset.name.toLowerCase();
-      const isCSV = lowerName.endsWith('.csv') || lowerName.endsWith('.tsv') || lowerName.endsWith('.txt')
+      const isPDF = lowerName.endsWith('.pdf') || asset.mimeType === 'application/pdf';
+      const isCSV = !isPDF && (
+        lowerName.endsWith('.csv') || lowerName.endsWith('.tsv') || lowerName.endsWith('.txt')
         || asset.mimeType?.includes('csv')
         || asset.mimeType === 'text/plain'
-        || asset.mimeType === 'text/tab-separated-values';
-      const isPDF = lowerName.endsWith('.pdf') || asset.mimeType === 'application/pdf';
+        || asset.mimeType === 'text/tab-separated-values'
+      );
 
-      let lines: ReconciledLine[];
-      let storagePath: string | null = null;
+      if (!isPDF && !isCSV) {
+        throw new Error('Unsupported file type. Please upload a CSV or PDF file.');
+      }
 
-      if (isCSV) {
-        // --- CSV: try multiple read strategies; each produces different
-        // failure modes on iOS / Android / dev / TestFlight builds. ---
-        const read = await readCsvContent(asset);
+      let reconciledLines: ReconciledLine[];
+      let parseErrors: string[] = [];
+      let warnings: string[] = [];
+      let reportDate: string | null = null;
+      let pdfReason: string | undefined;
+      let sourceFormat: 'csv' | 'pdf';
+
+      if (isPDF) {
+        // ── PDF: parse locally (no server call) ──────────────────────────────
+        sourceFormat = 'pdf';
+        const bytes = await readFileAsBytes(asset);
+
+        if (!bytes) {
+          throw new Error(
+            `Couldn't read "${asset.name}". ` +
+            'Try saving the file to your Files app first and uploading from there.',
+          );
+        }
+
+        const parsed = parsePDFSalesReport(bytes);
 
         if (__DEV__) {
-          // Dev-only — never logs raw line content, only attempt outcomes.
+          // Dev diagnostic — never logs raw PDF content, only counts and metadata
+          // eslint-disable-next-line no-console
+          console.log('[PDF parse]', {
+            file: asset.name,
+            size: asset.size,
+            reason: parsed.reason,
+            streamsFound: parsed.streamsFound,
+            streamsDecoded: parsed.streamsDecoded,
+            extractedLineCount: parsed.extractedLineCount,
+            itemsFound: parsed.lines.length,
+            reportDate: parsed.reportDate,
+          });
+        }
+
+        if (parsed.errors.length > 0 && parsed.lines.length === 0) {
+          throw new Error(parsed.errors.join('\n'));
+        }
+
+        parseErrors = parsed.errors;
+        warnings = parsed.warnings;
+        reportDate = parsed.reportDate;
+        pdfReason = parsed.reason;
+
+        reconciledLines = reconcileLines(parsed.lines, catalog);
+
+      } else {
+        // ── CSV: parse locally ───────────────────────────────────────────────
+        sourceFormat = 'csv';
+        const read = await readFileAsText(asset);
+
+        if (__DEV__) {
           // eslint-disable-next-line no-console
           console.log('[CSV read]', {
             file: asset.name,
@@ -154,24 +207,18 @@ export function useUploadSalesReport() {
 
         if (!read.text || read.text.trim().length === 0) {
           if (read.fileEmptyOnDisk && asset.size && asset.size > 0) {
-            // File exists but local copy is 0 bytes despite picker reporting
-            // bytes — this is the iCloud-not-yet-downloaded case.
             throw new Error(
               `"${asset.name}" hasn't fully downloaded from iCloud (Files reports ${asset.size} bytes but the local copy is empty).\n\n` +
               'Open the Files app, tap-and-hold the CSV, choose "Download Now", wait for the cloud icon to disappear, then try again.',
             );
           }
           if (read.fileEmptyOnDisk) {
-            throw new Error(
-              `"${asset.name}" is empty (0 bytes). Re-export the report from your EPOS and try again.`,
-            );
+            throw new Error(`"${asset.name}" is empty (0 bytes). Re-export the report from your EPOS and try again.`);
           }
-          // All read strategies failed for non-empty file. Surface the failure
-          // reasons so a real iOS issue is visible instead of "empty file".
           const reasons = read.attempts.map((a) => `${a.strategy}: ${a.ok ? 'ok' : a.reason ?? 'failed'}`).join(' | ');
           throw new Error(
             `Couldn't read "${asset.name}"${asset.size ? ` (${asset.size} bytes)` : ''}. ` +
-            'Try saving the file to your Files app first and uploading from there. ' +
+            'Try saving the file to your Files app first and uploading from there.' +
             (__DEV__ ? `\n\nDiagnostics: ${reasons}` : ''),
           );
         }
@@ -180,113 +227,88 @@ export function useUploadSalesReport() {
         try {
           parsed = parseCSVSalesReport(read.text, asset.size ?? null);
         } catch (e) {
-          const detail = e instanceof Error ? e.message : String(e);
-          throw new Error(`Couldn't read this CSV. ${detail}`);
+          throw new Error(`Couldn't read this CSV. ${e instanceof Error ? e.message : String(e)}`);
         }
+
         if (__DEV__ && parsed.diagnostics) {
-          // Dev-only — never logs raw line content, only counts and column names.
           // eslint-disable-next-line no-console
           console.log('[CSV parse]', {
             file: asset.name,
-            size: parsed.diagnostics.fileSizeBytes,
-            rawLines: parsed.diagnostics.rawLineCount,
-            nonEmpty: parsed.diagnostics.nonEmptyLineCount,
             delimiter: parsed.diagnostics.detectedDelimiter,
-            headerRow: parsed.diagnostics.headerRowIndex,
             headers: parsed.diagnostics.detectedHeaders,
-            parsed: parsed.diagnostics.parsedRowCount,
             accepted: parsed.diagnostics.acceptedRowCount,
-            skipped: parsed.diagnostics.skippedRowCount,
-            skipReasons: parsed.diagnostics.skipReasons,
           });
         }
+
         if (parsed.errors.length > 0 && parsed.lines.length === 0) {
           throw new Error(parsed.errors.join('\n'));
         }
 
-        try {
-          lines = reconcileLines(parsed.lines, catalog);
-        } catch (e) {
-          const detail = e instanceof Error ? e.message : String(e);
-          throw new Error(`Couldn't match products. ${detail}`);
-        }
-
-      } else if (isPDF) {
-        // --- PDF: upload blob to storage, parse via Edge Function ---
-        storagePath = `${userId}/${eventId}/${Date.now()}_${asset.name}`;
-        const response = await fetch(asset.uri);
-        if (!response.ok) throw new Error('Could not read PDF file');
-        const blob = await response.blob();
-
-        const { error: uploadError } = await supabase.storage
-          .from('sales-reports')
-          .upload(storagePath, blob, { contentType: 'application/pdf' });
-
-        if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
-
-        // Call Edge Function to parse the PDF.
-        const { data: edgeResult, error: edgeError } = await supabase.functions.invoke(
-          'parse-pdf',
-          { body: { storagePath, eventId } },
-        );
-        if (edgeError) {
-          // PDF parsing runs server-side — when it fails the user can't debug it.
-          // Steer them to the CSV path which is parsed locally and is reliable.
-          throw new Error(
-            "We couldn't read this PDF on the server. " +
-            'Most EPOS systems also export CSV — try that format instead, ' +
-            'it imports faster and we can match line items directly to your catalog.\n\n' +
-            `Server detail: ${edgeError.message}`,
-          );
-        }
-
-        const parsedLines = (edgeResult as { lines: typeof lines }).lines ?? [];
-        // Empty-result case — the Edge Function ran without erroring but
-        // returned zero rows. Most common cause: an image-only PDF (e.g.
-        // a scan, a receipt photo saved as PDF, or a Square POS export
-        // that's a flat image rather than a vector text PDF). Tell the
-        // user explicitly rather than silently completing with 0 items.
-        if (parsedLines.length === 0) {
-          throw new Error(
-            "We couldn't extract any line items from this PDF. " +
-            "It may be image-only (a scan or photo saved as PDF) — our parser only reads text-based PDFs. " +
-            'Try a CSV export from your EPOS instead, or open the PDF in another app and use its Share → Export as CSV option.',
-          );
-        }
-        lines = reconcileLines(parsedLines, catalog);
-
-      } else {
-        throw new Error('Unsupported file type. Please upload a CSV or PDF file.');
+        parseErrors = parsed.errors;
+        reconciledLines = reconcileLines(parsed.lines, catalog);
       }
 
-      // 2. Calculate summary
-      const totalRevenue = lines.reduce((s, l) => s + l.line_total, 0);
-      const calculatedCogs = lines.reduce((s, l) => s + (l.cogs_calculated ?? 0), 0);
-      const matched = lines.filter((l) => l.matched_product !== null).length;
+      const totalRevenue = reconciledLines.reduce((s, l) => s + l.line_total, 0);
+      const calculatedCogs = reconciledLines.reduce((s, l) => s + (l.cogs_calculated ?? 0), 0);
+      const matched = reconciledLines.filter((l) => l.matched_product !== null).length;
 
       const summary: ReconciliationSummary = {
-        totalLineItems:      lines.length,
-        matchedItems:        matched,
-        unmatchedItems:      lines.length - matched,
+        totalLineItems:       reconciledLines.length,
+        matchedItems:         matched,
+        unmatchedItems:       reconciledLines.length - matched,
         totalRevenueFromFile: totalRevenue,
-        calculatedCogs:      calculatedCogs,
-        coveragePercent:     lines.length > 0 ? (matched / lines.length) * 100 : 0,
+        calculatedCogs,
+        coveragePercent:      reconciledLines.length > 0 ? (matched / reconciledLines.length) * 100 : 0,
       };
 
-      // 3. Persist sales_report record
+      return {
+        fileName: asset.name,
+        fileSize: asset.size ?? null,
+        mimeType: asset.mimeType ?? null,
+        sourceFormat,
+        lines: reconciledLines,
+        summary,
+        parseErrors,
+        warnings,
+        reportDate,
+        pdfReason,
+        hasDuplicate: existingReportCount > 0,
+      };
+    },
+  });
+}
+
+/**
+ * Save a confirmed PendingImportData to the database.
+ * Called only after the user reviews and confirms in the review modal.
+ */
+export function useSaveImportedReport() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      pending,
+      eventId,
+      userId,
+    }: {
+      pending: PendingImportData;
+      eventId: string;
+      userId: string;
+    }): Promise<UploadAndReconcileResult> => {
+
       const { data: reportRow, error: reportError } = await reportsTable()
         .insert({
-          event_id:               eventId,
-          user_id:                userId,
-          file_name:              asset.name,
-          file_size:              asset.size ?? null,
-          mime_type:              asset.mimeType ?? null,
-          storage_path:           storagePath,
-          status:                 'parsed',
-          total_line_items:       summary.totalLineItems,
-          matched_line_items:     summary.matchedItems,
-          total_revenue_from_file: summary.totalRevenueFromFile,
-          calculated_cogs:        summary.calculatedCogs,
+          event_id:                eventId,
+          user_id:                 userId,
+          file_name:               pending.fileName,
+          file_size:               pending.fileSize,
+          mime_type:               pending.mimeType,
+          storage_path:            null,
+          status:                  'parsed',
+          total_line_items:        pending.summary.totalLineItems,
+          matched_line_items:      pending.summary.matchedItems,
+          total_revenue_from_file: pending.summary.totalRevenueFromFile,
+          calculated_cogs:         pending.summary.calculatedCogs,
         })
         .select()
         .single();
@@ -294,20 +316,19 @@ export function useUploadSalesReport() {
       if (reportError) throw reportError;
       const report = reportRow as unknown as SalesReport;
 
-      // 4. Persist line items
-      if (lines.length > 0) {
-        const rows = lines.map((l) => ({
-          sales_report_id:      report.id,
-          event_id:             eventId,
-          product_name:         l.product_name,
-          product_catalog_id:   l.matched_product?.id ?? null,
-          match_confidence:     l.match_confidence,
-          quantity:             l.quantity,
-          unit_price:           l.unit_price,
-          line_total:           l.line_total,
-          unit_cost_snapshot:   l.unit_cost_snapshot,
-          cogs_calculated:      l.cogs_calculated,
-          is_matched:           l.matched_product !== null,
+      if (pending.lines.length > 0) {
+        const rows = pending.lines.map((l) => ({
+          sales_report_id:    report.id,
+          event_id:           eventId,
+          product_name:       l.product_name,
+          product_catalog_id: l.matched_product?.id ?? null,
+          match_confidence:   l.match_confidence,
+          quantity:           l.quantity,
+          unit_price:         l.unit_price,
+          line_total:         l.line_total,
+          unit_cost_snapshot: l.unit_cost_snapshot,
+          cogs_calculated:    l.cogs_calculated,
+          is_matched:         l.matched_product !== null,
           is_manually_assigned: false,
         }));
 
@@ -315,7 +336,7 @@ export function useUploadSalesReport() {
         if (itemsError) throw itemsError;
       }
 
-      return { report, lines, summary };
+      return { report, lines: pending.lines, summary: pending.summary };
     },
 
     onSuccess: (_, { eventId }) => {
@@ -354,7 +375,6 @@ export function useAssignProduct() {
         .eq('id', lineItemId);
       if (error) throw error;
 
-      // Recompute and update the report summary
       const { data: allItems } = await lineItemsTable()
         .select('cogs_calculated, is_matched')
         .eq('sales_report_id', reportId);
@@ -414,3 +434,7 @@ export function useDeleteSalesReport() {
     },
   });
 }
+
+// Keep the old hook name as an alias so any external references don't break.
+// New code should call useParseSalesReport() + useSaveImportedReport() separately.
+export { useParseSalesReport as useUploadSalesReport };
