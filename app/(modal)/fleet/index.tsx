@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { QueryError } from '@/components/shared/QueryError';
 import { FarMasthead } from '@/components/far/Masthead';
+import { FleetRemindersCard } from '@/components/units/FleetRemindersCard';
 import { useTheme } from '@/lib/themeContext';
 import { TONE } from '@/lib/theme';
 import type { UnitWithStatus } from '@/types';
@@ -178,6 +179,7 @@ export default function FleetScreen() {
           refreshing={refreshing}
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20 }}
+          ListHeaderComponent={units.length > 0 ? <FleetRemindersCard units={units} /> : null}
           ListEmptyComponent={
             <EmptyState
               icon="🚐"
