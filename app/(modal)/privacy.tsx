@@ -17,7 +17,7 @@ const SECTIONS = [
   {
     eyebrow: 'PAYMENTS',
     title: 'Apple handles the money.',
-    body: 'Your Brewed Pro subscription is processed by Apple via the App Store. We never see your card number, billing address or full payment details — only a confirmation that your subscription is active.',
+    body: 'Your Brewed subscription (Trader or Pro) is processed by Apple via the App Store. We never see your card number, billing address or full payment details — only a confirmation of which plan is active.',
   },
   {
     eyebrow: 'BREWED DISCOVER',
@@ -30,9 +30,14 @@ const SECTIONS = [
     body: 'Email address (for sign-in), business name (for the dashboard), and the events / financials / fleet / documents you choose to enter. Event date and location are used with a public weather service (Open-Meteo, GDPR-compliant) to fetch forecasts. No analytics, no crash trackers, no advertising IDs, no device fingerprinting.',
   },
   {
+    eyebrow: 'SALES REPORT IMPORTS',
+    title: 'Read on your device.',
+    body: 'CSV and PDF sales reports you import are read and parsed entirely on your device. The file itself is never uploaded, never sent to an OCR or AI service, and never logged. Only the line items you review and confirm (product names, quantities, totals) are saved to your account, exactly like data you type in yourself.',
+  },
+  {
     eyebrow: 'PREDICTIONS & LEARNING',
     title: 'Local learning. Your data only.',
-    body: 'The Brewed prediction engine uses your own completed event history — actual sales quantities, weather snapshots, event dates, and past forecast accuracy — to improve your forecasts over time. This learning is isolated to your account. The developer does not pool your data with other traders, does not use it to train predictions for other businesses, and does not share or sell it. Cost of goods (COGS) is always manually entered by you and is never inferred, changed, or uploaded by the prediction engine. No financial, product, or sales data is sent to an external AI or machine-learning service.',
+    body: 'The Brewed prediction engine uses your own completed event history — actual sales quantities, weather snapshots, event dates, and past forecast accuracy — to improve your forecasts over time. This learning is isolated to your account. The developer does not pool your data with other traders, does not use it to train predictions for other businesses, and does not share or sell it. Cost of goods (COGS) is set only by you — typed in directly, or calculated from a sales report you review and confirm. The prediction engine never infers, changes, or uploads it. No financial, product, or sales data is sent to an external AI or machine-learning service.',
   },
   {
     eyebrow: 'YOUR RIGHTS',
