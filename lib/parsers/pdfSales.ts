@@ -10,6 +10,7 @@
  */
 import pako from 'pako';
 import type { ParsedSalesLine } from '@/types/cogs';
+import { detectProvider } from './providerDetect';
 
 // ── Binary helpers ───────────────────────────────────────────────────────────
 
@@ -342,6 +343,8 @@ export interface PdfParseResult {
   streamsFound: number;
   streamsDecoded: number;
   extractedLineCount: number;
+  /** Detected EPOS provider (computed here so raw text never leaves this module). */
+  provider: string | null;
 }
 
 // ── Main entry point ─────────────────────────────────────────────────────────
@@ -353,7 +356,7 @@ export function parsePDFSalesReport(
     return {
       lines: [], errors: ['This file does not appear to be a valid PDF.'],
       warnings: [], sourceFormat: 'pdf', reportDate: null, reason: 'not_pdf',
-      streamsFound: 0, streamsDecoded: 0, extractedLineCount: 0,
+      streamsFound: 0, streamsDecoded: 0, extractedLineCount: 0, provider: null,
     };
   }
 
@@ -367,7 +370,7 @@ export function parsePDFSalesReport(
         'Or export a CSV from your EPOS if one is available.',
       ],
       warnings: [], sourceFormat: 'pdf', reportDate: null, reason: 'encrypted',
-      streamsFound: 0, streamsDecoded: 0, extractedLineCount: 0,
+      streamsFound: 0, streamsDecoded: 0, extractedLineCount: 0, provider: null,
     };
   }
 
@@ -404,7 +407,7 @@ export function parsePDFSalesReport(
           'If your provider only offers PDF, check if they have a "text-based" export option.',
         ],
         warnings: [], sourceFormat: 'pdf', reportDate: null, reason: 'image_only',
-        streamsFound: rawStreams.length, streamsDecoded: decoded, extractedLineCount: 0,
+        streamsFound: rawStreams.length, streamsDecoded: decoded, extractedLineCount: 0, provider: null,
       };
     }
     return {
@@ -414,11 +417,12 @@ export function parsePDFSalesReport(
         'Try exporting a CSV from your EPOS instead.',
       ],
       warnings: [], sourceFormat: 'pdf', reportDate: null, reason: 'decode_failed',
-      streamsFound: rawStreams.length, streamsDecoded: decoded, extractedLineCount: 0,
+      streamsFound: rawStreams.length, streamsDecoded: decoded, extractedLineCount: 0, provider: null,
     };
   }
 
   const reportDate = detectDate(allTextLines);
+  const provider = detectProvider(allTextLines.slice(0, 40).join('\n'));
   const salesLines = parseRows(allTextLines);
 
   if (salesLines.length === 0) {
@@ -436,7 +440,7 @@ export function parsePDFSalesReport(
         ],
         warnings: [], sourceFormat: 'pdf', reportDate, reason: 'totals_only',
         streamsFound: rawStreams.length, streamsDecoded: decoded,
-        extractedLineCount: allTextLines.length,
+        extractedLineCount: allTextLines.length, provider,
       };
     }
 
@@ -449,7 +453,7 @@ export function parsePDFSalesReport(
       ],
       warnings: [], sourceFormat: 'pdf', reportDate, reason: 'no_items',
       streamsFound: rawStreams.length, streamsDecoded: decoded,
-      extractedLineCount: allTextLines.length,
+      extractedLineCount: allTextLines.length, provider,
     };
   }
 
@@ -468,5 +472,6 @@ export function parsePDFSalesReport(
     streamsFound: rawStreams.length,
     streamsDecoded: decoded,
     extractedLineCount: allTextLines.length,
+    provider,
   };
 }

@@ -67,13 +67,14 @@ export function ImportReviewModal({ pending, isSaving, onConfirm, onCancel }: Pr
             <Text style={{ fontSize: 18 }}>{pending.sourceFormat === 'pdf' ? '📄' : '📊'}</Text>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 13, fontWeight: '600', color: p.text }}>
-                {formatFormat} Sales Report
+                {pending.provider ? `${pending.provider} · ${formatFormat} report` : `${formatFormat} Sales Report`}
               </Text>
-              {pending.reportDate && (
-                <Text style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>
-                  Report date: {pending.reportDate}
-                </Text>
-              )}
+              <Text style={{ fontSize: 11, color: p.textMuted, marginTop: 2 }}>
+                {[
+                  pending.reportDate ? `Report date: ${pending.reportDate}` : null,
+                  `Confidence: ${pending.confidence}`,
+                ].filter(Boolean).join(' · ')}
+              </Text>
             </View>
             <View style={{
               backgroundColor: pending.summary.totalLineItems > 0 ? p.brandSoft : p.surfaceAlt,

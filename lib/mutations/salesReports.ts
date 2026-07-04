@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
 import { parsePDFSalesReport } from '@/lib/parsers/pdfSales';
 import { reconcileLines } from '@/lib/parsers/productMatcher';
+import { detectProvider, computeImportConfidence } from '@/lib/parsers/providerDetect';
 import type {
   ProductCatalogItem, SalesReport, ReconciledLine,
   ReconciliationSummary, PendingImportData,
@@ -138,6 +139,17 @@ export function useParseSalesReport() {
         || asset.mimeType === 'text/tab-separated-values'
       );
 
+      // Excel workbooks are zip containers we can't parse on-device. Only
+      // trust the EXTENSION here — iOS mislabels genuine CSVs with the
+      // application/vnd.ms-excel MIME type.
+      if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
+        throw new Error(
+          'Excel workbooks can\'t be read directly.\n\n' +
+          'In Excel or Numbers use File → Save As → CSV, or export a CSV ' +
+          'from your EPOS provider, then import that instead.',
+        );
+      }
+
       if (!isPDF && !isCSV) {
         throw new Error('Unsupported file type. Please upload a CSV or PDF file.');
       }
@@ -148,6 +160,8 @@ export function useParseSalesReport() {
       let reportDate: string | null = null;
       let pdfReason: string | undefined;
       let sourceFormat: 'csv' | 'pdf';
+      let provider: string | null = null;
+      let skippedRows = 0;
 
       if (isPDF) {
         // ── PDF: parse locally (no server call) ──────────────────────────────
@@ -186,6 +200,8 @@ export function useParseSalesReport() {
         warnings = parsed.warnings;
         reportDate = parsed.reportDate;
         pdfReason = parsed.reason;
+        provider = parsed.provider ?? detectProvider(asset.name);
+        skippedRows = Math.max(0, parsed.extractedLineCount - parsed.lines.length);
 
         reconciledLines = reconcileLines(parsed.lines, catalog);
 
@@ -245,6 +261,14 @@ export function useParseSalesReport() {
         }
 
         parseErrors = parsed.errors;
+        provider = detectProvider(asset.name, read.text.slice(0, 2000));
+        skippedRows = parsed.diagnostics?.skippedRowCount ?? 0;
+        const refunds = parsed.diagnostics?.refundRowCount ?? 0;
+        if (refunds > 0) {
+          warnings.push(
+            `${refunds} refund/negative row${refunds === 1 ? ' was' : 's were'} detected and netted against sales of the same product.`,
+          );
+        }
         reconciledLines = reconcileLines(parsed.lines, catalog);
       }
 
@@ -273,6 +297,13 @@ export function useParseSalesReport() {
         reportDate,
         pdfReason,
         hasDuplicate: existingReportCount > 0,
+        provider,
+        confidence: computeImportConfidence({
+          acceptedRows: reconciledLines.length,
+          skippedRows,
+          coveragePercent: summary.coveragePercent,
+          sourceFormat,
+        }),
       };
     },
   });

@@ -250,6 +250,7 @@ export function parseCSVSalesReport(
   const skipReasons: Record<string, number> = {};
   const bumpSkip = (reason: string) => { skipReasons[reason] = (skipReasons[reason] ?? 0) + 1; };
   let parsedRowCount = 0;
+  let refundRowCount = 0;
 
   for (let i = headerIndex + 1; i < lines.length; i++) {
     const raw = lines[i];
@@ -282,9 +283,12 @@ export function parseCSVSalesReport(
     if (!lineTotal && unitPrice && qty) lineTotal = unitPrice * qty;
     const resolvedUnitPrice = unitPrice ?? (qty > 0 ? lineTotal / qty : null);
 
-    if (isNaN(qty) || qty < 0) { bumpSkip('invalid_quantity'); continue; }
+    if (isNaN(qty)) { bumpSkip('invalid_quantity'); continue; }
     if (qty === 0 && lineTotal === 0) { bumpSkip('zero_row'); continue; }
-    if (lineTotal < 0) lineTotal = Math.abs(lineTotal);
+    // Refund / negative rows stay NEGATIVE so they net against sales of the
+    // same product in the merge below — the old Math.abs() here silently
+    // counted refunds as extra revenue.
+    if (lineTotal < 0 || qty < 0) refundRowCount++;
 
     parsedLines.push({
       product_name: productName,
@@ -312,6 +316,17 @@ export function parseCSVSalesReport(
       merged.set(key, { ...line });
     }
   }
+
+  // Products fully refunded (net quantity and revenue both ≤ 0 after the
+  // merge) carry no sales to import — drop them rather than storing
+  // negative rows.
+  for (const [key, line] of Array.from(merged.entries())) {
+    if (line.quantity <= 0 && line.line_total <= 0) {
+      merged.delete(key);
+      bumpSkip('net_negative_after_refunds');
+    }
+  }
+  diagnostics.refundRowCount = refundRowCount;
 
   // If we got data rows but parsed nothing usable, surface a helpful message
   // rather than the misleading "file is empty".

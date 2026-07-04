@@ -91,6 +91,9 @@ export interface ParseDiagnostics {
   acceptedRowCount: number;
   skippedRowCount: number;
   skipReasons: Record<string, number>;
+  /** Rows with a negative quantity or total (refunds/voids), kept as
+   *  negatives so they net against sales in the merge. */
+  refundRowCount?: number;
 }
 
 export interface ParseResult {
@@ -135,6 +138,10 @@ export interface PendingImportData {
   pdfReason?: string;
   // Duplicate detection
   hasDuplicate: boolean;
+  /** Detected EPOS provider (best-effort, may be null). */
+  provider: string | null;
+  /** Overall extraction confidence shown on the review sheet. */
+  confidence: 'high' | 'medium' | 'low';
 }
 
 // ── Category catalogue ──────────────────────────────
