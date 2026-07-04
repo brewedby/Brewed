@@ -21,6 +21,8 @@ import { useTheme } from '@/lib/themeContext';
 import { BackBar } from '@/components/shared/BackBar';
 import { pushTrail } from '@/lib/navTrail';
 import { useTraderProfile } from '@/lib/queries/traderProfile';
+import { useFeature } from '@/lib/iap/SubscriptionContext';
+import { UpgradePrompt } from '@/components/shared/UpgradePrompt';
 import { farStatus, STATUS_DOT } from '@/lib/theme';
 import { formatDateRange, formatDate, toISODateString } from '@/lib/formatters';
 import { STATUSES, STATUS_LABELS } from '@/constants';
@@ -138,6 +140,9 @@ export default function EventDetailScreen() {
       showPlanStock: get('forecast_plan_stock'),
     };
   }, [profile?.custom_metrics]);
+
+  // Forecast is a Pro feature — gate resolved centrally in entitlements.ts.
+  const forecastFeature = useFeature('forecast');
 
   const deleteEvent = useDeleteEvent();
   const createEvent = useCreateEvent();
@@ -468,20 +473,32 @@ export default function EventDetailScreen() {
           </View>
         )}
 
-        {/* ── Trade-aware prediction ── */}
+        {/* ── Trade-aware prediction (Pro) ── */}
         {forecastTemp !== null && (
           <View style={{ marginBottom: 16 }}>
-            <PredictionInsightCard
-              tradeType={tradeType}
-              rawBusinessType={profile?.business_type ?? null}
-              forecastTempC={forecastTemp}
-              eventDate={event.date}
-              eventId={id}
-              isProfileLoading={profileLoading}
-              isProfileError={profileError}
-              isProfileLoaded={profileLoaded}
-              forecastPrefs={forecastPrefs}
-            />
+            {forecastFeature.allowed ? (
+              <PredictionInsightCard
+                tradeType={tradeType}
+                rawBusinessType={profile?.business_type ?? null}
+                forecastTempC={forecastTemp}
+                eventDate={event.date}
+                eventId={id}
+                isProfileLoading={profileLoading}
+                isProfileError={profileError}
+                isProfileLoaded={profileLoaded}
+                forecastPrefs={forecastPrefs}
+              />
+            ) : (
+              <>
+                <FarSectionRule label="Demand Forecast" />
+                <View style={{ marginTop: 12 }}>
+                  <UpgradePrompt
+                    feature="forecast"
+                    description="Weather-aware demand forecasts that learn from your completed events — hot vs iced splits, prep levels and stock guidance."
+                  />
+                </View>
+              </>
+            )}
           </View>
         )}
 

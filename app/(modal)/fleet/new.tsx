@@ -4,8 +4,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { UnitForm } from '@/components/units/UnitForm';
 import { useCreateUnit } from '@/lib/mutations/units';
+import { useUnits } from '@/lib/queries/units';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/themeContext';
+import { useFeature } from '@/lib/iap/SubscriptionContext';
+import { UpgradePrompt } from '@/components/shared/UpgradePrompt';
 import type { UnitFormValues } from '@/types';
 
 export default function NewUnitScreen() {
@@ -15,6 +18,11 @@ export default function NewUnitScreen() {
   const { tokens } = useTheme();
   const p = tokens.palette;
   const createUnit = useCreateUnit();
+  const { data: units = [] } = useUnits();
+  const multiUnit = useFeature('fleet_multi_unit');
+
+  // First unit is included in every plan; additional units are Pro.
+  const blockedByPlan = units.length >= 1 && !multiUnit.allowed;
 
   async function handleSubmit(data: UnitFormValues) {
     if (!user) {
@@ -39,7 +47,16 @@ export default function NewUnitScreen() {
           <Text style={{ fontSize: 13, color: p.brand, fontWeight: '600' }}>Cancel</Text>
         </TouchableOpacity>
       </View>
-      <UnitForm onSubmit={handleSubmit} submitLabel="Add Unit" />
+      {blockedByPlan ? (
+        <View style={{ padding: 20 }}>
+          <UpgradePrompt
+            feature="fleet_multi_unit"
+            description="Your plan includes one fleet unit. Manage multiple vans, trailers and trucks — each with its own MOT, tax and service tracking — with Brewed Pro."
+          />
+        </View>
+      ) : (
+        <UnitForm onSubmit={handleSubmit} submitLabel="Add Unit" />
+      )}
     </View>
   );
 }

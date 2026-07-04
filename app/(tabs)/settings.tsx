@@ -251,7 +251,9 @@ export default function SettingsScreen() {
             <View style={{ borderWidth: 1, borderColor: p.borderStrong, backgroundColor: p.surface, padding: 14, gap: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={{ fontFamily: tokens.type.display, fontSize: 18, color: p.text }}>Brewed Pro</Text>
+                  <Text style={{ fontFamily: tokens.type.display, fontSize: 18, color: p.text }}>
+                    {subscription.tier === 'trader' ? 'Brewed Trader' : 'Brewed Pro'}
+                  </Text>
                   <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 2 }}>
                     {profile?.reviewer_grandfathered
                       ? 'Reviewer access · always entitled'
@@ -296,6 +298,19 @@ export default function SettingsScreen() {
                     : <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.text }}>{'RESTORE'}</Text>}
                 </TouchableOpacity>
               </View>
+
+              {subscription.tier === 'trader' && (
+                <TouchableOpacity
+                  onPress={() => router.push('/(modal)/paywall')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Upgrade to Brewed Pro"
+                  style={{ backgroundColor: p.text, paddingVertical: 10, alignItems: 'center', minHeight: 44, justifyContent: 'center' }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, color: p.bg }}>
+                    {'UPGRADE TO PRO — FORECASTS, PDF IMPORT, FLEET REMINDERS'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 

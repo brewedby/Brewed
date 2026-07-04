@@ -115,7 +115,8 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const sharedSecret = Deno.env.get('APPLE_SHARED_SECRET');
-    const allowedProductIds = (Deno.env.get('ALLOWED_PRODUCT_IDS') ?? 'com.brewedbyboon.app.pro.monthly')
+    const allowedProductIds = (Deno.env.get('ALLOWED_PRODUCT_IDS')
+      ?? 'com.brewedbyboon.app.pro.monthly,com.brewedbyboon.app.trader.monthly')
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);

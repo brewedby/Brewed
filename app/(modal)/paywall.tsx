@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Linking, Platform,
 } from 'react-native';
@@ -8,11 +8,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/themeContext';
 import { useSubscription } from '@/lib/iap/SubscriptionContext';
 import { useAuth } from '@/lib/auth';
-import { PRODUCT_IDS, SUBSCRIPTION_DETAILS } from '@/lib/iap/products';
+import { PRODUCT_IDS, SUBSCRIPTION_DETAILS, type ProductId } from '@/lib/iap/products';
 
 const APPLE_EULA_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 const PRIVACY_URL = 'https://brewedbyboon.com/privacy';
 const CURRENT_YEAR = new Date().getFullYear();
+
+const PLAN_ORDER: ProductId[] = [PRODUCT_IDS.traderMonthly, PRODUCT_IDS.proMonthly];
 
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
@@ -22,10 +24,13 @@ export default function PaywallScreen() {
   const { signOut } = useAuth();
   const {
     isReady, isEntitled, isPurchasing, isRestoring,
-    displayPrice, purchase, restore,
+    priceFor, purchase, restore, tier,
   } = useSubscription();
 
-  const detail = SUBSCRIPTION_DETAILS[PRODUCT_IDS.proMonthly];
+  // Pro pre-selected — it's the plan most traders on the fence convert to,
+  // and Apple's crossgrade flow makes switching later painless.
+  const [selected, setSelected] = useState<ProductId>(PRODUCT_IDS.proMonthly);
+  const selectedDetail = SUBSCRIPTION_DETAILS[selected];
 
   React.useEffect(() => {
     if (isEntitled) router.replace('/(tabs)/dashboard');
@@ -61,7 +66,7 @@ export default function PaywallScreen() {
         {/* ── Hero ── */}
         <View style={{ paddingHorizontal: 24, paddingTop: 26, paddingBottom: 4 }}>
           <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 2, fontWeight: '700' }}>
-            {'BREWED PRO · MONTHLY'}
+            {'CHOOSE YOUR EDITION'}
           </Text>
           <Text style={{
             fontFamily: tokens.type.display,
@@ -73,55 +78,88 @@ export default function PaywallScreen() {
           </Text>
         </View>
 
-        {/* ── Price stamp ── */}
-        <View style={{ alignItems: 'center', marginTop: 26 }}>
-          <View style={{
-            borderWidth: 2, borderColor: p.text,
-            paddingHorizontal: 26, paddingTop: 10, paddingBottom: 12,
-            transform: [{ rotate: '-1.5deg' }],
-            shadowColor: p.borderStrong,
-            shadowOffset: { width: 2, height: 2 },
-            shadowOpacity: 1,
-            shadowRadius: 0,
-            elevation: 2,
-            alignItems: 'center',
-          }}>
-            <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 2, fontWeight: '700' }}>
-              {'PITCH FEE'}
-            </Text>
-            <Text style={{
-              fontFamily: tokens.type.display,
-              fontWeight: tokens.type.displayWeight,
-              fontSize: 44, letterSpacing: -1, lineHeight: 46,
-              color: p.text, marginTop: 2,
-              fontVariant: ['tabular-nums'],
-            }}>
-              {displayPrice}
-            </Text>
-          </View>
-          <Text style={{ marginTop: 12, fontSize: 11, color: p.textMuted, fontStyle: 'italic' }}>
-            Auto-renews monthly. Cancel anytime in Settings.
-          </Text>
+        {/* ── Plan selector ── */}
+        <View style={{ paddingHorizontal: 24, marginTop: 22, gap: 12 }}>
+          {PLAN_ORDER.map((productId) => {
+            const detail = SUBSCRIPTION_DETAILS[productId];
+            const isSelected = selected === productId;
+            const isPro = productId === PRODUCT_IDS.proMonthly;
+            return (
+              <TouchableOpacity
+                key={productId}
+                onPress={() => setSelected(productId)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={`${detail.name}, ${priceFor(productId)}`}
+                style={{
+                  borderWidth: isSelected ? 2 : 1,
+                  borderColor: isSelected ? p.text : p.border,
+                  backgroundColor: isSelected ? p.surface : p.bg,
+                  padding: 16,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  {/* radio dot */}
+                  <View style={{
+                    width: 18, height: 18, borderRadius: 9,
+                    borderWidth: 2, borderColor: isSelected ? p.text : p.border,
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {isSelected && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.text }} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{
+                        fontFamily: tokens.type.display,
+                        fontWeight: tokens.type.displayWeight,
+                        fontSize: 20, color: p.text, letterSpacing: -0.3,
+                      }}>
+                        {detail.name}
+                      </Text>
+                      {isPro && (
+                        <View style={{ borderWidth: 1, borderColor: p.brand, paddingHorizontal: 6, paddingVertical: 1 }}>
+                          <Text style={{ fontSize: 8, color: p.brand, fontWeight: '700', letterSpacing: 1 }}>
+                            FULL OPERATION
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 2 }}>
+                      {detail.tagline}
+                    </Text>
+                  </View>
+                  <Text style={{
+                    fontFamily: tokens.type.display,
+                    fontWeight: tokens.type.displayWeight,
+                    fontSize: 17, color: p.text,
+                    fontVariant: ['tabular-nums'],
+                  }}>
+                    {priceFor(productId)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* ── Newspaper rule ── */}
-        <View style={{ paddingHorizontal: 24, marginTop: 28, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ paddingHorizontal: 24, marginTop: 26, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={{ flex: 1, height: 1, backgroundColor: p.borderStrong }} />
           <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 2, fontWeight: '700' }}>
-            {'WHAT YOU GET'}
+            {`WHAT ${selectedDetail.shortName.toUpperCase()} GETS YOU`}
           </Text>
           <View style={{ flex: 1, height: 1, backgroundColor: p.borderStrong }} />
         </View>
 
-        {/* ── Feature list ── */}
+        {/* ── Feature list for the selected plan ── */}
         <View style={{ paddingHorizontal: 24, marginTop: 16 }}>
-          {detail.features.map((feature, i) => (
+          {selectedDetail.features.map((feature, i) => (
             <View
               key={feature}
               style={{
                 flexDirection: 'row', alignItems: 'flex-start', gap: 12,
                 paddingVertical: 10,
-                borderBottomWidth: i === detail.features.length - 1 ? 0 : 1,
+                borderBottomWidth: i === selectedDetail.features.length - 1 ? 0 : 1,
                 borderBottomColor: p.border,
                 borderStyle: 'dashed',
               }}
@@ -170,10 +208,10 @@ export default function PaywallScreen() {
         {/* ── CTA ── */}
         <View style={{ paddingHorizontal: 24, marginTop: 24 }}>
           <TouchableOpacity
-            onPress={() => purchase()}
+            onPress={() => purchase(selected)}
             disabled={!isReady || isPurchasing}
             accessibilityRole="button"
-            accessibilityLabel={`Subscribe for ${displayPrice}`}
+            accessibilityLabel={`Subscribe to ${selectedDetail.name} for ${priceFor(selected)}`}
             accessibilityState={{ disabled: !isReady || isPurchasing }}
             style={{
               backgroundColor: p.text, paddingVertical: 16, alignItems: 'center', minHeight: 52,
@@ -184,7 +222,9 @@ export default function PaywallScreen() {
               <ActivityIndicator color={p.bg} />
             ) : (
               <Text style={{ color: p.bg, fontWeight: '700', fontSize: 13, letterSpacing: 2 }}>
-                {Platform.OS === 'ios' ? 'OPEN THE LEDGER' : 'SUBSCRIPTIONS REQUIRE iOS'}
+                {Platform.OS === 'ios'
+                  ? `START ${selectedDetail.shortName.toUpperCase()} · ${priceFor(selected).toUpperCase()}`
+                  : 'SUBSCRIPTIONS REQUIRE iOS'}
               </Text>
             )}
           </TouchableOpacity>
@@ -208,6 +248,16 @@ export default function PaywallScreen() {
               </Text>
             )}
           </TouchableOpacity>
+
+          {tier !== 'none' && (
+            <Text style={{
+              marginTop: 10, fontSize: 11, color: p.textMuted,
+              textAlign: 'center', fontStyle: 'italic',
+            }}>
+              You're currently on {tier === 'pro' ? 'Brewed Pro' : 'Brewed Trader'}. Switching plans is
+              handled by Apple and takes effect according to their proration rules.
+            </Text>
+          )}
         </View>
 
         {/* ── Legal small print (App Store mandatory) ── */}

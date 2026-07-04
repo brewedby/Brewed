@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { useProductCatalog } from '@/lib/queries/productCatalog';
 import { useSalesReports } from '@/lib/queries/salesReports';
 import { useParseSalesReport, useSaveImportedReport } from '@/lib/mutations/salesReports';
+import { useFeature } from '@/lib/iap/SubscriptionContext';
 import { SalesReconciliation } from './SalesReconciliation';
 import { ProductCatalogScreen } from './ProductCatalogScreen';
 import { ImportReviewModal } from './ImportReviewModal';
@@ -25,6 +26,7 @@ export function CogsSection({ eventId, existingCogs }: Props) {
   const { data: reports = [], isLoading: reportsLoading } = useSalesReports(eventId);
   const parseReport = useParseSalesReport();
   const saveReport = useSaveImportedReport();
+  const pdfImport = useFeature('pdf_import');
 
   const [showCatalog, setShowCatalog] = useState(false);
   const [deletedId, setDeletedId] = useState<string | null>(null);
@@ -51,6 +53,19 @@ export function CogsSection({ eventId, existingCogs }: Props) {
         catalog,
         existingReportCount: visibleReports.length,
       });
+      // PDF item-level import is a Pro feature. The file was parsed locally
+      // and nothing was saved — offer the upgrade rather than the review.
+      if (result.sourceFormat === 'pdf' && !pdfImport.allowed) {
+        Alert.alert(
+          'PDF import is a Brewed Pro feature',
+          'We read the file on your device and nothing was saved. Upgrade to Brewed Pro to import item-level PDF reports — or export a CSV from your EPOS, which is included in your plan.',
+          [
+            { text: 'Not now', style: 'cancel' },
+            { text: 'View Plans', onPress: () => router.push('/(modal)/paywall') },
+          ],
+        );
+        return;
+      }
       setPending(result);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Upload failed';

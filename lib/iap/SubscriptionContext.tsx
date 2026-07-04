@@ -27,7 +27,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { useProfile } from '@/lib/queries/profile';
 import { supabase } from '@/lib/supabase';
-import { ALL_PRODUCT_IDS, FALLBACK_PRICE, PRODUCT_IDS, type ProductId } from './products';
+import { ALL_PRODUCT_IDS, FALLBACK_PRICE, FALLBACK_PRICES, PRODUCT_IDS, type ProductId } from './products';
+import { hasFeature, tierForSubscription, type FeatureKey, type SubscriptionTier } from './entitlements';
 
 // expo-iap types we care about. We import the runtime via require() so
 // that builds without the native module installed don't crash at import time.
@@ -69,10 +70,19 @@ function loadIap(): IapModule | null {
 interface SubscriptionContextValue {
   isReady: boolean;
   isEntitled: boolean;
+  /** Resolved subscription tier: 'none' | 'trader' | 'pro'. */
+  tier: SubscriptionTier;
+  /** False while the profile (and therefore subscription state) hasn't
+   *  loaded — feature gates degrade OPEN in that window. */
+  statusKnown: boolean;
   isPurchasing: boolean;
   isRestoring: boolean;
+  /** Store products keyed by product id (localised prices). */
+  products: Partial<Record<ProductId, StoreSubscriptionProduct>>;
   product: StoreSubscriptionProduct | null;
   displayPrice: string;
+  /** Localised per-plan price with fallback. */
+  priceFor: (productId: ProductId) => string;
   expiresAt: string | null;
   willRenew: boolean;
   purchase: (productId?: ProductId) => Promise<void>;
@@ -83,10 +93,14 @@ interface SubscriptionContextValue {
 const SubscriptionContext = createContext<SubscriptionContextValue>({
   isReady: false,
   isEntitled: false,
+  tier: 'none',
+  statusKnown: false,
   isPurchasing: false,
   isRestoring: false,
+  products: {},
   product: null,
   displayPrice: FALLBACK_PRICE,
+  priceFor: (id) => FALLBACK_PRICES[id],
   expiresAt: null,
   willRenew: false,
   purchase: async () => {},
@@ -110,7 +124,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   const [iap] = useState<IapModule | null>(() => loadIap());
   const [isReady, setIsReady] = useState(false);
-  const [product, setProduct] = useState<StoreSubscriptionProduct | null>(null);
+  const [products, setProducts] = useState<Partial<Record<ProductId, StoreSubscriptionProduct>>>({});
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
 
@@ -126,6 +140,17 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     return false;
   }, [profile]);
 
+  // Tier resolution lives in lib/iap/entitlements.ts — single source of truth.
+  const statusKnown = !!profile;
+  const tier = useMemo<SubscriptionTier>(() => {
+    if (!isEntitled) return 'none';
+    return tierForSubscription({
+      status: profile?.subscription_status,
+      productId: profile?.subscription_product_id,
+      grandfathered: profile?.reviewer_grandfathered,
+    });
+  }, [isEntitled, profile]);
+
   // Connect to the App Store and fetch product details once at mount
   useEffect(() => {
     if (!iap) {
@@ -136,8 +161,16 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     (async () => {
       try {
         await iap.initConnection();
-        const products = await iap.getSubscriptions(ALL_PRODUCT_IDS);
-        if (!cancelled && products[0]) setProduct(products[0]);
+        const fetched = await iap.getSubscriptions(ALL_PRODUCT_IDS);
+        if (!cancelled && fetched.length > 0) {
+          const byId: Partial<Record<ProductId, StoreSubscriptionProduct>> = {};
+          for (const prod of fetched) {
+            if ((ALL_PRODUCT_IDS as string[]).includes(prod.productId)) {
+              byId[prod.productId as ProductId] = prod;
+            }
+          }
+          setProducts(byId);
+        }
       } catch {
         // Connection failure → user will see the fallback price; surface a
         // friendly error only when they actually try to purchase.
@@ -234,27 +267,60 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     await qc.invalidateQueries({ queryKey: ['profile', user.id] });
   }, [user, qc]);
 
+  const product = products[PRODUCT_IDS.proMonthly] ?? null;
   const displayPrice = product?.displayPrice
     ? `${product.displayPrice} / month`
     : FALLBACK_PRICE;
 
+  const priceFor = useCallback((productId: ProductId): string => {
+    const p = products[productId];
+    return p?.displayPrice ? `${p.displayPrice} / month` : FALLBACK_PRICES[productId];
+  }, [products]);
+
   const value = useMemo<SubscriptionContextValue>(() => ({
     isReady,
     isEntitled,
+    tier,
+    statusKnown,
     isPurchasing,
     isRestoring,
+    products,
     product,
     displayPrice,
+    priceFor,
     expiresAt: profile?.subscription_expires_at ?? null,
     willRenew: profile?.subscription_will_renew ?? false,
     purchase,
     restore,
     refresh,
-  }), [isReady, isEntitled, isPurchasing, isRestoring, product, displayPrice, profile, purchase, restore, refresh]);
+  }), [isReady, isEntitled, tier, statusKnown, isPurchasing, isRestoring, products, product, displayPrice, priceFor, profile, purchase, restore, refresh]);
 
   return <SubscriptionContext.Provider value={value}>{children}</SubscriptionContext.Provider>;
 }
 
 export function useSubscription() {
   return useContext(SubscriptionContext);
+}
+
+/**
+ * THE way to gate a feature in UI code.
+ *
+ * Returns { allowed, tier, statusKnown }. `allowed` is true when the
+ * user's tier covers the feature — or when subscription state hasn't
+ * loaded (degrade open; the layout paywall is the hard gate).
+ *
+ *   const pdfImport = useFeature('pdf_import');
+ *   if (!pdfImport.allowed) return <UpgradePrompt feature="pdf_import" />;
+ */
+export function useFeature(feature: FeatureKey): {
+  allowed: boolean;
+  tier: SubscriptionTier;
+  statusKnown: boolean;
+} {
+  const { tier, statusKnown } = useSubscription();
+  return {
+    allowed: hasFeature(tier, feature, statusKnown),
+    tier,
+    statusKnown,
+  };
 }
