@@ -69,6 +69,8 @@ interface Props {
     showWeather:   boolean;
     showDrivers:   boolean;
     showPlanStock: boolean;
+    /** Category keys hidden from the plan-stock strip (forecast_cat_ prefs). */
+    hiddenCategories?: string[];
   };
 }
 
@@ -330,6 +332,7 @@ export function PredictionInsightCard({
             showWeather={forecastPrefs?.showWeather ?? true}
             showDrivers={forecastPrefs?.showDrivers ?? true}
             showPlanStock={forecastPrefs?.showPlanStock ?? true}
+            hiddenCategories={forecastPrefs?.hiddenCategories ?? []}
           />
         )}
       </View>
@@ -353,7 +356,7 @@ function ForecastCard({
   canonicalTradeType, rawBusinessType, onOpenSettings,
   showInlinePicker, onTogglePicker, onPickTradeType, savingTradeType, pendingTradeType,
   pickerError, pickerSuccess,
-  showWeather, showDrivers, showPlanStock,
+  showWeather, showDrivers, showPlanStock, hiddenCategories,
 }: {
   result: PredictionResult;
   tagline: string;
@@ -375,6 +378,7 @@ function ForecastCard({
   showWeather: boolean;
   showDrivers: boolean;
   showPlanStock: boolean;
+  hiddenCategories: string[];
 }) {
   const p = palette;
   const conf = confidencePresentation(result.confidence, isDark, p);
@@ -384,11 +388,14 @@ function ForecastCard({
   // drink_split (Coffee): only coffee-relevant categories — never food mains/sides/extras.
   // general_demand (no trade type set): hide chips entirely, show set-trade-type prompt.
   // All other kinds: use the trade config's own categories (minus 'other').
-  const planCategories: string[] = result.kind === 'drink_split'
+  const basePlanCategories: string[] = result.kind === 'drink_split'
     ? DRINK_SPLIT_PLAN_CATEGORIES
     : result.kind === 'general_demand'
       ? []
       : tradeMenuCategories.filter((cat) => cat !== 'other');
+  // User-hidden categories (Settings → Forecast categories) are removed here,
+  // at render time only — the engine's output is untouched.
+  const planCategories = basePlanCategories.filter((cat) => !hiddenCategories.includes(cat));
 
   return (
     <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, padding: 16 }}>

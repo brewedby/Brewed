@@ -138,6 +138,10 @@ export default function EventDetailScreen() {
       showWeather:   get('forecast_weather'),
       showDrivers:   get('forecast_drivers'),
       showPlanStock: get('forecast_plan_stock'),
+      // Per-category visibility for the plan-stock strip. Unlisted → shown.
+      hiddenCategories: fprefs
+        .filter((m) => m.id.startsWith('forecast_cat_') && m.enabled === false)
+        .map((m) => m.id.replace('forecast_cat_', '')),
     };
   }, [profile?.custom_metrics]);
 

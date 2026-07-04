@@ -15,6 +15,7 @@ import { useTheme } from '@/lib/themeContext';
 import type { ThemeMode } from '@/lib/themeContext';
 import { BUSINESS_TYPES } from '@/constants';
 import { normalizeTradeType } from '@/lib/tradeTypeConfig';
+import { TRADE_CATEGORIES, DEFAULT_CATEGORIES, CATEGORY_DEFINITIONS } from '@/types/cogs';
 
 const APPLE_MANAGE_SUBSCRIPTIONS_URL = 'https://apps.apple.com/account/subscriptions';
 const SUPPORT_EMAIL = 'support@brewedbyboon.com';
@@ -70,6 +71,8 @@ export default function SettingsScreen() {
   const [currency, setCurrency] = useState('GBP');
   const [metrics, setMetrics] = useState<Metric[]>(DEFAULT_METRICS);
   const [forecastMetrics, setForecastMetrics] = useState<Metric[]>(DEFAULT_FORECAST_PREFS);
+  // Saved per-category forecast toggles (ids: forecast_cat_<category>).
+  const [savedCategoryPrefs, setSavedCategoryPrefs] = useState<Metric[]>([]);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
@@ -92,9 +95,11 @@ export default function SettingsScreen() {
       setCurrency(profile.currency ?? 'GBP');
       const allMetrics = profile.custom_metrics ?? [];
       const dashMetrics = allMetrics.filter((m) => !m.id.startsWith('forecast_'));
-      const fcastPrefs  = allMetrics.filter((m) =>  m.id.startsWith('forecast_'));
+      const fcastPrefs  = allMetrics.filter((m) =>  m.id.startsWith('forecast_') && !m.id.startsWith('forecast_cat_'));
+      const catPrefs    = allMetrics.filter((m) =>  m.id.startsWith('forecast_cat_'));
       setMetrics(dashMetrics.length > 0 ? dashMetrics : DEFAULT_METRICS);
       setForecastMetrics(fcastPrefs.length > 0 ? fcastPrefs : DEFAULT_FORECAST_PREFS);
+      setSavedCategoryPrefs(catPrefs);
     }
   }, [profile]);
 
@@ -113,6 +118,31 @@ export default function SettingsScreen() {
 
   function toggleForecastMetric(id: string, enabled: boolean) {
     setForecastMetrics((prev) => prev.map((m) => m.id === id ? { ...m, enabled } : m));
+  }
+
+  // Per-category forecast visibility for the CURRENT trade type. Follows
+  // the picker live, preserving any saved toggles by id; unlisted
+  // categories default to visible.
+  const forecastCategoryPrefs: Metric[] = (
+    (TRADE_CATEGORIES[businessType] ?? DEFAULT_CATEGORIES).filter((k) => k !== 'other')
+  ).map((k) => {
+    const saved = savedCategoryPrefs.find((m) => m.id === `forecast_cat_${k}`);
+    return {
+      id: `forecast_cat_${k}`,
+      name: CATEGORY_DEFINITIONS[k]?.label ?? k,
+      unit: 'show/hide',
+      enabled: saved?.enabled ?? true,
+      builtin: true,
+    };
+  });
+
+  function toggleForecastCategory(id: string, enabled: boolean) {
+    setSavedCategoryPrefs((prev) => {
+      const existing = prev.find((m) => m.id === id);
+      if (existing) return prev.map((m) => m.id === id ? { ...m, enabled } : m);
+      const display = forecastCategoryPrefs.find((m) => m.id === id);
+      return [...prev, { ...(display ?? { id, name: id, unit: 'show/hide', builtin: true, enabled }), enabled }];
+    });
   }
 
   async function handleSave() {
@@ -134,7 +164,7 @@ export default function SettingsScreen() {
           business_name: trimmedName,
           business_type: businessType,
           currency,
-          custom_metrics: [...forecastMetrics, ...metrics],
+          custom_metrics: [...forecastMetrics, ...forecastCategoryPrefs, ...metrics],
         },
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -490,6 +520,54 @@ export default function SettingsScreen() {
                         onPress={() => toggleForecastMetric(metric.id, opt.id === 'on')}
                         accessibilityRole="button"
                         accessibilityLabel={`${opt.id === 'on' ? 'Show' : 'Hide'} ${metric.name} on forecast`}
+                        accessibilityState={{ selected: active }}
+                        style={{
+                          paddingHorizontal: 12, paddingVertical: 6, minWidth: 44,
+                          alignItems: 'center', justifyContent: 'center',
+                          borderLeftWidth: i === 0 ? 0 : 1,
+                          borderLeftColor: p.text,
+                          backgroundColor: active ? p.text : 'transparent',
+                        }}
+                      >
+                        <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1.5, color: active ? p.bg : p.text }}>
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
+
+            <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginTop: 18, marginBottom: 4 }}>
+              {'FORECAST CATEGORIES'}
+            </Text>
+            <Text style={{ fontSize: 12, color: p.textMuted, fontStyle: 'italic', marginBottom: 10 }}>
+              Choose which categories appear in the stock prep guide.
+            </Text>
+            {forecastCategoryPrefs.map((metric, idx) => (
+              <View
+                key={metric.id}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 12,
+                  paddingVertical: 12,
+                  borderTopWidth: 1, borderTopColor: p.border,
+                  borderBottomWidth: idx === forecastCategoryPrefs.length - 1 ? 1 : 0,
+                  borderBottomColor: p.border,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: tokens.type.display, fontSize: 16, color: p.text }}>{metric.name}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', borderWidth: 1, borderColor: p.text }}>
+                  {([{ id: 'on', label: 'ON' }, { id: 'off', label: 'OFF' }] as const).map((opt, i) => {
+                    const active = (opt.id === 'on') === metric.enabled;
+                    return (
+                      <TouchableOpacity
+                        key={opt.id}
+                        onPress={() => toggleForecastCategory(metric.id, opt.id === 'on')}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${opt.id === 'on' ? 'Show' : 'Hide'} ${metric.name} in forecast categories`}
                         accessibilityState={{ selected: active }}
                         style={{
                           paddingHorizontal: 12, paddingVertical: 6, minWidth: 44,
