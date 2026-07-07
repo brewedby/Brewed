@@ -5,6 +5,7 @@ import * as LegacyFS from 'expo-file-system/legacy';
 import { supabase } from '@/lib/supabase';
 import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
 import { parsePDFSalesReport } from '@/lib/parsers/pdfSales';
+import { parseXLSXSalesReport } from '@/lib/parsers/xlsxSales';
 import { reconcileLines } from '@/lib/parsers/productMatcher';
 import { detectProvider, computeImportConfidence } from '@/lib/parsers/providerDetect';
 import type {
@@ -139,19 +140,21 @@ export function useParseSalesReport() {
         || asset.mimeType === 'text/tab-separated-values'
       );
 
-      // Excel workbooks are zip containers we can't parse on-device. Only
-      // trust the EXTENSION here — iOS mislabels genuine CSVs with the
-      // application/vnd.ms-excel MIME type.
-      if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
+      // .xlsx workbooks are parsed locally (zip + SpreadsheetML → the CSV
+      // pipeline). Legacy binary .xls (BIFF) is not a zip and stays on the
+      // Save-As-CSV guidance. Detect by EXTENSION only — iOS mislabels
+      // genuine CSVs with the application/vnd.ms-excel MIME type.
+      const isXLSX = lowerName.endsWith('.xlsx');
+      if (!isXLSX && lowerName.endsWith('.xls')) {
         throw new Error(
-          'Excel workbooks can\'t be read directly.\n\n' +
-          'In Excel or Numbers use File → Save As → CSV, or export a CSV ' +
-          'from your EPOS provider, then import that instead.',
+          'Older .xls workbooks can\'t be read directly.\n\n' +
+          'In Excel or Numbers use File → Save As → CSV (or re-save as ' +
+          '.xlsx), or export a CSV from your EPOS provider, then import that instead.',
         );
       }
 
-      if (!isPDF && !isCSV) {
-        throw new Error('Unsupported file type. Please upload a CSV or PDF file.');
+      if (!isPDF && !isCSV && !isXLSX) {
+        throw new Error('Unsupported file type. Please upload a CSV, Excel (.xlsx) or PDF file.');
       }
 
       let reconciledLines: ReconciledLine[];
@@ -163,7 +166,49 @@ export function useParseSalesReport() {
       let provider: string | null = null;
       let skippedRows = 0;
 
-      if (isPDF) {
+      if (isXLSX) {
+        // ── XLSX: unzip + parse locally, then reuse the CSV pipeline ────────
+        sourceFormat = 'csv';
+        const bytes = await readFileAsBytes(asset);
+        if (!bytes) {
+          throw new Error(
+            `Couldn't read "${asset.name}". ` +
+            'Try saving the file to your Files app first and uploading from there.',
+          );
+        }
+
+        const outcome = parseXLSXSalesReport(bytes, asset.size ?? null);
+        if (!outcome.ok || !outcome.result) {
+          throw new Error(outcome.error ?? 'Could not read this Excel file.');
+        }
+        const parsed = outcome.result;
+
+        if (__DEV__ && parsed.diagnostics) {
+          // eslint-disable-next-line no-console
+          console.log('[XLSX parse]', {
+            file: asset.name,
+            headers: parsed.diagnostics.detectedHeaders,
+            accepted: parsed.diagnostics.acceptedRowCount,
+            skipped: parsed.diagnostics.skippedRowCount,
+          });
+        }
+
+        if (parsed.errors.length > 0 && parsed.lines.length === 0) {
+          throw new Error(parsed.errors.join('\n'));
+        }
+
+        parseErrors = parsed.errors;
+        provider = detectProvider(asset.name, parsed.rawHeaders.join(','));
+        skippedRows = parsed.diagnostics?.skippedRowCount ?? 0;
+        const xlsxRefunds = parsed.diagnostics?.refundRowCount ?? 0;
+        if (xlsxRefunds > 0) {
+          warnings.push(
+            `${xlsxRefunds} refund/negative row${xlsxRefunds === 1 ? ' was' : 's were'} detected and netted against sales of the same product.`,
+          );
+        }
+        reconciledLines = reconcileLines(parsed.lines, catalog);
+
+      } else if (isPDF) {
         // ── PDF: parse locally (no server call) ──────────────────────────────
         sourceFormat = 'pdf';
         const bytes = await readFileAsBytes(asset);

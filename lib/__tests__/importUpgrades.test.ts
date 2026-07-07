@@ -110,7 +110,7 @@ expect('mutation_has_excel_guidance',
   'Excel files must get a clear export-as-CSV message, not a generic error');
 
 expect('excel_check_by_extension_only',
-  mutationSrc.includes('iOS mislabels genuine CSVs'),
+  mutationSrc.includes('iOS mislabels') && mutationSrc.includes('EXTENSION only'),
   'must not treat application/vnd.ms-excel MIME as Excel — iOS uses it for CSVs');
 
 expect('mutation_computes_confidence',

@@ -72,6 +72,95 @@ function inflate(data: string): string {
   }
 }
 
+/**
+ * LZWDecode filter (PDF spec 7.4.4): variable-width codes 9→12 bits,
+ * MSB-first bit order, code 256 = clear-table, 257 = end-of-data.
+ * PDF defaults EarlyChange=1 — the code width bumps one code early.
+ * Older EPOS/report generators (and some print-to-PDF drivers) still
+ * emit LZW streams, which previously fell out as "unsupported".
+ */
+function lzwDecode(data: string): string {
+  const bytes = latin1ToBytes(data);
+  const CLEAR = 256;
+  const EOD = 257;
+
+  let dict: string[] = [];
+  const resetDict = () => {
+    dict = new Array(258);
+    for (let i = 0; i < 256; i++) dict[i] = String.fromCharCode(i);
+  };
+  resetDict();
+
+  let codeWidth = 9;
+  let bitBuf = 0;
+  let bitCount = 0;
+  let pos = 0;
+  let prev: string | null = null;
+  let out = '';
+
+  const nextCode = (): number | null => {
+    while (bitCount < codeWidth) {
+      if (pos >= bytes.length) return null;
+      bitBuf = (bitBuf << 8) | bytes[pos++];
+      bitCount += 8;
+    }
+    bitCount -= codeWidth;
+    const code = (bitBuf >> bitCount) & ((1 << codeWidth) - 1);
+    return code;
+  };
+
+  try {
+    for (;;) {
+      const code = nextCode();
+      if (code === null || code === EOD) break;
+      if (code === CLEAR) {
+        resetDict();
+        codeWidth = 9;
+        prev = null;
+        continue;
+      }
+
+      let entry: string;
+      if (code < dict.length && dict[code] !== undefined) {
+        entry = dict[code];
+      } else if (prev !== null) {
+        entry = prev + prev[0]; // KwKwK case
+      } else {
+        break; // corrupt stream
+      }
+
+      out += entry;
+      if (prev !== null) dict.push(prev + entry[0]);
+      prev = entry;
+
+      // EarlyChange=1: widen one code before the table is actually full.
+      if (dict.length + 1 >= (1 << codeWidth) && codeWidth < 12) codeWidth++;
+    }
+  } catch {
+    return '';
+  }
+  return out;
+}
+
+/** ASCIIHexDecode filter: hex pairs, whitespace ignored, '>' terminates. */
+function asciiHexDecode(data: string): string {
+  const clean = data.replace(/\s/g, '');
+  const end = clean.indexOf('>');
+  const hex = (end === -1 ? clean : clean.slice(0, end));
+  let out = '';
+  for (let i = 0; i + 1 < hex.length; i += 2) {
+    const b = parseInt(hex.slice(i, i + 2), 16);
+    if (isNaN(b)) return '';
+    out += String.fromCharCode(b);
+  }
+  // Odd trailing digit is treated as if followed by 0 (PDF spec).
+  if (hex.length % 2 === 1) {
+    const b = parseInt(hex[hex.length - 1] + '0', 16);
+    if (!isNaN(b)) out += String.fromCharCode(b);
+  }
+  return out;
+}
+
 // ── PDF string decoding ──────────────────────────────────────────────────────
 
 function decodePdfString(raw: string): string {
@@ -386,10 +475,19 @@ export function parsePDFSalesReport(
       content = inflate(content);
       if (!content) continue;
       decoded++;
+    } else if (filter === 'LZWDecode') {
+      content = lzwDecode(content);
+      if (!content) continue;
+      decoded++;
+    } else if (filter === 'ASCIIHexDecode') {
+      content = asciiHexDecode(content);
+      if (!content) continue;
+      decoded++;
     } else if (filter === null || filter === undefined) {
       decoded++;
     } else {
-      // Unsupported filter — skip silently
+      // Genuinely unsupported (JBIG2/CCITT are image codecs — a report
+      // made only of those is image-only by definition). Skip.
       continue;
     }
 
@@ -412,9 +510,9 @@ export function parsePDFSalesReport(
     }
     return {
       lines: [], errors: [
-        'We found PDF content but could not extract readable text.',
-        'The PDF may use an unsupported font encoding.',
-        'Try exporting a CSV from your EPOS instead.',
+        'This report uses a PDF format that cannot be read on-device yet.',
+        'We found the document structure but its text is stored in an encoding we cannot decode locally.',
+        'Export a CSV from your EPOS provider where possible — CSV imports are instant and fully supported.',
       ],
       warnings: [], sourceFormat: 'pdf', reportDate: null, reason: 'decode_failed',
       streamsFound: rawStreams.length, streamsDecoded: decoded, extractedLineCount: 0, provider: null,
