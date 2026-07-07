@@ -29,6 +29,7 @@ import { useProfile } from '@/lib/queries/profile';
 import { supabase } from '@/lib/supabase';
 import { ALL_PRODUCT_IDS, FALLBACK_PRICE, FALLBACK_PRICES, PRODUCT_IDS, type ProductId } from './products';
 import { hasFeature, tierForSubscription, type FeatureKey, type SubscriptionTier } from './entitlements';
+import { getDevTierOverride } from './devEntitlement';
 
 // expo-iap types we care about. We import the runtime via require() so
 // that builds without the native module installed don't crash at import time.
@@ -142,7 +143,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   // Tier resolution lives in lib/iap/entitlements.ts — single source of truth.
   const statusKnown = !!profile;
-  const tier = useMemo<SubscriptionTier>(() => {
+  const serverTier = useMemo<SubscriptionTier>(() => {
     if (!isEntitled) return 'none';
     return tierForSubscription({
       status: profile?.subscription_status,
@@ -150,6 +151,19 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       grandfathered: profile?.reviewer_grandfathered,
     });
   }, [isEntitled, profile]);
+
+  // DEV-ONLY tier override for testing gates. getDevTierOverride() is a
+  // hard no-op (returns null) outside __DEV__, and this only affects
+  // feature gates — the layout paywall keeps using server-derived
+  // isEntitled, so a production build can never unlock via this path.
+  const [devTier, setDevTier] = useState<SubscriptionTier | null>(null);
+  useEffect(() => {
+    if (!__DEV__) return;
+    let cancelled = false;
+    getDevTierOverride().then((t) => { if (!cancelled) setDevTier(t); });
+    return () => { cancelled = true; };
+  }, [profile]);
+  const tier = __DEV__ && devTier !== null ? devTier : serverTier;
 
   // Connect to the App Store and fetch product details once at mount
   useEffect(() => {
