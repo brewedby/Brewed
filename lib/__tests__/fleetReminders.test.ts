@@ -194,3 +194,45 @@ for (const r of results) {
 }
 console.log(`\n${passed} passed, ${failed.length} failed`);
 if (failed.length > 0) process.exit(1);
+
+// ── 9. Sign-out cleanup + checklist (launch audit additions) ─────────────────
+{
+  const results3: Test[] = [];
+  const expect3 = (name: string, cond: boolean, detail: string = '') => { results3.push({ name, pass: cond, detail }); };
+
+  const notifSrc3 = fs.readFileSync(path.join(ROOT, 'lib', 'notifications.ts'), 'utf8');
+  const authSrc   = fs.readFileSync(path.join(ROOT, 'lib', 'auth.tsx'), 'utf8');
+
+  expect3('clear_helper_exists',
+    notifSrc3.includes('export async function clearFleetReminders'),
+    'notifications runtime must expose clearFleetReminders');
+
+  expect3('clear_resets_optin',
+    /clearFleetReminders[\s\S]{0,900}enabled: false/.test(notifSrc3),
+    'clearing must reset the opt-in flag so the next account starts disabled');
+
+  expect3('signout_clears_reminders',
+    authSrc.includes('clearFleetReminders()'),
+    'signOut must cancel the previous user\'s vehicle reminders');
+
+  expect3('signout_clear_never_blocks',
+    notifSrc3.includes('never block sign-out'),
+    'cleanup must be best-effort — a notification failure must not trap the user signed in');
+
+  expect3('eas_checklist_exists',
+    fs.existsSync(path.join(ROOT, 'docs', 'FLEET_NOTIFICATIONS_TEST.md')),
+    'on-device EAS test checklist must exist');
+
+  const checklist = fs.readFileSync(path.join(ROOT, 'docs', 'FLEET_NOTIFICATIONS_TEST.md'), 'utf8');
+  expect3('checklist_covers_required_flows',
+    ['Permission', 'Delivery', 'reschedule', 'Cancel', 'Multiple units', 'restart', 'Sign out', 'Re-install']
+      .every((s) => checklist.includes(s)),
+    'checklist must cover permissions, delivery, date change, cancel, multi-unit, restart, re-login, re-install');
+
+  for (const r of results3) {
+    console.log(`${r.pass ? 'PASS' : 'FAIL'}  ${r.name.padEnd(38)}${r.detail ? ' ' + r.detail : ''}`);
+  }
+  const failed3 = results3.filter(r => !r.pass);
+  console.log(`\nsign-out cleanup: ${results3.length - failed3.length} passed, ${failed3.length} failed`);
+  if (failed3.length > 0) process.exit(1);
+}
