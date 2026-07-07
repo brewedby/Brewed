@@ -510,7 +510,3 @@ export function useDeleteSalesReport() {
     },
   });
 }
-
-// Keep the old hook name as an alias so any external references don't break.
-// New code should call useParseSalesReport() + useSaveImportedReport() separately.
-export { useParseSalesReport as useUploadSalesReport };
