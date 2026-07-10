@@ -10,7 +10,9 @@
 import type { DocLineItem, VatTreatment } from './model';
 
 export function roundPence(v: number): number {
-  return Math.sign(v) * Math.round(Math.abs(v) * 100) / 100;
+  // The epsilon absorbs float representation error (1.005 is stored as
+  // 1.00499…) so half-penny values round away from zero as accountants expect.
+  return Math.sign(v) * Math.round(Math.abs(v) * 100 + 1e-9) / 100;
 }
 
 export interface VatTriple {

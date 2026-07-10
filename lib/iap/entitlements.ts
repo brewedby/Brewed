@@ -40,7 +40,8 @@ export type FeatureKey =
   | 'pdf_import'        // PDF item-level sales import
   | 'fleet_reminders'   // MOT/tax/service notifications
   | 'fleet_multi_unit'  // more than one fleet unit
-  | 'reports_advanced'; // performance trends
+  | 'reports_advanced'  // performance trends
+  | 'doc_scanner';      // financial document scanning + reconciliation
 
 /** Minimum tier required for each feature. */
 export const FEATURE_TIERS: Record<FeatureKey, SubscriptionTier> = {
@@ -58,6 +59,7 @@ export const FEATURE_TIERS: Record<FeatureKey, SubscriptionTier> = {
   fleet_reminders:  'pro',
   fleet_multi_unit: 'pro',
   reports_advanced: 'pro',
+  doc_scanner:      'pro',
 };
 
 const TIER_RANK: Record<SubscriptionTier, number> = { none: 0, trader: 1, pro: 2 };

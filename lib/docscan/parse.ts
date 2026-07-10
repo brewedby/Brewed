@@ -172,7 +172,7 @@ const SALES_LABELS: LabelSpec[] = [
 const DEDUCTION_PATTERNS: { category: LineCategory; re: RegExp }[] = [
   { category: 'commission', re: /commission|revenue share|concession/i },
   { category: 'card_processing', re: /processing fee|transaction fee|card fee|dines fee|square fee|payment processing/i },
-  { category: 'epos_fee', re: /epos(?! terminal)/i },
+  { category: 'epos_fee', re: /\bepos\b(?! terminal)/i },
   { category: 'terminal_hire', re: /terminal/i },
   { category: 'power', re: /\bpower\b|electric/i },
   { category: 'wifi', re: /wi.?fi|internet/i },
@@ -491,7 +491,10 @@ function parseGeneric(lines: string[], doc: ScannedFinancialDocument): void {
   for (const spec of SALES_LABELS) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (!spec.patterns.some((p) => p.test(line.replace(/^"|"$/g, '').trim()))) continue;
+      // Match against the LABEL portion only — inline rows ("Refunds £50.00")
+      // must still satisfy end-anchored patterns.
+      const label = line.replace(new RegExp(MONEY_RE.source, 'g'), '').replace(/^"|"$/g, '').trim();
+      if (!spec.patterns.some((p) => p.test(label))) continue;
       const v = parseMoney(line) ?? moneyNear(lines, i + 1, 2)?.value ?? null;
       if (v === null) continue;
       if (spec.field === 'payout') {
@@ -511,14 +514,25 @@ function parseGeneric(lines: string[], doc: ScannedFinancialDocument): void {
     if (v === null) continue;
     const desc = line.replace(MONEY_RE, '').trim();
     if (desc.length < 3) continue;
-    doc.lines.push(buildLine(desc, v, 'low', line));
+    // Plain fee lines state charges as positive amounts (no statement
+    // sign convention) — negate so buildLine's flip yields money-out.
+    doc.lines.push(buildLine(desc, -v, 'low', line));
   }
 }
 
 // ── Entry point ──────────────────────────────────────────────────────────────
 
+/** Personal data is never needed for financial reconciliation — scrub
+ *  emails and card-number-length digit runs before anything downstream
+ *  (review screen, stored source_text) can see them. */
+export function scrubPII(line: string): string {
+  return line
+    .replace(/[\w.+-]+@[\w-]+\.[\w.]{2,}/g, '[redacted]')
+    .replace(/\b\d{13,19}\b/g, '[redacted]');
+}
+
 export function scanFinancialText(rawLines: string[]): ScannedFinancialDocument {
-  const lines = rejoinSplitAmounts(rawLines.map((l) => l.trim()).filter(Boolean));
+  const lines = rejoinSplitAmounts(rawLines.map((l) => scrubPII(l.trim())).filter(Boolean));
   const cls = classifyDocument(lines);
   const period = detectPeriod(lines);
 
