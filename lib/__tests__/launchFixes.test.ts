@@ -235,3 +235,41 @@ for (const r of results) {
 // eslint-disable-next-line no-console
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);
+
+// ── Account deletion (App Review 5.1.1(v)) — launch-pack additions ──────────
+{
+  const results4: Test[] = [];
+  const expect4 = (name: string, cond: boolean, detail: string = '') => { results4.push({ name, pass: cond, detail }); };
+  const settingsSrc4 = fs.readFileSync(path.join(ROOT, 'app', '(tabs)', 'settings.tsx'), 'utf8');
+  const privacySrc4 = fs.readFileSync(path.join(ROOT, 'app', '(modal)', 'privacy.tsx'), 'utf8');
+  const migration18 = fs.readFileSync(path.join(ROOT, 'supabase', 'migration_018_account_deletion.sql'), 'utf8');
+
+  expect4('settings_has_delete_account_button',
+    settingsSrc4.includes('DELETE ACCOUNT') && settingsSrc4.includes('handleDeleteAccount'),
+    'Settings must offer in-app account deletion (guideline 5.1.1(v))');
+  expect4('delete_requires_double_confirmation',
+    /Delete your account\?[\s\S]*Are you absolutely sure\?/.test(settingsSrc4),
+    'deletion must be double-confirmed before firing');
+  expect4('delete_calls_scoped_rpc',
+    settingsSrc4.includes("supabase.rpc('delete_own_account')"),
+    'deletion goes through the self-scoped RPC, never direct table access');
+  expect4('delete_signs_out_after',
+    /delete_own_account[\s\S]{0,300}signOut\(\)/.test(settingsSrc4),
+    'local session must be cleared after server-side deletion');
+  expect4('rpc_only_deletes_caller',
+    migration18.includes('WHERE id = auth.uid()') && migration18.includes('SECURITY DEFINER'),
+    'the RPC can only ever delete the calling user');
+  expect4('rpc_denied_to_anon',
+    migration18.includes('REVOKE ALL ON FUNCTION public.delete_own_account() FROM anon'),
+    'anonymous clients cannot call the deletion RPC');
+  expect4('privacy_copy_mentions_in_app_deletion',
+    privacySrc4.includes('Settings → Delete Account'),
+    'privacy summary must describe the in-app deletion path');
+
+  for (const r of results4) {
+    console.log(`${r.pass ? 'PASS' : 'FAIL'}  ${r.name.padEnd(45)}${r.detail ? ' ' + r.detail : ''}`);
+  }
+  const failed4 = results4.filter(r => !r.pass);
+  console.log(`\naccount deletion: ${results4.length - failed4.length} passed, ${failed4.length} failed`);
+  if (failed4.length > 0) process.exit(1);
+}

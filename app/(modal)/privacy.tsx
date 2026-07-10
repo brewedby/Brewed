@@ -42,7 +42,7 @@ const SECTIONS = [
   {
     eyebrow: 'YOUR RIGHTS',
     title: 'Export or delete, any time.',
-    body: 'Under UK GDPR you can export your data (Reports → CSV export), correct anything wrong, or delete your account from Settings → Sign out then email us. We will erase all of your data within 30 days.',
+    body: 'Under UK GDPR you can export your data (Reports → CSV export), correct anything wrong, or permanently delete your account and every piece of data in Settings → Delete Account — it takes effect immediately. You can also email us and we will erase everything within 30 days.',
   },
 ];
 
