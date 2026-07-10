@@ -15,6 +15,7 @@ import { StaffingList } from '@/components/events/StaffingList';
 import { InfrastructureList } from '@/components/events/InfrastructureList';
 import { DocumentsSection } from '@/components/events/DocumentsSection';
 import { CogsSection } from '@/components/cogs/CogsSection';
+import { FinancialDocsSection } from '@/components/docscan/FinancialDocsSection';
 import { FarSectionRule } from '@/components/far/SectionRule';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { useTheme } from '@/lib/themeContext';
@@ -545,6 +546,14 @@ export default function EventDetailScreen() {
         {/* ── COGS ── */}
         <View style={{ marginBottom: 16 }}>
           <CogsSection eventId={event.id} existingCogs={event.event_financials?.cost_of_goods ?? 0} />
+        </View>
+
+        {/* ── Settlements, deductions & payout reconciliation ── */}
+        <View style={{ marginBottom: 16 }}>
+          <FarSectionRule label="Statements & Payout" />
+          <View style={{ marginTop: 12 }}>
+            <FinancialDocsSection eventId={event.id} eventName={event.name} />
+          </View>
         </View>
 
         {/* ── Details ── */}

@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { REMEMBER_ME_KEY, disableBiometric } from '@/lib/biometrics';
+import { clearFleetReminders } from '@/lib/notifications';
 
 interface AuthContextValue {
   session: Session | null;
@@ -83,9 +84,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     //   3. Supabase — revoke the refresh token server-side. This fires
     //      onAuthStateChange('SIGNED_OUT'), which clears the session
     //      state and lets the layout redirect to the sign-in screen.
+    //   4. Fleet reminders — cancel this user's scheduled MOT/tax/service
+    //      notifications so the next account on this device doesn't
+    //      inherit alerts about someone else's vehicles.
     setIsRecoveryMode(false);
     await disableBiometric();
     queryClient.clear();
+    await clearFleetReminders();
     await supabase.auth.signOut();
   }, [queryClient]);
 

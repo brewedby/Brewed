@@ -172,3 +172,56 @@ for (const r of results) {
 }
 console.log(`\n${passed} passed, ${failed.length} failed`);
 if (failed.length > 0) process.exit(1);
+
+// ── 6. Reviewer/test entitlement isolation (launch audit) ────────────────────
+// Appended by the launch-readiness pass: pins that dev/test entitlement
+// paths can never leak into production builds.
+{
+  const devSrc = read('lib/iap/devEntitlement.ts');
+  const results2: Test[] = [];
+  const expect2 = (name: string, cond: boolean, detail: string = '') => {
+    results2.push({ name, pass: cond, detail });
+  };
+
+  expect2('dev_override_getter_gated_by_DEV',
+    /getDevTierOverride[\s\S]{0,120}if \(!__DEV__\) return null;/.test(devSrc),
+    'getDevTierOverride must hard-return null outside __DEV__');
+
+  expect2('dev_override_setter_gated_by_DEV',
+    /setDevTierOverride[\s\S]{0,120}if \(!__DEV__\) return;/.test(devSrc),
+    'setDevTierOverride must be a no-op outside __DEV__');
+
+  expect2('dev_override_local_only',
+    devSrc.includes('AsyncStorage') && !devSrc.includes('supabase'),
+    'override must be device-local — no server flag');
+
+  expect2('context_dev_tier_double_gated',
+    ctxSrcFresh().includes("__DEV__ && devTier !== null ? devTier : serverTier"),
+    'context must apply the override only when __DEV__ is true at the use site too');
+
+  expect2('paywall_gate_uses_server_entitlement',
+    !ctxSrcFresh().includes('devTier') ||
+    ctxSrcFresh().indexOf('const isEntitled') < ctxSrcFresh().indexOf('devTier'),
+    'isEntitled (layout paywall) must be derived before/without the dev override');
+
+  const migSrc = fs.readFileSync(path.join(ROOT, 'supabase', 'migration_016_reviewer_isolation.sql'), 'utf8');
+  expect2('migration_resets_blanket_grandfathering',
+    migSrc.includes('SET reviewer_grandfathered = false') && migSrc.includes('NOT IN'),
+    'migration 016 must reset the blanket UPDATE, keeping only allowlisted accounts');
+
+  expect2('migration_is_idempotent_documented',
+    migSrc.includes('idempotent'),
+    'migration must be safe to re-run');
+
+  for (const r of results2) {
+    results.push(r);
+    console.log(`${r.pass ? 'PASS' : 'FAIL'}  ${r.name.padEnd(45)}${r.detail ? ' ' + r.detail : ''}`);
+  }
+  const failed2 = results2.filter(r => !r.pass);
+  console.log(`\nisolation: ${results2.length - failed2.length} passed, ${failed2.length} failed`);
+  if (failed2.length > 0) process.exit(1);
+}
+
+function ctxSrcFresh(): string {
+  return fs.readFileSync(path.join(ROOT, 'lib', 'iap', 'SubscriptionContext.tsx'), 'utf8');
+}

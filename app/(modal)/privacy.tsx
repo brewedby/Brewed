@@ -30,9 +30,9 @@ const SECTIONS = [
     body: 'Email address (for sign-in), business name (for the dashboard), and the events / financials / fleet / documents you choose to enter. Event date and location are used with a public weather service (Open-Meteo, GDPR-compliant) to fetch forecasts. No analytics, no crash trackers, no advertising IDs, no device fingerprinting.',
   },
   {
-    eyebrow: 'SALES REPORT IMPORTS',
+    eyebrow: 'SALES REPORT & DOCUMENT IMPORTS',
     title: 'Read on your device.',
-    body: 'CSV and PDF sales reports you import are read and parsed entirely on your device. The file itself is never uploaded, never sent to an OCR or AI service, and never logged. Only the line items you review and confirm (product names, quantities, totals) are saved to your account, exactly like data you type in yourself.',
+    body: 'Sales reports, settlement statements, deduction statements and contracts you import (CSV or PDF) are read and parsed entirely on your device. The file itself is never uploaded, never stored, never sent to an OCR or AI service, and never logged — only a fingerprint (hash) is kept to warn about duplicate imports. Personal details found in reports, such as customer emails or card numbers, are discarded before anything is shown or saved. Only the structured values you review and confirm are saved to your account, exactly like data you type in yourself.',
   },
   {
     eyebrow: 'PREDICTIONS & LEARNING',

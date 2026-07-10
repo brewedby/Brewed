@@ -184,3 +184,27 @@ export async function rescheduleFleetReminders(
 export function previewSchedule(units: ReminderUnit[], prefs: ReminderPrefs): FleetReminder[] {
   return buildReminderSchedule(units, prefs, new Date()).slice(0, MAX_SCHEDULED);
 }
+
+/**
+ * Cancel every scheduled fleet reminder and reset the enabled flag.
+ * Called on SIGN-OUT: reminders describe the signed-out user's vehicles,
+ * and the next account on this device must not inherit them (reminders
+ * stay opt-in per account/device). Safe no-op in Expo Go.
+ */
+export async function clearFleetReminders(): Promise<void> {
+  const mod = loadNotifications();
+  try {
+    if (mod) {
+      const rawIds = await AsyncStorage.getItem(SCHEDULED_IDS_KEY);
+      const ids: string[] = rawIds ? JSON.parse(rawIds) : [];
+      for (const id of ids) {
+        try { await mod.cancelScheduledNotificationAsync(id); } catch { /* already fired */ }
+      }
+    }
+    await AsyncStorage.setItem(SCHEDULED_IDS_KEY, JSON.stringify([]));
+    const prefs = await loadReminderPrefs();
+    if (prefs.enabled) await saveReminderPrefs({ ...prefs, enabled: false });
+  } catch {
+    // Best-effort cleanup — never block sign-out.
+  }
+}
