@@ -342,10 +342,10 @@ const SQUARE_FIXTURE = [
 
   expect('money_detached_minus', parseMoney('- £510.08') === -510.08, String(parseMoney('- £510.08')));
   expect('money_parens_negative', parseMoney('(£9.50)') === -9.5, String(parseMoney('(£9.50)')));
-  expect('money_thousands', parseMoney('£13,301.08') === 13301.08, '');
+  expect('money_thousands', parseMoney('£12,345.67') === 12345.67, '');
 
-  const rejoined = rejoinSplitAmounts(['13', '301.08', 'Payout']);
-  expect('split_amount_rejoined', rejoined[0] === '13,301.08' && rejoined[1] === 'Payout', JSON.stringify(rejoined));
+  const rejoined = rejoinSplitAmounts(['12', '345.67', 'Payout']);
+  expect('split_amount_rejoined', rejoined[0] === '12,345.67' && rejoined[1] === 'Payout', JSON.stringify(rejoined));
 }
 
 // ── 13. File-content invariants (privacy + architecture) ────────────────────

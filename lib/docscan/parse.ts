@@ -35,7 +35,7 @@ export function parseMoney(s: string): number | null {
 
 /**
  * Rejoin amounts that PDF line assembly split at the thousands separator
- * ("13" / "301.08" → "13,301.08"). Real Dines statements do this.
+ * ("12" / "345.67" → "12,345.67"). Real Dines statements do this.
  */
 export function rejoinSplitAmounts(lines: string[]): string[] {
   const out: string[] = [];

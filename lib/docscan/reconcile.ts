@@ -9,8 +9,8 @@
  *     lines, so they add back automatically)
  *
  * Verified against the real Dines CD statement:
- *   13,301.08 gross − 510.08 fees + 26.00 commission credit
- *   − 3,113.20 organiser deductions = 9,703.80 payout ✓
+ *   gross card sales − processing fees + commission credit
+ *   − organiser deductions = the statement's stated payout, to the penny.
  */
 
 import type { DocLineItem, ExtractedAmount, SalesSummary } from './model';
