@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
-import { format, parseISO, eachDayOfInterval } from 'date-fns';
+import { format, parseISO } from 'date-fns';
+import { safeEventDays } from '@/lib/dates';
 import { useTheme } from '@/lib/themeContext';
 import { formatCurrency } from '@/lib/formatters';
 import { useDailyTakings } from '@/lib/queries/dailyTakings';
@@ -26,7 +27,10 @@ export function DailyTakingsCard({ eventId, startDate, endDate, readOnly = false
   const p = tokens.palette;
   const { data: dailyTakings = [], isLoading } = useDailyTakings(eventId);
   const upsert = useUpsertDailyTakings(eventId);
-  const days = eachDayOfInterval({ start: parseISO(startDate), end: parseISO(endDate) });
+  // Bounded expansion — a malformed end_date must never render thousands
+  // of rows (the LIV Golf force-close). 31 days is beyond any real event.
+  const range = safeEventDays(startDate, endDate, 31);
+  const days = range.days.map((d) => parseISO(d));
 
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [inputs, setInputs] = useState<Record<string, DayInput>>({});
@@ -167,7 +171,17 @@ export function DailyTakingsCard({ eventId, startDate, endDate, readOnly = false
           <Text style={{ color: p.textFaint, fontSize: 13 }}>No daily takings recorded yet</Text>
         </View>
       ) : (
-        days.map((day, index) => {
+        <>
+        {(range.clamped || range.invalid) && (
+          <View style={{ padding: 10, borderBottomWidth: 1, borderBottomColor: p.border }}>
+            <Text style={{ fontSize: 12, color: p.textMuted, fontStyle: 'italic' }}>
+              {range.clamped
+                ? `This event's dates span ${range.requestedSpanDays} days — showing the first ${days.length}. Check the start and end dates in Edit Event.`
+                : "This event's end date couldn't be read — showing the start date only. Check the dates in Edit Event."}
+            </Text>
+          </View>
+        )}
+        {days.map((day, index) => {
           const dateStr  = format(day, 'yyyy-MM-dd');
           const dayNum   = index + 1;
           const recorded = getRecorded(dateStr);
@@ -323,7 +337,8 @@ export function DailyTakingsCard({ eventId, startDate, endDate, readOnly = false
               )}
             </View>
           );
-        })
+        })}
+        </>
       )}
     </View>
   );

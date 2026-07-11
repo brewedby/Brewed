@@ -1,5 +1,19 @@
 import { z } from 'zod';
 
+/** Longest believable single event for a mobile trader (a full month). */
+export const MAX_EVENT_SPAN_DAYS = 31;
+
+/** Form date fields hold ISO yyyy-MM-dd (from the picker) or dd/mm/yyyy
+ *  (typed UK format, converted at submit). Parse both; NaN otherwise. */
+function parseFormDate(val: string): Date {
+  const uk = val.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  const iso = uk
+    ? `${uk[3]}-${uk[2].padStart(2, '0')}-${uk[1].padStart(2, '0')}`
+    : val.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return new Date(NaN);
+  return new Date(`${iso}T00:00:00Z`);
+}
+
 const staffingEntrySchema = z.object({
   id: z.string().optional(),
   staff_name: z.string().min(1, 'Name required'),
@@ -58,6 +72,43 @@ export const eventSchema = z.object({
   // Arrays
   staffing_entries: z.array(staffingEntrySchema).default([]),
   infrastructure_items: z.array(infrastructureItemSchema).default([]),
+}).superRefine((values, ctx) => {
+  // End date must be a real date, on/after the start date, and within a
+  // sane event span. Unvalidated end dates previously reached the DB and
+  // made day-per-row sections expand a typo'd range into thousands of
+  // rows, force-closing the event screen (the LIV Golf crash).
+  if (!values.end_date) return;
+
+  const start = parseFormDate(values.date);
+  const end = parseFormDate(values.end_date);
+
+  if (Number.isNaN(end.getTime())) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['end_date'],
+      message: 'End date is not a valid date',
+    });
+    return;
+  }
+  if (Number.isNaN(start.getTime())) return; // date field has its own error
+
+  if (end.getTime() < start.getTime()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['end_date'],
+      message: 'End date must be on or after the start date',
+    });
+    return;
+  }
+
+  const spanDays = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
+  if (spanDays > MAX_EVENT_SPAN_DAYS) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['end_date'],
+      message: `Events can span at most ${MAX_EVENT_SPAN_DAYS} days — check the end date year`,
+    });
+  }
 });
 
 export type EventFormValues = z.infer<typeof eventSchema>;

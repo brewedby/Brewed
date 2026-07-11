@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
-import { differenceInDays, parseISO, eachDayOfInterval, format } from 'date-fns';
+import { differenceInDays, format, parseISO } from 'date-fns';
+import { safeEventDays } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/themeContext';
@@ -207,11 +208,17 @@ export function WeatherCard({
           longitude = coords.lng;
         }
 
-        const end = endDate ?? startDate;
+        // Bounded range: a malformed end_date must never expand into a
+        // giant day list (the LIV Golf force-close) or a nonsense API
+        // window. 14 days matches the provider's usable horizon.
+        const range = safeEventDays(startDate, endDate ?? startDate, 14);
+        if (range.days.length === 0) { setLoading(false); return; }
+        const apiStart = range.days[0];
+        const apiEnd = range.days[range.days.length - 1];
 
         const [omRes, stDaysRaw] = await Promise.allSettled([
           global.fetch(
-            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum&start_date=${startDate}&end_date=${end}&timezone=auto`,
+            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum&start_date=${apiStart}&end_date=${apiEnd}&timezone=auto`,
           ).then((r) => r.json()),
           fetchSevenTimer(latitude, longitude),
         ]);
@@ -228,10 +235,7 @@ export function WeatherCard({
 
         const stDays: STDay[] = stDaysRaw.status === 'fulfilled' ? stDaysRaw.value : [];
 
-        const eventDates = eachDayOfInterval({
-          start: parseISO(startDate),
-          end: parseISO(end),
-        }).map((d) => format(d, 'yyyy-MM-dd'));
+        const eventDates = range.days;
 
         const omMap = new Map(omDays.map((d) => [d.date, d]));
         const stMap = new Map(stDays.map((d) => [d.date, d]));
@@ -242,7 +246,9 @@ export function WeatherCard({
           st: stMap.get(date) ?? null,
         }));
 
-        const temps = omDays.map((d) => (d.maxTemp + d.minTemp) / 2);
+        const temps = omDays
+          .map((d) => (d.maxTemp + d.minTemp) / 2)
+          .filter((t) => Number.isFinite(t));
         const avg = temps.length > 0 ? temps.reduce((a, b) => a + b, 0) / temps.length : 15;
 
         setDays(dual);
