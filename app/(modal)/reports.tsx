@@ -195,9 +195,9 @@ export default function ReportsScreen() {
                       {/* Header */}
                       <View style={{ flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: p.borderStrong, backgroundColor: p.surfaceAlt }}>
                         <Text style={{ flex: 1, fontSize: 9, color: p.textMuted, fontWeight: '700', letterSpacing: 1 }}>{'MONTH'}</Text>
-                        <Text style={{ width: 44, fontSize: 9, color: p.textMuted, fontWeight: '700', letterSpacing: 1, textAlign: 'right' }}>{'EVT'}</Text>
-                        <Text style={{ width: 70, fontSize: 9, color: p.textMuted, fontWeight: '700', letterSpacing: 1, textAlign: 'right' }}>{'GROSS'}</Text>
-                        <Text style={{ width: 70, fontSize: 9, color: p.textMuted, fontWeight: '700', letterSpacing: 1, textAlign: 'right' }}>{'NET'}</Text>
+                        <Text style={{ width: 40, fontSize: 9, color: p.textMuted, fontWeight: '700', letterSpacing: 1, textAlign: 'right' }}>{'EVT'}</Text>
+                        <Text style={{ width: 76, fontSize: 9, color: p.textMuted, fontWeight: '700', letterSpacing: 1, textAlign: 'right' }}>{'GROSS'}</Text>
+                        <Text style={{ width: 76, fontSize: 9, color: p.textMuted, fontWeight: '700', letterSpacing: 1, textAlign: 'right' }}>{'NET'}</Text>
                       </View>
                       {data.monthly.filter((m) => m.eventCount > 0).map((m, i, arr) => (
                         <View key={m.month} style={{
@@ -206,12 +206,12 @@ export default function ReportsScreen() {
                           borderBottomColor: p.border,
                           backgroundColor: i % 2 === 0 ? 'transparent' : p.surface,
                         }}>
-                          <Text style={{ flex: 1, fontSize: 12, color: p.text }}>{m.monthLabel}</Text>
-                          <Text style={{ width: 44, fontSize: 12, color: p.textMuted, textAlign: 'right', fontFamily: tokens.type.mono }}>{m.eventCount}</Text>
-                          <Text style={{ width: 70, fontSize: 12, textAlign: 'right', fontFamily: tokens.type.mono, fontVariant: ['tabular-nums'], color: p.text }}>
+                          <Text style={{ flex: 1, fontSize: 13, color: p.text }}>{m.monthLabel}</Text>
+                          <Text style={{ width: 40, fontSize: 13, color: p.textMuted, textAlign: 'right', fontFamily: tokens.type.mono, fontVariant: ['tabular-nums'] }}>{m.eventCount}</Text>
+                          <Text style={{ width: 76, fontSize: 13, fontWeight: '600', textAlign: 'right', fontFamily: tokens.type.mono, fontVariant: ['tabular-nums'], color: p.text }}>
                             £{m.grossSales.toFixed(0)}
                           </Text>
-                          <Text style={{ width: 70, fontSize: 12, textAlign: 'right', fontFamily: tokens.type.mono, fontVariant: ['tabular-nums'], color: m.netProfit >= 0 ? TONE.good : TONE.bad }}>
+                          <Text style={{ width: 76, fontSize: 13, fontWeight: '600', textAlign: 'right', fontFamily: tokens.type.mono, fontVariant: ['tabular-nums'], color: m.netProfit >= 0 ? TONE.good : TONE.bad }}>
                             {m.netProfit < 0 ? '−' : ''}£{Math.abs(m.netProfit).toFixed(0)}
                           </Text>
                         </View>
@@ -251,7 +251,7 @@ export default function ReportsScreen() {
                               <Text style={{ fontSize: 10, color: p.textMuted, fontStyle: 'italic' }}>
                                 {event.concessions_companies?.name ?? ''} · {formatDate(event.date)}
                               </Text>
-                              <Text style={{ fontSize: 10, color: p.textMuted, fontFamily: tokens.type.mono }}>
+                              <Text style={{ fontSize: 13, color: p.textMuted, fontFamily: tokens.type.mono, fontVariant: ['tabular-nums'] }}>
                                 gross £{gross.toFixed(0)}
                               </Text>
                             </View>

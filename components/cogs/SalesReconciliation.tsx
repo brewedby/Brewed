@@ -117,11 +117,11 @@ export function SalesReconciliation({ report, eventId, existingCogs, onCogsAppli
         </View>
 
         <View style={{ alignItems: 'flex-end', gap: 2 }}>
-          <Text style={{ fontSize: 12, color: p.textMuted }}>
+          <Text style={{ fontSize: 13, color: p.textMuted, fontVariant: ['tabular-nums'] }}>
             ×{item.quantity % 1 === 0 ? item.quantity : item.quantity.toFixed(1)}
           </Text>
           {item.is_matched && item.cogs_calculated != null ? (
-            <Text style={{ fontSize: 14, fontWeight: '700', color: p.brand }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: p.brand, fontVariant: ['tabular-nums'] }}>
               £{item.cogs_calculated.toFixed(2)}
             </Text>
           ) : (
@@ -170,14 +170,14 @@ export function SalesReconciliation({ report, eventId, existingCogs, onCogsAppli
           {/* Summary row */}
           <View style={{ flexDirection: 'row', paddingHorizontal: 14, gap: 0, marginBottom: 8, borderTopWidth: 1, borderTopColor: p.border }}>
             <View style={{ flex: 1, padding: 10, alignItems: 'center' }}>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: p.text }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: p.text, fontVariant: ['tabular-nums'] }}>
                 £{report.total_revenue_from_file.toFixed(2)}
               </Text>
               <Text style={{ fontSize: 10, color: p.textFaint, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>Revenue</Text>
             </View>
             <View style={{ width: 1, backgroundColor: p.border }} />
             <View style={{ flex: 1, padding: 10, alignItems: 'center' }}>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: p.brand }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: p.brand, fontVariant: ['tabular-nums'] }}>
                 £{calculatedCogs.toFixed(2)}
               </Text>
               <Text style={{ fontSize: 10, color: p.textFaint, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>Calc. COGS</Text>

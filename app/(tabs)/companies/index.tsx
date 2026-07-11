@@ -10,7 +10,7 @@ import { QueryError } from '@/components/shared/QueryError';
 import { FarMasthead } from '@/components/far/Masthead';
 import { FarSectionRule } from '@/components/far/SectionRule';
 import { useTheme } from '@/lib/themeContext';
-import { TONE } from '@/lib/theme';
+import { TONE, netMarginTone } from '@/lib/theme';
 import { formatDate } from '@/lib/formatters';
 import { encodeTrail } from '@/lib/navTrail';
 import type { CompanyWithStats } from '@/types';
@@ -27,17 +27,13 @@ function companyScore(c: CompanyWithStats): number {
   return marginFactor * revenueFactor * reliabilityFactor;
 }
 
-function marginTone(margin: number | null): string {
-  if (margin == null) return TONE.caution;
-  if (margin >= 20) return TONE.good;
-  if (margin >= 0) return TONE.caution;
-  return TONE.bad;
-}
+// Net-margin colouring goes through the central helper in lib/theme
+// (20/0 thresholds) so Companies always matches event financials.
 
 export default function CompaniesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { tokens } = useTheme();
+  const { tokens, isDark } = useTheme();
   const p = tokens.palette;
   const { data: companies, isLoading, isError, error, refetch } = useCompanies();
   const [refreshing, setRefreshing] = useState(false);
@@ -109,7 +105,7 @@ export default function CompaniesScreen() {
             </Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={{ fontFamily: tokens.type.display, fontSize: 22, color: marginTone(c.avgProfitMargin), fontVariant: ['tabular-nums'] }}>
+            <Text style={{ fontFamily: tokens.type.display, fontSize: 22, color: netMarginTone(c.avgProfitMargin, isDark), fontVariant: ['tabular-nums'] }}>
               {(c.avgProfitMargin ?? 0).toFixed(0)}%
             </Text>
             <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1 }}>{'AVG MARGIN'}</Text>
@@ -202,7 +198,7 @@ export default function CompaniesScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 1, fontWeight: '600' }}>{'AVG MARGIN'}</Text>
                   {company.completedEventCount > 0 ? (
-                    <Text style={{ fontFamily: tokens.type.display, fontSize: 18, marginTop: 2, color: marginTone(company.avgProfitMargin), fontVariant: ['tabular-nums'] }}>
+                    <Text style={{ fontFamily: tokens.type.display, fontSize: 18, marginTop: 2, color: netMarginTone(company.avgProfitMargin, isDark), fontVariant: ['tabular-nums'] }}>
                       {(company.avgProfitMargin ?? 0).toFixed(0)}%
                     </Text>
                   ) : (

@@ -329,15 +329,19 @@ export default function DashboardScreen() {
                     <Redacted width={200} height={56} label="£ ▒▒▒,▒▒▒" />
                   </View>
                 ) : (
-                  <Text style={{
-                    fontFamily: tokens.type.display,
-                    fontWeight: tokens.type.displayWeight,
-                    fontSize: 64,
-                    lineHeight: 64,
-                    letterSpacing: -1.5,
-                    color: (stats?.netProfitYtd ?? 0) >= 0 ? S.green : S.red,
-                    fontVariant: ['tabular-nums'],
-                  }}>
+                  <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.6}
+                    style={{
+                      fontFamily: tokens.type.display,
+                      fontWeight: tokens.type.displayWeight,
+                      fontSize: 64,
+                      lineHeight: 64,
+                      letterSpacing: -1.5,
+                      color: (stats?.netProfitYtd ?? 0) >= 0 ? S.green : S.red,
+                      fontVariant: ['tabular-nums'],
+                    }}>
                     {formatCurrencyCompact(stats?.netProfitYtd ?? 0)}
                   </Text>
                 )}

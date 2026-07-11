@@ -22,8 +22,12 @@ export function ImportReviewModal({ pending, isSaving, onConfirm, onCancel }: Pr
   if (!pending) return null;
 
   const formatFormat = pending.sourceFormat === 'pdf' ? 'PDF' : 'CSV';
-  const previewRows = pending.lines.slice(0, MAX_PREVIEW_ROWS);
-  const hiddenRows = pending.lines.length - previewRows.length;
+  // Unmatched rows are the ones that need eyes — show ALL of them, and
+  // cap only the already-matched list.
+  const matchedRows = pending.lines.filter((l) => l.matched_product !== null);
+  const unmatchedRows = pending.lines.filter((l) => l.matched_product === null);
+  const previewRows = matchedRows.slice(0, MAX_PREVIEW_ROWS);
+  const hiddenRows = matchedRows.length - previewRows.length;
 
   return (
     <Modal
@@ -160,12 +164,70 @@ export function ImportReviewModal({ pending, isSaving, onConfirm, onCancel }: Pr
             </View>
           </View>
 
-          {/* Detected products preview */}
+          {/* Trust summary chip */}
+          <View style={{
+            flexDirection: 'row', alignItems: 'center', gap: 8,
+            backgroundColor: p.surface, borderWidth: 1,
+            borderColor: unmatchedRows.length === 0 ? '#16a34a' : p.border,
+            padding: 10, marginBottom: 10,
+          }}>
+            <Text style={{ fontSize: 13, color: unmatchedRows.length === 0 ? '#16a34a' : p.text }}>
+              {unmatchedRows.length === 0 ? '✓' : '•'}
+            </Text>
+            <Text style={{ flex: 1, fontSize: 13, fontWeight: '600', color: p.text }}>
+              Matched {matchedRows.length} of {pending.lines.length} products
+            </Text>
+            {unmatchedRows.length > 0 && (
+              <Text style={{ fontSize: 11, color: '#92400e', fontWeight: '600' }}>
+                {unmatchedRows.length} need{unmatchedRows.length === 1 ? 's' : ''} review
+              </Text>
+            )}
+          </View>
+
+          {/* Needs review — always shown in full, never buried */}
+          {unmatchedRows.length > 0 && (
+            <>
+              <Text style={{
+                fontSize: 10, fontWeight: '700', letterSpacing: 1.5, color: '#92400e',
+                textTransform: 'uppercase', marginBottom: 8,
+              }}>
+                Needs review — no menu match yet
+              </Text>
+              {unmatchedRows.map((line, i) => (
+                <View key={`u${i}`} style={{
+                  flexDirection: 'row', alignItems: 'center',
+                  paddingHorizontal: 12, paddingVertical: 9,
+                  borderWidth: 1, borderColor: '#d97706',
+                  backgroundColor: p.surface, marginBottom: 4, gap: 8,
+                }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: p.text }} numberOfLines={1}>
+                      {line.product_name}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: '#92400e', marginTop: 1 }}>
+                      You can match this to a product after importing
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 1 }}>
+                    <Text style={{ fontSize: 13, color: p.textMuted, fontVariant: ['tabular-nums'] }}>
+                      ×{line.quantity % 1 === 0 ? line.quantity : line.quantity.toFixed(1)}
+                    </Text>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: p.text, fontVariant: ['tabular-nums'] }}>
+                      £{line.line_total.toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+              <View style={{ height: 8 }} />
+            </>
+          )}
+
+          {/* Matched products */}
           <Text style={{
             fontSize: 10, fontWeight: '700', letterSpacing: 1.5, color: p.textMuted,
             textTransform: 'uppercase', marginBottom: 8,
           }}>
-            Detected Products
+            Matched Products
           </Text>
 
           {previewRows.map((line, i) => (
@@ -184,17 +246,13 @@ export function ImportReviewModal({ pending, isSaving, onConfirm, onCancel }: Pr
                     → {line.matched_product.name} ({Math.round((line.match_confidence ?? 0) * 100)}% match)
                   </Text>
                 )}
-                {!line.matched_product && (
-                  <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 1 }}>
-                    Unmatched — assign after import
-                  </Text>
-                )}
+
               </View>
               <View style={{ alignItems: 'flex-end', gap: 1 }}>
-                <Text style={{ fontSize: 12, color: p.textMuted }}>
+                <Text style={{ fontSize: 13, color: p.textMuted, fontVariant: ['tabular-nums'] }}>
                   ×{line.quantity % 1 === 0 ? line.quantity : line.quantity.toFixed(1)}
                 </Text>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: p.text }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: p.text, fontVariant: ['tabular-nums'] }}>
                   £{line.line_total.toFixed(2)}
                 </Text>
               </View>

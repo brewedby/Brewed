@@ -78,6 +78,7 @@ export default function SettingsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [showAllTypes, setShowAllTypes] = useState(false);
   // Hydrate local form state ONCE from the profile. Refetches must not
   // overwrite live edits — that was the source of the "lost my settings" bug.
   const hydratedRef = useRef(false);
@@ -421,7 +422,9 @@ export default function SettingsScreen() {
                   {'BUSINESS TYPE'}
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                  {BUSINESS_TYPES.map((t) => {
+                  {(showAllTypes || BUSINESS_TYPES.indexOf(businessType) >= 8
+                    ? BUSINESS_TYPES
+                    : BUSINESS_TYPES.slice(0, 8)).map((t) => {
                     const active = businessType === t;
                     return (
                       <TouchableOpacity
@@ -441,6 +444,18 @@ export default function SettingsScreen() {
                       </TouchableOpacity>
                     );
                   })}
+                  {BUSINESS_TYPES.length > 8 && !(BUSINESS_TYPES.indexOf(businessType) >= 8) && (
+                    <TouchableOpacity
+                      onPress={() => setShowAllTypes((v) => !v)}
+                      accessibilityRole="button"
+                      accessibilityLabel={showAllTypes ? 'Show fewer business types' : `Show all ${BUSINESS_TYPES.length} business types`}
+                      style={{ borderWidth: 1, borderColor: p.border, borderStyle: 'dashed', paddingHorizontal: 12, paddingVertical: 8, minHeight: 36, justifyContent: 'center' }}
+                    >
+                      <Text style={{ fontSize: 12, color: p.brand, fontWeight: '600' }}>
+                        {showAllTypes ? 'Show fewer' : `+${BUSINESS_TYPES.length - 8} more`}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
 

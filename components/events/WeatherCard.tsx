@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { differenceInDays, parseISO, eachDayOfInterval, format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/lib/themeContext';
 import { normalizeTradeType } from '@/lib/tradeTypeConfig';
 
@@ -25,14 +26,16 @@ interface DualDay {
   st: STDay | null;
 }
 
-function omEmoji(code: number): string {
-  if (code === 0) return '☀️';
-  if (code <= 2) return '⛅';
-  if (code <= 49) return '🌫️';
-  if (code <= 67) return '🌧️';
-  if (code <= 77) return '❄️';
-  if (code <= 82) return '🌦️';
-  return '⛈️';
+type WeatherIcon = React.ComponentProps<typeof Ionicons>['name'];
+
+function omIcon(code: number): WeatherIcon {
+  if (code === 0) return 'sunny-outline';
+  if (code <= 2) return 'partly-sunny-outline';
+  if (code <= 49) return 'reorder-two-outline'; // fog
+  if (code <= 67) return 'rainy-outline';
+  if (code <= 77) return 'snow-outline';
+  if (code <= 82) return 'rainy-outline';
+  return 'thunderstorm-outline';
 }
 
 /** Human-readable summary of a WMO weather code. Used for the persisted
@@ -50,16 +53,16 @@ function describeWeatherCode(code: number): string {
   return 'Stormy';
 }
 
-function stEmoji(w: string): string {
-  if (w.includes('clear')) return '☀️';
-  if (w.includes('pcloudy')) return '⛅';
-  if (w.includes('mcloudy') || w.includes('cloudy')) return '☁️';
-  if (w.includes('humid')) return '🌫️';
-  if (w.includes('lightrain') || w.includes('oshower') || w.includes('ishower')) return '🌦️';
-  if (w.includes('rain')) return '🌧️';
-  if (w.includes('snow')) return '❄️';
-  if (w.includes('ts')) return '⛈️';
-  return '🌤️';
+function stIcon(w: string): WeatherIcon {
+  if (w.includes('clear')) return 'sunny-outline';
+  if (w.includes('pcloudy')) return 'partly-sunny-outline';
+  if (w.includes('mcloudy') || w.includes('cloudy')) return 'cloud-outline';
+  if (w.includes('humid')) return 'reorder-two-outline';
+  if (w.includes('lightrain') || w.includes('oshower') || w.includes('ishower')) return 'rainy-outline';
+  if (w.includes('rain')) return 'rainy-outline';
+  if (w.includes('snow')) return 'snow-outline';
+  if (w.includes('ts')) return 'thunderstorm-outline';
+  return 'partly-sunny-outline';
 }
 
 function forecastsAgree(om: OMDay, st: STDay): boolean {
@@ -295,14 +298,14 @@ export function WeatherCard({
 
   if (outOfRange) return (
     <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, borderRadius: CARD_RADIUS, padding: 16 }}>
-      <Text style={{ fontFamily: tokens.type.display, color: p.text, fontSize: 16, marginBottom: 4 }}>🌤️ Weather Forecast</Text>
+      <Text style={{ fontFamily: tokens.type.display, color: p.text, fontSize: 16, marginBottom: 4 }}>Weather Forecast</Text>
       <Text style={{ fontSize: 12, color: p.textFaint }}>Forecast available within 14 days of event.</Text>
     </View>
   );
 
   if (!days || days.length === 0) return (
     <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, borderRadius: CARD_RADIUS, padding: 16 }}>
-      <Text style={{ fontFamily: tokens.type.display, color: p.text, fontSize: 16, marginBottom: 4 }}>🌤️ Weather Forecast</Text>
+      <Text style={{ fontFamily: tokens.type.display, color: p.text, fontSize: 16, marginBottom: 4 }}>Weather Forecast</Text>
       <Text style={{ fontSize: 12, color: p.textFaint }}>
         Forecast unavailable — we couldn't match "{location}" or the providers didn't return data.
       </Text>
@@ -315,7 +318,7 @@ export function WeatherCard({
 
   return (
     <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, borderRadius: CARD_RADIUS, padding: 16 }}>
-      <Text style={{ fontFamily: tokens.type.display, color: p.text, fontSize: 16, marginBottom: 4 }}>🌤️ Weather Forecast</Text>
+      <Text style={{ fontFamily: tokens.type.display, color: p.text, fontSize: 16, marginBottom: 4 }}>Weather Forecast</Text>
       {hasOM && hasST && (
         <Text style={{ fontSize: 11, color: p.textFaint, marginBottom: 12 }}>
           Two independent sources — ✅ agree · ⚠️ differ
@@ -340,7 +343,7 @@ export function WeatherCard({
               {/* Open-Meteo row */}
               {d.om ? (
                 <View style={{ alignItems: 'center', paddingVertical: 5, paddingHorizontal: 4, width: '100%', backgroundColor: omRowBg }}>
-                  <Text style={{ fontSize: 16 }}>{omEmoji(d.om.weatherCode)}</Text>
+                  <Ionicons name={omIcon(d.om.weatherCode)} size={16} color={p.text} />
                   <Text style={{ fontSize: 11, fontWeight: '700', color: p.text }}>{d.om.maxTemp.toFixed(0)}°</Text>
                   <Text style={{ fontSize: 10, color: p.textFaint }}>{d.om.minTemp.toFixed(0)}°</Text>
                   {d.om.precipitation > 0 && (
@@ -359,7 +362,7 @@ export function WeatherCard({
               {hasST && (
                 d.st ? (
                   <View style={{ alignItems: 'center', paddingVertical: 5, paddingHorizontal: 4, width: '100%', backgroundColor: stRowBg }}>
-                    <Text style={{ fontSize: 16 }}>{stEmoji(d.st.weather)}</Text>
+                    <Ionicons name={stIcon(d.st.weather)} size={16} color={p.text} />
                     <Text style={{ fontSize: 11, fontWeight: '700', color: p.text }}>{d.st.tempC}°</Text>
                     <Text style={{ fontSize: 9, color: icedColor, fontWeight: '600' }}>7T</Text>
                   </View>

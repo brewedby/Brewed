@@ -179,6 +179,46 @@ export default function PaywallScreen() {
           ))}
         </View>
 
+        {/* ── Trader vs Pro at a glance ── */}
+        <View style={{ paddingHorizontal: 24, marginTop: 26 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: p.borderStrong }} />
+            <Text style={{ fontSize: 9, color: p.textMuted, letterSpacing: 2, fontWeight: '700' }}>
+              {'AT A GLANCE'}
+            </Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: p.borderStrong }} />
+          </View>
+          <View style={{ flexDirection: 'row', paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: p.borderStrong }}>
+            <Text style={{ flex: 1, fontSize: 10, fontWeight: '700', letterSpacing: 1, color: p.textMuted }}>{'FEATURE'}</Text>
+            <Text style={{ width: 62, fontSize: 10, fontWeight: '700', letterSpacing: 1, color: p.textMuted, textAlign: 'center' }}>{'TRADER'}</Text>
+            <Text style={{ width: 52, fontSize: 10, fontWeight: '700', letterSpacing: 1, color: p.textMuted, textAlign: 'center' }}>{'PRO'}</Text>
+          </View>
+          {[
+            { label: 'Event P&L, VAT & COGS', trader: true },
+            { label: 'Menu & product costs', trader: true },
+            { label: 'CSV sales import', trader: true },
+            { label: 'Statements & payout reconciliation', trader: true },
+            { label: 'Demand forecasting', trader: false },
+            { label: 'PDF item-level import', trader: false },
+            { label: 'Fleet reminders & multi-unit', trader: false },
+          ].map((row, i, arr) => (
+            <View
+              key={row.label}
+              style={{
+                flexDirection: 'row', alignItems: 'center', paddingVertical: 9,
+                borderBottomWidth: i === arr.length - 1 ? 0 : 1,
+                borderBottomColor: p.border, borderStyle: 'dashed',
+              }}
+            >
+              <Text style={{ flex: 1, fontSize: 13, color: p.text, lineHeight: 18 }}>{row.label}</Text>
+              <Text style={{ width: 62, fontSize: 13, textAlign: 'center', color: row.trader ? p.text : p.textFaint }}>
+                {row.trader ? '✓' : '—'}
+              </Text>
+              <Text style={{ width: 52, fontSize: 13, textAlign: 'center', color: p.text }}>{'✓'}</Text>
+            </View>
+          ))}
+        </View>
+
         {/* ── Privacy reassurance stamp ── */}
         <View style={{ paddingHorizontal: 24, marginTop: 24 }}>
           <View style={{
