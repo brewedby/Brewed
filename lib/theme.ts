@@ -148,3 +148,24 @@ export function farStatus(dark: boolean): FarStatusPalette {
     blueBg:  'rgba(29,78,216,0.06)',
   };
 }
+
+// ── Margin tone helpers — THE thresholds for margin colouring ──────────────
+// Two deliberately different scales for two different financial measures:
+//  - product gross margin (menu items): 60%+ healthy, 40–59% watch, <40% bad
+//  - event/company net margin: 20%+ healthy, 0–19% watch, <0 loss
+// Every screen colours margins through these so thresholds never drift.
+
+export function productMarginTone(pct: number, dark: boolean): string {
+  const s = farStatus(dark);
+  if (pct >= 60) return s.green;
+  if (pct >= 40) return s.amber;
+  return s.red;
+}
+
+export function netMarginTone(pct: number | null, dark: boolean): string {
+  const s = farStatus(dark);
+  if (pct == null) return s.amber;
+  if (pct >= 20) return s.green;
+  if (pct >= 0) return s.amber;
+  return s.red;
+}

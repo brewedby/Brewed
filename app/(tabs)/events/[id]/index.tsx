@@ -18,6 +18,7 @@ import { CogsSection } from '@/components/cogs/CogsSection';
 import { FinancialDocsSection } from '@/components/docscan/FinancialDocsSection';
 import { FarSectionRule } from '@/components/far/SectionRule';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { SectionErrorBoundary } from '@/components/shared/SectionErrorBoundary';
 import { useTheme } from '@/lib/themeContext';
 import { BackBar } from '@/components/shared/BackBar';
 import { pushTrail } from '@/lib/navTrail';
@@ -466,14 +467,16 @@ export default function EventDetailScreen() {
           <View style={{ marginBottom: 16 }}>
             <FarSectionRule label="Weather forecast" />
             <View style={{ marginTop: 12 }}>
-              <WeatherCard
-                location={event.location}
-                startDate={event.date}
-                endDate={event.end_date}
-                eventId={event.id}
-                onTempFetched={setForecastTemp}
-                tradeType={tradeType}
-              />
+              <SectionErrorBoundary section="weather-forecast" label="Weather forecast">
+                <WeatherCard
+                  location={event.location}
+                  startDate={event.date}
+                  endDate={event.end_date}
+                  eventId={event.id}
+                  onTempFetched={setForecastTemp}
+                  tradeType={tradeType}
+                />
+              </SectionErrorBoundary>
             </View>
           </View>
         )}
@@ -482,17 +485,19 @@ export default function EventDetailScreen() {
         {forecastTemp !== null && (
           <View style={{ marginBottom: 16 }}>
             {forecastFeature.allowed ? (
-              <PredictionInsightCard
-                tradeType={tradeType}
-                rawBusinessType={profile?.business_type ?? null}
-                forecastTempC={forecastTemp}
-                eventDate={event.date}
-                eventId={id}
-                isProfileLoading={profileLoading}
-                isProfileError={profileError}
-                isProfileLoaded={profileLoaded}
-                forecastPrefs={forecastPrefs}
-              />
+              <SectionErrorBoundary section="demand-forecast" label="Demand forecast">
+                <PredictionInsightCard
+                  tradeType={tradeType}
+                  rawBusinessType={profile?.business_type ?? null}
+                  forecastTempC={forecastTemp}
+                  eventDate={event.date}
+                  eventId={id}
+                  isProfileLoading={profileLoading}
+                  isProfileError={profileError}
+                  isProfileLoaded={profileLoaded}
+                  forecastPrefs={forecastPrefs}
+                />
+              </SectionErrorBoundary>
             ) : (
               <>
                 <FarSectionRule label="Demand Forecast" />
@@ -520,7 +525,9 @@ export default function EventDetailScreen() {
         {/* ── Daily takings ── */}
         {event.end_date && event.end_date !== event.date && (
           <View style={{ marginBottom: 16 }}>
-            <DailyTakingsCard eventId={event.id} startDate={event.date} endDate={event.end_date} readOnly />
+            <SectionErrorBoundary section="daily-takings" label="Daily takings">
+              <DailyTakingsCard eventId={event.id} startDate={event.date} endDate={event.end_date} readOnly />
+            </SectionErrorBoundary>
           </View>
         )}
 

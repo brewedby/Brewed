@@ -129,7 +129,7 @@ export function FleetRemindersCard({ units }: Props) {
                   style={{
                     borderWidth: 1, borderColor: on ? p.text : p.border,
                     backgroundColor: on ? p.text : 'transparent',
-                    paddingHorizontal: 12, paddingVertical: 7, minHeight: 32,
+                    paddingHorizontal: 12, paddingVertical: 8, minHeight: 36,
                     justifyContent: 'center',
                   }}
                 >

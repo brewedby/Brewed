@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import { useProfile, useUpdateProfile } from '@/lib/queries/profile';
 import type { Metric } from '@/lib/queries/profile';
 import { useSubscription } from '@/lib/iap/SubscriptionContext';
@@ -76,6 +77,8 @@ export default function SettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [showAllTypes, setShowAllTypes] = useState(false);
   // Hydrate local form state ONCE from the profile. Refetches must not
   // overwrite live edits — that was the source of the "lost my settings" bug.
   const hydratedRef = useRef(false);
@@ -102,6 +105,50 @@ export default function SettingsScreen() {
       setSavedCategoryPrefs(catPrefs);
     }
   }, [profile]);
+
+  function handleDeleteAccount() {
+    // Two-step destructive confirmation (App Review 5.1.1(v): account
+    // deletion must be available in-app). The RPC deletes the auth user;
+    // every table cascades, so all financial data goes with it.
+    Alert.alert(
+      'Delete your account?',
+      'This permanently erases your account and ALL data — events, financials, products, imports and fleet. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          style: 'destructive',
+          onPress: () => Alert.alert(
+            'Are you absolutely sure?',
+            'Your data cannot be recovered after this. Consider exporting your reports first (Reports → Export).',
+            [
+              { text: 'Keep my account', style: 'cancel' },
+              {
+                text: 'Delete everything',
+                style: 'destructive',
+                onPress: async () => {
+                  setDeletingAccount(true);
+                  try {
+                    const { error } = await supabase.rpc('delete_own_account');
+                    if (error) throw error;
+                    await signOut();
+                  } catch (e) {
+                    Alert.alert(
+                      'Could not delete account',
+                      (e instanceof Error ? e.message : 'Please try again.') +
+                      `\n\nIf this keeps failing, email ${SUPPORT_EMAIL} and we'll erase your data within 30 days.`,
+                    );
+                  } finally {
+                    setDeletingAccount(false);
+                  }
+                },
+              },
+            ],
+          ),
+        },
+      ],
+    );
+  }
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -375,7 +422,9 @@ export default function SettingsScreen() {
                   {'BUSINESS TYPE'}
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                  {BUSINESS_TYPES.map((t) => {
+                  {(showAllTypes || BUSINESS_TYPES.indexOf(businessType) >= 8
+                    ? BUSINESS_TYPES
+                    : BUSINESS_TYPES.slice(0, 8)).map((t) => {
                     const active = businessType === t;
                     return (
                       <TouchableOpacity
@@ -395,6 +444,18 @@ export default function SettingsScreen() {
                       </TouchableOpacity>
                     );
                   })}
+                  {BUSINESS_TYPES.length > 8 && !(BUSINESS_TYPES.indexOf(businessType) >= 8) && (
+                    <TouchableOpacity
+                      onPress={() => setShowAllTypes((v) => !v)}
+                      accessibilityRole="button"
+                      accessibilityLabel={showAllTypes ? 'Show fewer business types' : `Show all ${BUSINESS_TYPES.length} business types`}
+                      style={{ borderWidth: 1, borderColor: p.border, borderStyle: 'dashed', paddingHorizontal: 12, paddingVertical: 8, minHeight: 36, justifyContent: 'center' }}
+                    >
+                      <Text style={{ fontSize: 12, color: p.brand, fontWeight: '600' }}>
+                        {showAllTypes ? 'Show fewer' : `+${BUSINESS_TYPES.length - 8} more`}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
 
@@ -672,6 +733,26 @@ export default function SettingsScreen() {
             <Text style={{ color: p.textMuted, fontWeight: '600', fontSize: 13, letterSpacing: 1 }}>
               {'SIGN OUT'}
             </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleDeleteAccount}
+            disabled={deletingAccount}
+            accessibilityRole="button"
+            accessibilityLabel="Delete account and all data permanently"
+            style={{
+              borderWidth: 1, borderColor: '#dc2626',
+              paddingVertical: 14, alignItems: 'center', minHeight: 48,
+              opacity: deletingAccount ? 0.5 : 1,
+            }}
+          >
+            {deletingAccount ? (
+              <ActivityIndicator size="small" color="#dc2626" />
+            ) : (
+              <Text style={{ color: '#dc2626', fontWeight: '600', fontSize: 13, letterSpacing: 1 }}>
+                {'DELETE ACCOUNT'}
+              </Text>
+            )}
           </TouchableOpacity>
 
           <Text style={{ color: p.textFaint, fontSize: 11, textAlign: 'center', fontStyle: 'italic' }}>

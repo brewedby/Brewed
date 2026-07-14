@@ -233,8 +233,8 @@ export function FinancialDocsSection({ eventId, eventName }: Props) {
             ['Potentially reclaimable input VAT', vatPosition.inputVatPotentiallyReclaimable],
           ].map(([label, value]) => (
             <View key={label as string} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 12, color: p.textMuted }}>{label as string}</Text>
-              <Text style={{ fontSize: 12, fontWeight: '600', color: p.text, fontVariant: ['tabular-nums'] }}>{money(value as number)}</Text>
+              <Text style={{ fontSize: 13, color: p.textMuted }}>{label as string}</Text>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: p.text, fontVariant: ['tabular-nums'] }}>{money(value as number)}</Text>
             </View>
           ))}
           <Text style={{ fontSize: 10, color: p.textFaint, fontStyle: 'italic' }}>
@@ -254,7 +254,7 @@ export function FinancialDocsSection({ eventId, eventName }: Props) {
               <Text style={{ flex: 1, fontSize: 12, color: p.text }}>
                 {LINE_CATEGORY_LABELS[v.category as LineCategory] ?? v.category}
               </Text>
-              <Text style={{ fontSize: 11, color: p.textMuted, fontVariant: ['tabular-nums'] }}>
+              <Text style={{ fontSize: 13, color: p.textMuted, fontVariant: ['tabular-nums'] }}>
                 {money(v.forecastGross)} → {money(v.actualGross)}
               </Text>
               <Text style={{

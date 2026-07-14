@@ -65,7 +65,7 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
           borderWidth: 1, borderColor: isProfit ? '#22c55e' : '#dc2626',
           paddingHorizontal: 10, paddingVertical: 3,
         }}>
-          <Text style={{ color: isProfit ? '#22c55e' : '#dc2626', fontWeight: '700', fontSize: 13 }}>
+          <Text style={{ color: isProfit ? '#22c55e' : '#dc2626', fontWeight: '700', fontSize: 15, fontVariant: ['tabular-nums'] }}>
             {isProfit ? '+' : ''}{formatCurrency(c.netProfit)}
           </Text>
         </View>
@@ -145,6 +145,25 @@ export function FinancialsCard({ financials: f, calculations: c }: Props) {
       <Divider />
       <Row label="Net Profit"   value={formatCurrency(c.netProfit)}   bold color={isProfit ? '#22c55e' : '#dc2626'} />
       <Row label="Profit Margin" value={formatPercent(c.profitMargin)} bold color={c.profitMargin >= 0 ? '#22c55e' : '#dc2626'} />
+
+      {/* Kept-of-gross bar: what share of net sales survived as profit,
+          readable at a glance without mental arithmetic. */}
+      {c.totalNetSales > 0 && (
+        <View style={{ marginTop: 8 }}>
+          <View style={{ height: 6, backgroundColor: p.surfaceAlt, borderWidth: 1, borderColor: p.border }}>
+            <View style={{
+              width: `${Math.max(0, Math.min(100, c.profitMargin))}%`,
+              height: '100%',
+              backgroundColor: c.profitMargin >= 0 ? '#22c55e' : '#dc2626',
+            }} />
+          </View>
+          <Text style={{ fontSize: 11, color: p.textFaint, fontStyle: 'italic', marginTop: 3 }}>
+            {c.profitMargin >= 0
+              ? `You kept ${Math.round(c.profitMargin)}p of every £1 of net sales`
+              : 'Costs exceeded net sales for this event'}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }

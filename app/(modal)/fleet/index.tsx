@@ -35,6 +35,24 @@ function dateTone(dateStr: string | null): string {
   return TONE.good;
 }
 
+function earliestDue(unit: UnitWithStatus): { label: string; dateStr: string; days: number } | null {
+  const entries = [
+    { label: 'MOT', dateStr: unit.mot_date },
+    { label: 'Tax', dateStr: unit.tax_date },
+    { label: 'Service', dateStr: unit.service_date },
+  ].filter((e): e is { label: string; dateStr: string } => !!e.dateStr)
+    .map((e) => ({ ...e, days: daysUntil(e.dateStr) ?? Infinity }));
+  if (entries.length === 0) return null;
+  entries.sort((a, b) => a.days - b.days);
+  return entries[0];
+}
+
+function unitUrgency(unit: UnitWithStatus): number {
+  const due = earliestDue(unit);
+  const days = due?.days ?? Infinity;
+  return unit.status === 'maintenance' ? Math.min(days, -1) : days;
+}
+
 function unitStatusTone(unit: UnitWithStatus): 'ok' | 'soon' | 'urgent' {
   const dates = [unit.mot_date, unit.tax_date, unit.service_date].filter(Boolean) as string[];
   const minDays = dates.length > 0
@@ -50,7 +68,14 @@ function FarUnitCard({ unit, onPress }: { unit: UnitWithStatus; onPress: () => v
   const p = tokens.palette;
   const tone = unitStatusTone(unit);
   const toneColor = tone === 'ok' ? TONE.good : tone === 'soon' ? TONE.caution : TONE.bad;
-  const toneLabel = tone === 'ok' ? 'ALL CLEAR' : tone === 'soon' ? 'DUE SOON' : 'ACTION';
+  const due = earliestDue(unit);
+  // Urgency and the actionable date in ONE eye-scan, and never colour
+  // alone: solid dot = action needed, outlined dot = all clear.
+  const toneLabel = tone === 'ok'
+    ? 'ALL CLEAR'
+    : due
+      ? `${tone === 'soon' ? 'DUE SOON' : 'ACTION'} — ${due.label} ${due.days < 0 ? 'expired' : 'due'} ${formatDate(due.dateStr)}`
+      : tone === 'soon' ? 'DUE SOON' : 'ACTION';
 
   const rows = [
     { l: 'MOT',     v: unit.mot_date ? formatDate(unit.mot_date) : '—',     dateStr: unit.mot_date },
@@ -83,8 +108,8 @@ function FarUnitCard({ unit, onPress }: { unit: UnitWithStatus; onPress: () => v
             )}
           </View>
         </View>
-        <Text style={{ fontSize: 9, fontWeight: '700', letterSpacing: 1, color: toneColor, paddingTop: 2 }}>
-          {'● ' + toneLabel}
+        <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 0.6, color: toneColor, paddingTop: 2, maxWidth: 170, textAlign: 'right' }}>
+          {(tone === 'ok' ? '○ ' : '● ') + toneLabel}
         </Text>
       </View>
 
@@ -129,8 +154,12 @@ export default function FleetScreen() {
 
   const isLoading = dashboardLoading || unitsLoading;
 
-  const units: UnitWithStatus[] = dashboardStats?.unitStatuses
+  const unsorted: UnitWithStatus[] = dashboardStats?.unitStatuses
     ?? (rawUnits?.map((u) => ({ ...u, currentEvent: null })) ?? []);
+  // Most urgent first — a trader opening Fleet wants what needs attention
+  // at the top, not alphabetical order.
+  const units = [...unsorted].sort((a, b) => unitUrgency(a) - unitUrgency(b));
+  const needsAttention = units.filter((u) => unitStatusTone(u) !== 'ok').length;
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -179,7 +208,23 @@ export default function FleetScreen() {
           refreshing={refreshing}
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20 }}
-          ListHeaderComponent={units.length > 0 ? <FleetRemindersCard units={units} /> : null}
+          ListHeaderComponent={units.length > 0 ? (
+            <>
+              {needsAttention > 0 && (
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 8,
+                  borderWidth: 1, borderColor: TONE.caution, backgroundColor: p.surface,
+                  paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12,
+                }}>
+                  <Ionicons name="alert-circle-outline" size={15} color={TONE.caution} />
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: p.text }}>
+                    {needsAttention === 1 ? '1 unit needs attention' : `${needsAttention} units need attention`}
+                  </Text>
+                </View>
+              )}
+              <FleetRemindersCard units={units} />
+            </>
+          ) : null}
           ListEmptyComponent={
             <EmptyState
               icon="🚐"

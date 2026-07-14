@@ -62,7 +62,16 @@ export default function SignInScreen() {
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setLoading(false);
     if (error) {
-      Alert.alert('Sign in failed', error.message);
+      // Map known Supabase auth errors to plain English; raw message is
+      // the fallback for anything unmapped.
+      const msg = /invalid login credentials/i.test(error.message)
+        ? "That email and password don't match. Try again, or use Forgot Password."
+        : /email not confirmed/i.test(error.message)
+          ? 'Please confirm your email first — check your inbox for the confirmation link.'
+          : /network|fetch/i.test(error.message)
+            ? "Couldn't reach the server. Check your connection and try again."
+            : error.message;
+      Alert.alert('Sign in failed', msg);
       return;
     }
     if (biometricAvailable && !biometricEnabled && data.session) {

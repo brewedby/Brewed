@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/lib/themeContext';
+import { productMarginTone } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
 import { useProductCatalog } from '@/lib/queries/productCatalog';
 import {
@@ -31,15 +32,13 @@ interface Props {
   onClose: () => void;
 }
 
-function marginColor(pct: number, brand: string): string {
-  if (pct >= 60) return '#22c55e';
-  if (pct >= 40) return brand;
-  return '#dc2626';
-}
+// Margin colouring goes through the central helper in lib/theme so the
+// thresholds match everywhere (60/40 for product gross margin).
+
 
 export function ProductCatalogScreen({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const { tokens } = useTheme();
+  const { tokens, isDark } = useTheme();
   const p = tokens.palette;
   const { user } = useAuth();
   // Shared trader profile resolver — caches last-known-good in
@@ -267,7 +266,7 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
               Margin{tiers.length > 1 ? ' (default)' : ''}
             </Text>
             {grossMargin !== null ? (
-              <Text style={{ fontSize: 13, fontWeight: '700', color: marginColor(grossMargin, p.brand) }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: productMarginTone(grossMargin, isDark) }}>
                 {grossMargin.toFixed(0)}%{isVatable ? ' ex-VAT' : ''}
               </Text>
             ) : (
@@ -386,7 +385,7 @@ export function ProductCatalogScreen({ visible, onClose }: Props) {
               </View>
               <View style={{ width: 1, height: 32, backgroundColor: p.border }} />
               <View style={{ flex: 1, alignItems: 'center' }}>
-                <Text style={{ fontSize: 18, fontWeight: '700', color: avgMargin !== null ? marginColor(avgMargin, p.brand) : p.textFaint }}>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: avgMargin !== null ? productMarginTone(avgMargin, isDark) : p.textFaint }}>
                   {avgMargin !== null ? `${avgMargin.toFixed(0)}%` : '—'}
                 </Text>
                 <Text style={{ fontSize: 11, color: p.textFaint, marginTop: 2 }}>Avg Margin</Text>
