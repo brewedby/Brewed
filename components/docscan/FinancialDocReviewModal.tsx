@@ -39,6 +39,46 @@ const CONF_ICON = { high: 'checkmark-circle-outline', medium: 'help-circle-outli
 const CONF_LABEL = { high: 'High confidence', medium: 'Check this value', low: 'Low confidence — please verify' } as const;
 
 /**
+ * Decimal-safe gross editor. Controlling the input directly from the
+ * parsed number destroyed in-progress decimals ('12.' → 12 → '12', so
+ * '12.50' became 1250 — a 100× wrong fee). Local text state, parsed
+ * value pushed up; re-synced when the line's gross changes externally
+ * (VAT-treatment recompute, row reuse). Negative values are allowed —
+ * a negative line is a credit to the trader.
+ */
+function GrossInput({ value, onChangeValue, accessibilityLabel, textColor, borderColor }: {
+  value: number | null;
+  onChangeValue: (v: number) => void;
+  accessibilityLabel: string;
+  textColor: string;
+  borderColor: string;
+}) {
+  const [text, setText] = React.useState(value === null ? '' : String(value));
+  React.useEffect(() => {
+    const parsed = parseFloat(text.replace(/[£,]/g, ''));
+    const textValue = isNaN(parsed) ? 0 : parsed;
+    if (textValue !== (value ?? 0)) setText(value === null ? '' : String(value));
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <TextInput
+      value={text}
+      onChangeText={(t) => {
+        const cleaned = t.replace(/[^0-9.\-]/g, '');
+        setText(cleaned);
+        const v = parseFloat(cleaned);
+        onChangeValue(isNaN(v) ? 0 : v);
+      }}
+      keyboardType="numbers-and-punctuation"
+      style={{
+        minWidth: 70, textAlign: 'right', fontSize: 14, fontWeight: '700',
+        color: textColor, borderBottomWidth: 1, borderBottomColor: borderColor, padding: 2,
+      }}
+      accessibilityLabel={accessibilityLabel}
+    />
+  );
+}
+
+/**
  * Mandatory review before any financial document affects event data.
  * Everything shown is editable; nothing is saved until Confirm.
  * Confidence is communicated with icons + labels, never colour alone.
@@ -71,16 +111,23 @@ export function FinancialDocReviewModal({ pending, isSaving, eventName, onConfir
     setLines((prev) => prev.map((l, i) => {
       if (i !== idx) return l;
       const next = { ...l, ...patch };
-      // Re-derive the VAT triple whenever amount or treatment changes.
-      if (patch.gross !== undefined || patch.vatTreatment !== undefined) {
-        const basis = patch.gross ?? next.gross ?? next.net ?? 0;
-        const triple = completeVat({
-          amount: next.vatTreatment === 'exclusive' ? (next.net ?? basis) : basis,
-          treatment: next.vatTreatment,
-          rate: next.vatTreatment === 'inclusive' || next.vatTreatment === 'exclusive' ? (next.vatRate ?? 0.20) : null,
-        });
+      const hasRate = next.vatTreatment === 'inclusive' || next.vatTreatment === 'exclusive';
+      const rate = hasRate ? (next.vatRate ?? 0.20) : null;
+      if (patch.gross !== undefined) {
+        // The £ field the user edits IS the gross. Derive net/vat from the
+        // TYPED value — never from the stale pre-edit net (feeding next.net
+        // to completeVat on '+ VAT' lines silently reverted every edit).
+        const triple = completeVat({ amount: patch.gross ?? 0, treatment: 'inclusive', rate });
+        next.gross = triple.gross;
         next.net = triple.net;
-        next.vat = next.vatTreatment === 'inclusive' || next.vatTreatment === 'exclusive' ? triple.vat : null;
+        next.vat = hasRate ? triple.vat : null;
+      } else if (patch.vatTreatment !== undefined) {
+        // Treatment change reinterprets the existing amount: the shown
+        // figure stays the doc's figure (net for '+ VAT', gross otherwise).
+        const basis = next.vatTreatment === 'exclusive' ? (next.net ?? next.gross ?? 0) : (next.gross ?? next.net ?? 0);
+        const triple = completeVat({ amount: basis, treatment: next.vatTreatment, rate });
+        next.net = triple.net;
+        next.vat = hasRate ? triple.vat : null;
         next.gross = triple.gross;
       }
       return next;
@@ -328,18 +375,12 @@ export function FinancialDocReviewModal({ pending, isSaving, eventName, onConfir
                 {/* Gross amount */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 'auto', gap: 2 }}>
                   <Text style={{ fontSize: 12, color: p.textFaint }}>£</Text>
-                  <TextInput
-                    value={line.gross === null ? '' : String(line.gross)}
-                    onChangeText={(t) => {
-                      const v = parseFloat(t.replace(/[£,]/g, ''));
-                      updateLine(idx, { gross: isNaN(v) ? 0 : v });
-                    }}
-                    keyboardType="numbers-and-punctuation"
-                    style={{
-                      minWidth: 70, textAlign: 'right', fontSize: 14, fontWeight: '700',
-                      color: p.text, borderBottomWidth: 1, borderBottomColor: p.border, padding: 2,
-                    }}
+                  <GrossInput
+                    value={line.gross}
+                    onChangeValue={(v) => updateLine(idx, { gross: v })}
                     accessibilityLabel={`Gross amount for ${line.description}`}
+                    textColor={p.text}
+                    borderColor={p.border}
                   />
                 </View>
               </View>

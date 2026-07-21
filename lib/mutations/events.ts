@@ -78,50 +78,61 @@ export function useCreateEvent() {
           ? calcStaffingTotal(data.staffing_entries.map((e) => ({ ...e, id: '', event_id: event.id, created_at: '', updated_at: '' })))
           : data.staffing_costs;
 
-      // 3. Create financials — try with commission_basis, retry without if
-      // the column hasn't been migrated yet.
-      let finError = (await supabase
-        .from('event_financials')
-        .insert(buildFinancialsRow(data, event.id, staffingTotal, true) as never)).error;
-      if (finError && isMissingColumnError(finError, 'commission_basis')) {
-        finError = (await supabase
+      // Steps 3–6 are sequential inserts with no server-side transaction.
+      // If any of them fails, delete the just-created event row (children
+      // cascade) so the user's retry doesn't produce a duplicate next to a
+      // ghost event with £0 financials.
+      try {
+        // 3. Create financials — try with commission_basis, retry without if
+        // the column hasn't been migrated yet.
+        let finError = (await supabase
           .from('event_financials')
-          .insert(buildFinancialsRow(data, event.id, staffingTotal, false) as never)).error;
-      }
-      if (finError) throw finError;
+          .insert(buildFinancialsRow(data, event.id, staffingTotal, true) as never)).error;
+        if (finError && isMissingColumnError(finError, 'commission_basis')) {
+          finError = (await supabase
+            .from('event_financials')
+            .insert(buildFinancialsRow(data, event.id, staffingTotal, false) as never)).error;
+        }
+        if (finError) throw finError;
 
-      // 4. Create unit assignments
-      if (data.unit_ids.length > 0) {
-        const { error: unitError } = await supabase.from('event_units').insert(
-          data.unit_ids.map((uid) => ({ event_id: event.id, unit_id: uid }))
-        );
-        if (unitError) throw unitError;
-      }
+        // 4. Create unit assignments
+        if (data.unit_ids.length > 0) {
+          const { error: unitError } = await supabase.from('event_units').insert(
+            data.unit_ids.map((uid) => ({ event_id: event.id, unit_id: uid }))
+          );
+          if (unitError) throw unitError;
+        }
 
-      // 5. Create staffing entries
-      if (data.staffing_entries.length > 0) {
-        const { error: staffError } = await supabase.from('staffing_entries').insert(
-          data.staffing_entries.map((e) => ({
-            event_id: event.id,
-            staff_name: e.staff_name,
-            hours_worked: e.hours_worked,
-            hourly_rate: e.hourly_rate,
-          }))
-        );
-        if (staffError) throw staffError;
-      }
+        // 5. Create staffing entries
+        if (data.staffing_entries.length > 0) {
+          const { error: staffError } = await supabase.from('staffing_entries').insert(
+            data.staffing_entries.map((e) => ({
+              event_id: event.id,
+              staff_name: e.staff_name,
+              hours_worked: e.hours_worked,
+              hourly_rate: e.hourly_rate,
+            }))
+          );
+          if (staffError) throw staffError;
+        }
 
-      // 6. Create infrastructure items
-      if (data.infrastructure_items.length > 0) {
-        const { error: infraError } = await supabase.from('infrastructure_items').insert(
-          data.infrastructure_items.map((item) => ({
-            event_id: event.id,
-            description: item.description,
-            category: item.category,
-            cost: item.cost,
-          }))
-        );
-        if (infraError) throw infraError;
+        // 6. Create infrastructure items
+        if (data.infrastructure_items.length > 0) {
+          const { error: infraError } = await supabase.from('infrastructure_items').insert(
+            data.infrastructure_items.map((item) => ({
+              event_id: event.id,
+              description: item.description,
+              category: item.category,
+              cost: item.cost,
+            }))
+          );
+          if (infraError) throw infraError;
+        }
+      } catch (stepError) {
+        // Best-effort compensation — if even the delete fails (offline),
+        // the original error still surfaces to the user.
+        await supabase.from('events').delete().eq('id', event.id).then(() => {}, () => {});
+        throw stepError;
       }
 
       return event;

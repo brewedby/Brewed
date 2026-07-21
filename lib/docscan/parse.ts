@@ -47,8 +47,12 @@ export function rejoinSplitAmounts(lines: string[]): string[] {
       i++;
       continue;
     }
-    // Label ending in a partial amount + continuation ("…fees (inc. VAT" / "-510.08")
-    if (/\d{1,3}$/.test(cur) && /^,?\d{3}\.\d{2}$/.test(next)) {
+    // Label ending in a currency-prefixed partial amount + continuation
+    // ("Total fees -£12" / "345.67" → "…-£12,345.67"). The £ requirement
+    // matters: a bare trailing digit ("Ref 2026", "Terminal 2") must NOT
+    // absorb the next line's standalone amount — that read a £510.08
+    // payout as £2,026,510.08 on scanned statements.
+    if (/(?:^|[^\d])-?£\s*\d{1,3}$/.test(cur) && /^,?\d{3}\.\d{2}$/.test(next)) {
       out.push(cur + (next.startsWith(',') ? next : ',' + next));
       i++;
       continue;

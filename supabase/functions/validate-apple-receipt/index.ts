@@ -152,6 +152,19 @@ serve(async (req) => {
       });
     }
 
+    // Guard: a StoreKit 2 JWS (three dot-separated base64url segments) is
+    // NOT a legacy app receipt — /verifyReceipt rejects it with opaque
+    // status 21002. The client sends getReceiptIOS(); if a JWS arrives
+    // here, fail with an actionable message instead of Apple's code.
+    if (/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(receiptData)) {
+      return new Response(JSON.stringify({
+        ok: false,
+        error: 'A StoreKit 2 transaction JWS was sent, but this endpoint verifies legacy app receipts. Update the app (it should send the app receipt) or try Restore Purchases.',
+      }), {
+        status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Try production first; on 21007 retry against sandbox
     let resp = await verifyWithApple(receiptData, sharedSecret, false);
     if (resp.status === 21007) resp = await verifyWithApple(receiptData, sharedSecret, true);

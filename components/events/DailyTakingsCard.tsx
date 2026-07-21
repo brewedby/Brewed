@@ -81,6 +81,27 @@ export function DailyTakingsCard({ eventId, startDate, endDate, readOnly = false
     setInputs((prev) => ({ ...prev, [dateStr]: next }));
   }
 
+  async function persistDay(dateStr: string, dayNumber: number, total: number, hot: number, iced: number, notes: string) {
+    setSaving(dateStr);
+    try {
+      await upsert.mutateAsync({
+        day_date: dateStr,
+        day_number: dayNumber,
+        total_takings: total,
+        hot_drinks_sales: hot,
+        iced_drinks_sales: iced,
+        avg_temp_c: null,
+        weather_code: null,
+        notes,
+      });
+      setExpandedDay(null);
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Could not save');
+    } finally {
+      setSaving(null);
+    }
+  }
+
   async function saveDay(dateStr: string, dayNumber: number) {
     const inp = getInput(dateStr);
     const total = parseFloat(inp.total_takings) || 0;
@@ -93,24 +114,25 @@ export function DailyTakingsCard({ eventId, startDate, endDate, readOnly = false
       return;
     }
 
-    setSaving(dateStr);
-    try {
-      await upsert.mutateAsync({
-        day_date: dateStr,
-        day_number: dayNumber,
-        total_takings: total,
-        hot_drinks_sales: hot,
-        iced_drinks_sales: iced || Math.max(0, total - hot),
-        avg_temp_c: null,
-        weather_code: null,
-        notes: inp.notes,
-      });
-      setExpandedDay(null);
-    } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Could not save');
-    } finally {
-      setSaving(null);
+    // Total-only entry: do NOT invent a split. The old fallback
+    // (iced = total − hot) silently classified the whole day as
+    // zero-rated iced sales, understating VAT due on what is mostly
+    // 20%-rated hot-drink revenue. Save with no split — VAT breakdown
+    // simply stays unknown for the day — after telling the user why the
+    // hot figure matters.
+    if (hot === 0 && iced === 0) {
+      Alert.alert(
+        'No hot/iced split entered',
+        'Hot drinks carry 20% VAT; iced are zero-rated. Without a split, this day is saved with no VAT breakdown. Enter at least the hot figure for an accurate VAT position.',
+        [
+          { text: 'Add split', style: 'cancel' },
+          { text: 'Save without split', onPress: () => { void persistDay(dateStr, dayNumber, total, 0, 0, inp.notes); } },
+        ],
+      );
+      return;
     }
+
+    await persistDay(dateStr, dayNumber, total, hot, iced || Math.max(0, total - hot), inp.notes);
   }
 
   const totalTakings = dailyTakings.reduce((s, d) => s + d.total_takings, 0);

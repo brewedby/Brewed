@@ -31,25 +31,49 @@ import { ALL_PRODUCT_IDS, FALLBACK_PRICE, FALLBACK_PRICES, PRODUCT_IDS, type Pro
 import { hasFeature, tierForSubscription, type FeatureKey, type SubscriptionTier } from './entitlements';
 import { getDevTierOverride } from './devEntitlement';
 
-// expo-iap types we care about. We import the runtime via require() so
-// that builds without the native module installed don't crash at import time.
+// expo-iap types we care about, matching the INSTALLED 2.9.7 API surface.
+// We import the runtime via require() so that builds without the native
+// module installed don't crash at import time.
+//
+// 2.9.7 contract notes (verified against node_modules/expo-iap/build):
+//  - Products expose the identifier as `id` (ProductCommon), NOT `productId`.
+//  - requestPurchase takes a PLATFORM-KEYED request: { request: { ios: { sku } }, type }.
+//    The legacy flat { sku } shape throws 'Invalid request for iOS…' before
+//    any StoreKit call — it must never be used.
+//  - Purchases carry `transactionReceipt` as a StoreKit 2 JWS. Our Edge
+//    Function speaks Apple's legacy /verifyReceipt, which needs the base64
+//    APP RECEIPT — so validation must send getReceiptIOS(), not the JWS.
+//  - finishTransaction (iOS) reads `purchase.id`.
 type StoreSubscriptionProduct = {
-  productId: string;
+  id: string;
   title: string;
   description: string;
   displayPrice: string;            // localised, e.g. "£9.00"
-  price: number;                   // numeric
+  price?: number;                  // numeric
   currency: string;                // e.g. "GBP"
+};
+
+type IapPurchase = {
+  id?: string;
+  productId: string;
+  transactionId?: string;
+  /** StoreKit 2 JWS — NOT a legacy app receipt. See note above. */
+  transactionReceipt?: string;
 };
 
 type IapModule = {
   initConnection: () => Promise<boolean>;
   endConnection: () => Promise<boolean>;
   getSubscriptions: (skus: string[]) => Promise<StoreSubscriptionProduct[]>;
-  requestSubscription: (request: { sku: string }) => Promise<unknown>;
-  getAvailablePurchases: () => Promise<Array<{ productId: string; transactionReceipt?: string; transactionId?: string }>>;
-  finishTransaction: (params: { purchase: { transactionId?: string }; isConsumable: boolean }) => Promise<unknown>;
-  purchaseUpdatedListener: (cb: (purchase: { productId: string; transactionReceipt?: string; transactionId?: string }) => void) => { remove: () => void };
+  requestPurchase: (args: {
+    request: { ios: { sku: string }; android?: { skus: string[] } };
+    type: 'subs' | 'inapp';
+  }) => Promise<unknown>;
+  getAvailablePurchases: () => Promise<IapPurchase[]>;
+  /** Base64 app receipt from the app bundle — what /verifyReceipt expects. */
+  getReceiptIOS: () => Promise<string>;
+  finishTransaction: (params: { purchase: IapPurchase; isConsumable: boolean }) => Promise<unknown>;
+  purchaseUpdatedListener: (cb: (purchase: IapPurchase) => void) => { remove: () => void };
   purchaseErrorListener: (cb: (error: { code?: string; message?: string }) => void) => { remove: () => void };
 };
 
@@ -118,6 +142,22 @@ async function postReceiptForValidation(receipt: string): Promise<{ ok: boolean;
   return { ok: false, error: data?.error ?? 'Validation failed' };
 }
 
+/**
+ * The receipt our Edge Function can verify. Apple's legacy /verifyReceipt
+ * endpoint (which validate-apple-receipt speaks) requires the base64 APP
+ * RECEIPT from the bundle — NOT purchase.transactionReceipt, which in
+ * expo-iap 2.9.7 is a StoreKit 2 JWS that /verifyReceipt rejects with
+ * status 21002. Sending the JWS meant every purchase charged the user but
+ * never activated, and every restore failed.
+ */
+async function getVerifiableReceipt(iap: IapModule, fallbackJws?: string): Promise<string | null> {
+  try {
+    const appReceipt = await iap.getReceiptIOS();
+    if (appReceipt && appReceipt.length > 0) return appReceipt;
+  } catch { /* fall through to JWS-based fallback below */ }
+  return fallbackJws && fallbackJws.length > 0 ? fallbackJws : null;
+}
+
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { data: profile } = useProfile(user?.id);
@@ -179,8 +219,13 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         if (!cancelled && fetched.length > 0) {
           const byId: Partial<Record<ProductId, StoreSubscriptionProduct>> = {};
           for (const prod of fetched) {
-            if ((ALL_PRODUCT_IDS as string[]).includes(prod.productId)) {
-              byId[prod.productId as ProductId] = prod;
+            // 2.9.7 products carry the identifier as `id`. Tolerate a
+            // legacy `productId` field so an SDK bump can't silently
+            // empty the map again (which made the paywall show the
+            // hardcoded fallback prices forever).
+            const identifier = prod.id ?? (prod as { productId?: string }).productId;
+            if (identifier && (ALL_PRODUCT_IDS as string[]).includes(identifier)) {
+              byId[identifier as ProductId] = { ...prod, id: identifier };
             }
           }
           setProducts(byId);
@@ -202,8 +247,15 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (!iap || !user) return;
     const updateSub = iap.purchaseUpdatedListener(async (purchase) => {
-      if (!purchase.transactionReceipt) return;
-      const result = await postReceiptForValidation(purchase.transactionReceipt);
+      // Validate with the app receipt, not purchase.transactionReceipt —
+      // see getVerifiableReceipt. The purchase object is still what we
+      // finish (finishTransaction reads purchase.id).
+      const receipt = await getVerifiableReceipt(iap, purchase.transactionReceipt);
+      if (!receipt) {
+        Alert.alert('Could not verify subscription', 'No receipt was available from the App Store. Please try Restore Purchases.');
+        return;
+      }
+      const result = await postReceiptForValidation(receipt);
       if (result.ok) {
         await iap.finishTransaction({ purchase, isConsumable: false });
         await qc.invalidateQueries({ queryKey: ['profile', user.id] });
@@ -233,7 +285,11 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     }
     setIsPurchasing(true);
     try {
-      await iap.requestSubscription({ sku: productId });
+      // 2.9.7 requires the platform-keyed request shape. The legacy flat
+      // { sku } object made requestPurchase read request.ios (undefined)
+      // and throw before the StoreKit sheet ever appeared — every
+      // subscribe tap failed with 'Invalid request for iOS…'.
+      await iap.requestPurchase({ request: { ios: { sku: productId } }, type: 'subs' });
       // Result is delivered to purchaseUpdatedListener
     } catch (err) {
       const e = err as { code?: string; message?: string };
@@ -258,11 +314,16 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     try {
       const purchases = await iap.getAvailablePurchases();
       const sub = purchases.find((p) => ALL_PRODUCT_IDS.includes(p.productId as ProductId));
-      if (!sub || !sub.transactionReceipt) {
-        Alert.alert('No subscription found', 'No active Brewed Pro subscription was found on this Apple ID.');
+      if (!sub) {
+        Alert.alert('No subscription found', 'No active Brewed subscription was found on this Apple ID.');
         return;
       }
-      const result = await postReceiptForValidation(sub.transactionReceipt);
+      const receipt = await getVerifiableReceipt(iap, sub.transactionReceipt);
+      if (!receipt) {
+        Alert.alert('Could not restore', 'No receipt was available from the App Store. Please relaunch the app and try again.');
+        return;
+      }
+      const result = await postReceiptForValidation(receipt);
       if (result.ok) {
         await qc.invalidateQueries({ queryKey: ['profile', user.id] });
         Alert.alert('Restored', 'Your subscription has been restored.');

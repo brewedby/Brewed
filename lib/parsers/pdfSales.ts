@@ -185,6 +185,59 @@ function decodeHexString(hex: string): string {
 // ── Text extraction from content streams ────────────────────────────────────
 
 /**
+ * Split a content stream into BT…ET text blocks WITHOUT a lazy regex.
+ * /BT([\s\S]*?)ET/ stops at the first literal 'ET' byte pair even inside a
+ * (…) string operand — '(NET SALES)', '(1 HIGH STREET)' — silently
+ * discarding every row after that string in the block. This scanner only
+ * treats ET as the block terminator when it is a standalone token outside
+ * any string or hex-string operand.
+ */
+export function splitTextBlocks(content: string): string[] {
+  const blocks: string[] = [];
+  const n = content.length;
+  const isDelim = (c: string | undefined) => c === undefined || !/[A-Za-z0-9]/.test(c);
+  let i = 0;
+  while (i < n - 1) {
+    if (content[i] === 'B' && content[i + 1] === 'T'
+        && isDelim(content[i - 1]) && isDelim(content[i + 2])) {
+      let j = i + 2;
+      let parenDepth = 0;   // PDF literal strings nest with balanced parens
+      let inHex = false;
+      let end = -1;
+      while (j < n) {
+        const c = content[j];
+        if (parenDepth > 0) {
+          if (c === '\\') { j += 2; continue; }
+          if (c === '(') parenDepth++;
+          else if (c === ')') parenDepth--;
+          j++;
+          continue;
+        }
+        if (inHex) {
+          if (c === '>') inHex = false;
+          j++;
+          continue;
+        }
+        if (c === '(') { parenDepth = 1; j++; continue; }
+        if (c === '<' && content[j + 1] !== '<') { inHex = true; j++; continue; }
+        if (c === 'E' && content[j + 1] === 'T'
+            && isDelim(content[j - 1]) && isDelim(content[j + 2])) {
+          end = j;
+          break;
+        }
+        j++;
+      }
+      if (end === -1) { blocks.push(content.slice(i + 2)); break; }
+      blocks.push(content.slice(i + 2, end));
+      i = end + 2;
+    } else {
+      i++;
+    }
+  }
+  return blocks;
+}
+
+/**
  * Extract text from a PDF content stream.
  * Returns lines of text, reconstructing breaks from Td/TD/T* operators
  * (each positioning operator is treated as a line separator).
@@ -199,13 +252,8 @@ function extractText(content: string): string[] {
     currentLine = '';
   }
 
-  // Iterate over BT...ET blocks
-  const btRe = /BT([\s\S]*?)ET/g;
-  let btMatch: RegExpExecArray | null;
-
-  while ((btMatch = btRe.exec(content)) !== null) {
+  for (const block of splitTextBlocks(content)) {
     flush();
-    const block = btMatch[1];
     let i = 0;
 
     while (i < block.length) {
@@ -299,8 +347,10 @@ function extractText(content: string): string[] {
 
 // ── Sales row parsing from extracted text ────────────────────────────────────
 
-const MONEY_RE = /^[£$€]?[\d,]+\.?\d*$/;
-const NUM_RE   = /^[\d,]+\.?\d*$/;
+// Sign-aware: refund lines carry '-2 -7.00' (or accountancy '(7.00)') and
+// must be netted like the CSV path, not silently dropped as non-numeric.
+const MONEY_RE = /^-?[£$€]?-?[\d,]+\.?\d*$|^\([£$€]?[\d,]+\.?\d*\)$/;
+const NUM_RE   = /^-?[\d,]+\.?\d*$|^\([\d,]+\.?\d*\)$/;
 
 const SKIP_PATTERNS = [
   /^(total|grand total|subtotal|vat|tax|payment|amount due|commission|settlement|net|gross|summary|date|time|description|report|period|page\s+\d)/i,
@@ -314,12 +364,15 @@ function shouldSkip(line: string): boolean {
 }
 
 function parseMoney(s: string): number {
-  const n = parseFloat(s.replace(/[£$€,\s]/g, ''));
-  return isNaN(n) ? 0 : n;
+  const neg = /^\(.+\)$/.test(s.trim());
+  const n = parseFloat(s.replace(/[()£$€,\s]/g, ''));
+  if (isNaN(n)) return 0;
+  return neg ? -n : n;
 }
 
-function parseRows(textLines: string[]): ParsedSalesLine[] {
+function parseRows(textLines: string[]): { lines: ParsedSalesLine[]; refundRowCount: number } {
   const results: ParsedSalesLine[] = [];
+  let refundRowCount = 0;
 
   for (const raw of textLines) {
     const line = raw.trim();
@@ -346,7 +399,7 @@ function parseRows(textLines: string[]): ParsedSalesLine[] {
     // Skip lines that are entirely numeric (unlikely to be product names)
     if (/^[\d£$€.,\s\-]+$/.test(productName)) continue;
 
-    const numbers = numTokens.map(parseMoney).filter(n => n > 0);
+    const numbers = numTokens.map(parseMoney).filter(n => n !== 0);
     if (numbers.length === 0) continue;
 
     let qty: number;
@@ -359,7 +412,8 @@ function parseRows(textLines: string[]): ParsedSalesLine[] {
     } else if (numbers.length === 2) {
       qty = numbers[0];
       lineTotal = numbers[1];
-      if (qty !== Math.floor(qty) || qty <= 0 || qty > 10000) {
+      // Negative integer quantities are refunds, not unit prices.
+      if (qty !== Math.floor(qty) || qty === 0 || Math.abs(qty) > 10000) {
         qty = 1;
         unitPrice = numbers[0];
         lineTotal = numbers[1];
@@ -368,12 +422,16 @@ function parseRows(textLines: string[]): ParsedSalesLine[] {
       qty = numbers[0];
       unitPrice = numbers[1];
       lineTotal = numbers[numbers.length - 1];
-      if (unitPrice && Math.abs(qty * unitPrice - lineTotal) / (lineTotal || 1) > 0.1) {
+      if (unitPrice && Math.abs(qty * unitPrice - lineTotal) / (Math.abs(lineTotal) || 1) > 0.1) {
         unitPrice = null;
       }
     }
 
-    if (qty <= 0 || qty > 10000 || lineTotal <= 0) continue;
+    if (qty === 0 || Math.abs(qty) > 10000 || lineTotal === 0) continue;
+    // Refund rows stay NEGATIVE so they net against sales of the same
+    // product in the merge below — the CSV path already works this way;
+    // dropping them here overstated PDF-imported revenue.
+    if (qty < 0 || lineTotal < 0) refundRowCount++;
 
     results.push({ product_name: productName, quantity: qty, unit_price: unitPrice, line_total: lineTotal });
   }
@@ -391,7 +449,13 @@ function parseRows(textLines: string[]): ParsedSalesLine[] {
       merged.set(key, { ...r });
     }
   }
-  return Array.from(merged.values());
+
+  // Fully-refunded products carry no sales to import.
+  for (const [key, line] of Array.from(merged.entries())) {
+    if (line.quantity <= 0 && line.line_total <= 0) merged.delete(key);
+  }
+
+  return { lines: Array.from(merged.values()), refundRowCount };
 }
 
 // ── Date detection ───────────────────────────────────────────────────────────
@@ -521,7 +585,7 @@ export function parsePDFSalesReport(
 
   const reportDate = detectDate(allTextLines);
   const provider = detectProvider(allTextLines.slice(0, 40).join('\n'));
-  const salesLines = parseRows(allTextLines);
+  const { lines: salesLines, refundRowCount } = parseRows(allTextLines);
 
   if (salesLines.length === 0) {
     const allText = allTextLines.join('\n');
@@ -558,6 +622,9 @@ export function parsePDFSalesReport(
   const warnings: string[] = [];
   if (salesLines.length < 2) {
     warnings.push('Only one item was detected. Check the product list below before importing.');
+  }
+  if (refundRowCount > 0) {
+    warnings.push(`${refundRowCount} refund line${refundRowCount === 1 ? '' : 's'} detected and netted against sales.`);
   }
 
   return {

@@ -10,6 +10,7 @@ import { eventSchema } from '@/lib/validations/event.schema';
 import type { EventFormValues } from '@/lib/validations/event.schema';
 import { FormField } from '@/components/shared/FormField';
 import { CurrencyInput } from '@/components/shared/CurrencyInput';
+import { NumericField } from '@/components/shared/NumericField';
 import { WheelColumn } from '@/components/shared/WheelColumn';
 import { formatCurrency } from '@/lib/formatters';
 import { useTheme } from '@/lib/themeContext';
@@ -126,9 +127,9 @@ function DatePickerModal({
 }
 
 function DatePickerButton({
-  label, value, onChange, required,
+  label, value, onChange, required, error,
 }: {
-  label: string; value: string; onChange: (isoDate: string) => void; required?: boolean;
+  label: string; value: string; onChange: (isoDate: string) => void; required?: boolean; error?: string;
 }) {
   const { tokens } = useTheme();
   const p = tokens.palette;
@@ -146,7 +147,7 @@ function DatePickerButton({
         onPress={() => setShow(true)}
         style={{
           flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-          borderWidth: 1, borderColor: p.border,
+          borderWidth: 1, borderColor: error ? '#dc2626' : p.border,
           paddingHorizontal: 14, paddingVertical: 12, backgroundColor: p.surface,
         }}
       >
@@ -155,6 +156,7 @@ function DatePickerButton({
         </Text>
         <Text style={{ fontSize: 14 }}>📅</Text>
       </TouchableOpacity>
+      {error && <Text style={{ fontSize: 11, color: '#dc2626', marginTop: 4 }}>{error}</Text>}
       <DatePickerModal
         visible={show}
         value={value}
@@ -321,11 +323,11 @@ function FinancialsTabContent({
           control={control} name="concessions_commission_pct"
           render={({ field }) => (
             <View>
-              <FormField
+              <NumericField
                 label={`Commission % (taken on ${commissionBasis === 'gross' ? 'gross sales inc-VAT' : 'net sales ex-VAT'})`}
-                value={field.value ? String(field.value) : ''}
-                onChangeText={(t) => field.onChange(parseFloat(t) || 0)}
-                keyboardType="decimal-pad" placeholder="0"
+                value={field.value ?? 0}
+                onChangeValue={field.onChange}
+                placeholder="0"
               />
               <PctChips value={field.value ?? 0} onChange={field.onChange} />
             </View>
@@ -341,11 +343,11 @@ function FinancialsTabContent({
           control={control} name="pitch_fee_refund_pct"
           render={({ field }) => (
             <View>
-              <FormField
+              <NumericField
                 label="Pitch fee refund % (before commission deduction)"
-                value={field.value ? String(field.value) : ''}
-                onChangeText={(t) => field.onChange(parseFloat(t) || 0)}
-                keyboardType="decimal-pad" placeholder="0"
+                value={field.value ?? 0}
+                onChangeValue={field.onChange}
+                placeholder="0"
               />
               <PctChips value={field.value ?? 0} onChange={field.onChange} />
             </View>
@@ -396,14 +398,14 @@ function FinancialsTabContent({
       <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, padding: 16, gap: 12 }}>
         <Controller control={control} name="fresh_milk_litres"
           render={({ field }) => (
-            <FormField label="Fresh Milk (litres)" value={field.value ? String(field.value) : ''}
-              onChangeText={(t) => field.onChange(parseFloat(t) || 0)} keyboardType="decimal-pad" placeholder="0" />
+            <NumericField label="Fresh Milk (litres)" value={field.value ?? 0}
+              onChangeValue={field.onChange} placeholder="0" />
           )}
         />
         <Controller control={control} name="alt_milk_litres"
           render={({ field }) => (
-            <FormField label="Alternative Milk (litres)" value={field.value ? String(field.value) : ''}
-              onChangeText={(t) => field.onChange(parseFloat(t) || 0)} keyboardType="decimal-pad" placeholder="0" />
+            <NumericField label="Alternative Milk (litres)" value={field.value ?? 0}
+              onChangeValue={field.onChange} placeholder="0" />
           )}
         />
         <View style={{ backgroundColor: p.bg, borderWidth: 1, borderColor: p.border, paddingHorizontal: 12, paddingVertical: 10 }}>
@@ -417,8 +419,8 @@ function FinancialsTabContent({
       <View style={{ backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, padding: 16, gap: 12 }}>
         <Controller control={control} name="miles_driven"
           render={({ field }) => (
-            <FormField label="Miles Driven (round trip)" value={field.value ? String(field.value) : ''}
-              onChangeText={(t) => field.onChange(parseFloat(t) || 0)} keyboardType="decimal-pad" placeholder="0" />
+            <NumericField label="Miles Driven (round trip)" value={field.value ?? 0}
+              onChangeValue={field.onChange} placeholder="0" />
           )}
         />
         {(watch('miles_driven') ?? 0) > 0 && (
@@ -494,6 +496,22 @@ export function EventForm({
     if (tab === 'Costs') return Boolean(errors.infrastructure_items);
     if (tab === 'Notes') return Boolean(errors.notes);
     return false;
+  }
+
+  // A failed validation must never be a silent no-op. Previously the only
+  // signal was a 6px dot on the tab chip; with date errors not rendered at
+  // all, tapping SAVE simply did nothing. Surface the first error and jump
+  // to the tab that owns it.
+  function handleInvalidSubmit(formErrors: Record<string, { message?: string } | undefined>) {
+    const firstKey = Object.keys(formErrors)[0];
+    const firstErr = firstKey ? formErrors[firstKey] : undefined;
+    const message = (firstErr && typeof firstErr === 'object' && 'message' in firstErr && firstErr.message)
+      ? String(firstErr.message)
+      : 'Some fields need attention before saving.';
+    for (const tab of TABS) {
+      if (tabHasError(tab)) { setActiveTab(tab); break; }
+    }
+    Alert.alert('Check the form', message);
   }
 
   async function handleFormSubmit(data: EventFormValues) {
@@ -575,14 +593,16 @@ export function EventForm({
               <View style={{ flex: 1 }}>
                 <Controller control={control} name="date"
                   render={({ field }) => (
-                    <DatePickerButton label="Start Date" required value={field.value ?? ''} onChange={field.onChange} />
+                    <DatePickerButton label="Start Date" required value={field.value ?? ''} onChange={field.onChange}
+                      error={errors.date?.message} />
                   )}
                 />
               </View>
               <View style={{ flex: 1 }}>
                 <Controller control={control} name="end_date"
                   render={({ field }) => (
-                    <DatePickerButton label="End Date" value={field.value ?? ''} onChange={field.onChange} />
+                    <DatePickerButton label="End Date" value={field.value ?? ''} onChange={field.onChange}
+                      error={errors.end_date?.message} />
                   )}
                 />
               </View>
@@ -798,8 +818,8 @@ export function EventForm({
                   <View style={{ flex: 1 }}>
                     <Controller control={control} name={`staffing_entries.${i}.hours_worked`}
                       render={({ field: f }) => (
-                        <FormField label="Hours" value={String(f.value || '')}
-                          onChangeText={(t) => f.onChange(parseFloat(t) || 0)} keyboardType="decimal-pad" placeholder="8" />
+                        <NumericField label="Hours" value={f.value ?? 0}
+                          onChangeValue={f.onChange} placeholder="8" />
                       )}
                     />
                   </View>
@@ -895,7 +915,7 @@ export function EventForm({
       {/* Submit button */}
       <View style={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 12, backgroundColor: p.bg, borderTopWidth: 1, borderTopColor: p.border }}>
         <TouchableOpacity
-          onPress={handleSubmit(handleFormSubmit)}
+          onPress={handleSubmit(handleFormSubmit, handleInvalidSubmit)}
           style={{ backgroundColor: p.text, paddingVertical: 16, alignItems: 'center' }}
           disabled={loading}
         >

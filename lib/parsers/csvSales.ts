@@ -44,14 +44,20 @@ function normalise(s: unknown): string {
   return asString(s).toLowerCase().replace(/[^a-z0-9. ]/g, '').trim();
 }
 
-function findColumn(headers: string[], aliases: string[]): number {
+function findColumn(headers: string[], aliases: string[], exclude: string[] = []): number {
   const lower = headers.map((h) => normalise(h));
   for (const alias of aliases) {
     const exact = lower.indexOf(alias);
     if (exact !== -1) return exact;
   }
+  // Partial pass: header must CONTAIN the alias. The old bidirectional test
+  // (alias.includes(h)) let a bare 'Item' header satisfy the quantity alias
+  // 'items sold', binding quantity to the product-name column and turning
+  // every quantity into parseMoney('Latte') = 0. The exclude list stops
+  // 'amount'/'sales' aliases binding to 'Discount Amount', 'Tax Amount' etc.
   for (const alias of aliases) {
-    const partial = lower.findIndex((h) => h.length > 0 && (h.includes(alias) || alias.includes(h)));
+    const partial = lower.findIndex((h) =>
+      h.length > 0 && h.includes(alias) && !exclude.some((x) => h.includes(x)));
     if (partial !== -1) return partial;
   }
   return -1;
@@ -111,6 +117,38 @@ function stripBOM(s: string): string {
   return s.charCodeAt(0) === 0xFEFF ? s.slice(1) : s;
 }
 
+/**
+ * Split CSV text into records respecting quoted fields. A newline inside a
+ * quoted field is legal CSV (and xlsxSales.toCsv deliberately produces it
+ * for any Excel cell containing a line break) — the old blanket
+ * split('\n') tore such rows into two malformed halves that were both
+ * silently skipped, losing the sale. Embedded newlines are flattened to a
+ * space so product names stay single-line.
+ */
+function splitRecords(text: string): string[] {
+  const records: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+      current += ch;
+    } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      records.push(current);
+      current = '';
+    } else if ((ch === '\n' || ch === '\r') && inQuotes) {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      current += ' ';
+    } else {
+      current += ch;
+    }
+  }
+  records.push(current);
+  return records;
+}
+
 /** Score a line for "looks like a column-header row". A row that's mostly
  *  short alphabetic tokens with header-vocabulary hits scores higher than
  *  a metadata/title row or a numeric data row. */
@@ -167,7 +205,7 @@ export function parseCSVSalesReport(
   fileSizeBytes: number | null = null,
 ): ParseResult {
   const safe = stripBOM(asString(content));
-  const rawLines = safe.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const rawLines = splitRecords(safe);
   const lines = rawLines.filter((l) => l.trim().length > 0);
 
   const diagnostics: ParseDiagnostics = {
@@ -223,10 +261,17 @@ export function parseCSVSalesReport(
     };
   }
 
+  // Deduction-flavoured headers must never satisfy a money/quantity alias
+  // partially — 'Discount Amount' is not the line total.
+  const MONEY_EXCLUDE = ['discount', 'refund', 'tax', 'vat', 'fee', 'tip', 'cost'];
   const productCol = findColumn(headers, PRODUCT_ALIASES);
-  const qtyCol     = findColumn(headers, QUANTITY_ALIASES);
-  const priceCol   = findColumn(headers, UNIT_PRICE_ALIASES);
-  const totalCol   = findColumn(headers, TOTAL_ALIASES);
+  let qtyCol     = findColumn(headers, QUANTITY_ALIASES, MONEY_EXCLUDE);
+  let priceCol   = findColumn(headers, UNIT_PRICE_ALIASES, MONEY_EXCLUDE);
+  let totalCol   = findColumn(headers, TOTAL_ALIASES, MONEY_EXCLUDE);
+  // A numeric column can never be the product-name column itself.
+  if (qtyCol === productCol) qtyCol = -1;
+  if (priceCol === productCol) priceCol = -1;
+  if (totalCol === productCol) totalCol = -1;
 
   const errors: string[] = [];
   if (productCol === -1) {
