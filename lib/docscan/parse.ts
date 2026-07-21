@@ -47,13 +47,22 @@ export function rejoinSplitAmounts(lines: string[]): string[] {
       i++;
       continue;
     }
-    // Label ending in a currency-prefixed partial amount + continuation
-    // ("Total fees -£12" / "345.67" → "…-£12,345.67"). The £ requirement
-    // matters: a bare trailing digit ("Ref 2026", "Terminal 2") must NOT
-    // absorb the next line's standalone amount — that read a £510.08
-    // payout as £2,026,510.08 on scanned statements.
-    if (/(?:^|[^\d])-?£\s*\d{1,3}$/.test(cur) && /^,?\d{3}\.\d{2}$/.test(next)) {
-      out.push(cur + (next.startsWith(',') ? next : ',' + next));
+    // Label ending in a partial amount + a thousands-tail continuation.
+    // Join only when the split is unambiguous:
+    //   (a) the continuation carries a leading comma (",234.56"), or
+    //   (b) the current line's trailing amount is £-prefixed ("-£12").
+    // A bare trailing digit with a comma-less continuation ("Ref 2026" /
+    // "510.08", "Terminal 2" / "…") must NOT be glued — that read a
+    // £510.08 payout as £2,026,510.08 on scanned statements.
+    const endsWithCurrencyAmount = /(?:^|[^\d])-?£\s*\d{1,3}$/.test(cur);
+    const endsWithBareDigits = /\d{1,3}$/.test(cur);
+    if (/^,\d{3}\.\d{2}$/.test(next) && endsWithBareDigits) {
+      out.push(cur + next);
+      i++;
+      continue;
+    }
+    if (/^\d{3}\.\d{2}$/.test(next) && endsWithCurrencyAmount) {
+      out.push(cur + ',' + next);
       i++;
       continue;
     }

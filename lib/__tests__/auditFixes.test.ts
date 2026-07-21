@@ -101,6 +101,45 @@ function makePdf(contentStream: string): Uint8Array {
     JSON.stringify({ lines: r.lines.length, errors: r.errors.slice(0, 1) }));
 }
 
+// ── 3b. CSV regressions from the review pass (must not reappear) ─────
+
+{
+  // Bare 'Sales' header must still bind to the total column.
+  const r = parseCSVSalesReport('Item,Qty,Sales\nLatte,2,6.40\n');
+  const l = r.lines[0];
+  expect('csv_bare_sales_is_total', !!l && l.quantity === 2 && l.line_total === 6.4, JSON.stringify(l));
+}
+
+{
+  // 'Units' header must still bind to quantity.
+  const r = parseCSVSalesReport('Item,Units,Total\nLatte,2,6.40\n');
+  const l = r.lines[0];
+  expect('csv_units_is_qty', !!l && l.quantity === 2 && l.line_total === 6.4, JSON.stringify(l));
+}
+
+{
+  // 'Sales excl. tax' must not be blocked by a naive 'tax' exclude.
+  const r = parseCSVSalesReport('Item,Qty,Sales excl. tax\nLatte,2,6.40\n');
+  const l = r.lines[0];
+  expect('csv_sales_excl_tax_is_total', !!l && l.line_total === 6.4, JSON.stringify(l));
+}
+
+{
+  // An unmatched quote (inch-mark) must lose at most its own row, not
+  // swallow the rest of the file.
+  const r = parseCSVSalesReport('Item,Qty,Total\n6" Sub,2,7.00\nLatte,3,9.60\nMocha,1,3.80\n');
+  const latte = r.lines.find((l) => /latte/i.test(l.product_name));
+  expect('csv_unmatched_quote_isolated',
+    r.lines.length >= 2 && !!latte && latte.quantity === 3 && latte.line_total === 9.6,
+    JSON.stringify(r.lines.map((l) => [l.product_name, l.quantity, l.line_total])));
+}
+
+{
+  // 'Item' must still NOT be mis-read as the quantity column.
+  const r = parseCSVSalesReport('Item,Total\nLatte,3.20\nMocha,4.00\n');
+  expect('csv_item_not_qty', r.lines.every((l) => l.quantity === 1), JSON.stringify(r.lines.map((l) => l.quantity)));
+}
+
 // ── 4. PDF: ET inside a string no longer truncates the block ─────────
 
 {
@@ -172,9 +211,13 @@ expect('iap_no_legacy_flat_sku_call',
   !/requestSubscription\(\{ sku/.test(iapSrc),
   'the legacy flat {sku} call throws before StoreKit on 2.9.7');
 
-expect('iap_validates_app_receipt_not_jws',
-  /getReceiptIOS/.test(iapSrc) && /getVerifiableReceipt\(iap/.test(iapSrc),
-  'validation must send the base64 app receipt (legacy /verifyReceipt cannot parse a StoreKit 2 JWS)');
+expect('iap_validates_app_receipt_via_native_module',
+  /requireNativeModule\('ExpoIap'\)/.test(iapSrc) && /getVerifiableReceipt\(native\)/.test(iapSrc),
+  'app receipt must come from the native module directly (2.9.7 exported getReceiptIOS wrapper is broken)');
+
+expect('iap_no_jws_fallback_to_server',
+  !/getVerifiableReceipt\(iap, /.test(iapSrc) && /NO_RECEIPT_MESSAGE/.test(iapSrc),
+  'must not send the unverifiable JWS to the server; show a clear message instead');
 
 expect('iap_products_keyed_by_id',
   /prod\.id \?\?/.test(iapSrc) && !/byId\[prod\.productId/.test(iapSrc),

@@ -227,7 +227,18 @@ export function splitTextBlocks(content: string): string[] {
         }
         j++;
       }
-      if (end === -1) { blocks.push(content.slice(i + 2)); break; }
+      if (end === -1) {
+        // No clean ET (e.g. an unbalanced '(' in a malformed stream). Don't
+        // swallow the entire remainder — bound this block at the next
+        // standalone 'BT' so later, well-formed blocks are still recovered.
+        let k = i + 2;
+        while (k < n - 1 && !(content[k] === 'B' && content[k + 1] === 'T'
+            && isDelim(content[k - 1]) && isDelim(content[k + 2]))) k++;
+        if (k >= n - 1) { blocks.push(content.slice(i + 2)); break; }
+        blocks.push(content.slice(i + 2, k));
+        i = k;
+        continue;
+      }
       blocks.push(content.slice(i + 2, end));
       i = end + 2;
     } else {
@@ -354,6 +365,12 @@ const NUM_RE   = /^-?[\d,]+\.?\d*$|^\([\d,]+\.?\d*\)$/;
 
 const SKIP_PATTERNS = [
   /^(total|grand total|subtotal|vat|tax|payment|amount due|commission|settlement|net|gross|summary|date|time|description|report|period|page\s+\d)/i,
+  // Summary / deduction / tender lines. These carry negative or aggregate
+  // money that, now the tokenizer is sign-aware, would otherwise import as
+  // bogus product rows ("Discounts & Comps -12.00", "Card Fee -1.50").
+  // A genuine product REFUND row keeps the product's own name (e.g.
+  // "Flat White -2 -7.00") and is not matched here, so it still nets.
+  /^(discounts?|comps?|refunds?\b|voids?|fees?\b|service charge|gratuit|tips?\b|cash\b|card\b|change\b|rounding|deposit|charge|adjustment|balance)/i,
   /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/,
   /^\d{4}[\/\-]\d{2}[\/\-]\d{2}/,
 ];

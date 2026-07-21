@@ -70,14 +70,28 @@ type IapModule = {
     type: 'subs' | 'inapp';
   }) => Promise<unknown>;
   getAvailablePurchases: () => Promise<IapPurchase[]>;
-  /** Base64 app receipt from the app bundle — what /verifyReceipt expects. */
-  getReceiptIOS: () => Promise<string>;
   finishTransaction: (params: { purchase: IapPurchase; isConsumable: boolean }) => Promise<unknown>;
   purchaseUpdatedListener: (cb: (purchase: IapPurchase) => void) => { remove: () => void };
   purchaseErrorListener: (cb: (error: { code?: string; message?: string }) => void) => { remove: () => void };
 };
 
-function loadIap(): IapModule | null {
+// The base64 app receipt (what Apple's /verifyReceipt needs) must be read
+// from the NATIVE module directly, not via expo-iap's exported wrapper: in
+// 2.9.7 the wrapper `getReceiptIOS()` calls ExpoIapModule.getReceiptDataIOS(),
+// a name the native module never registers (it registers `getReceiptIOS`),
+// so the wrapper throws. requireNativeModule('ExpoIap').getReceiptIOS()
+// hits the registered AsyncFunction, which returns the bundle receipt.
+type NativeReceipt = {
+  getReceiptIOS?: () => Promise<string>;
+  requestReceiptRefreshIOS?: () => Promise<string>;
+};
+
+interface LoadedIap {
+  mod: IapModule;
+  native: NativeReceipt | null;
+}
+
+function loadIap(): LoadedIap | null {
   // Only iOS has Apple IAP; Android would use Google Play Billing.
   if (Platform.OS !== 'ios') return null;
   // Skip in Expo Go (legacy + modern SDK detection). expo-iap is a native
@@ -86,7 +100,14 @@ function loadIap(): IapModule | null {
   if (Constants.executionEnvironment === 'storeClient') return null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require('expo-iap') as IapModule;
+    const mod = require('expo-iap') as IapModule;
+    let native: NativeReceipt | null = null;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { requireNativeModule } = require('expo-modules-core');
+      native = requireNativeModule('ExpoIap') as NativeReceipt;
+    } catch { /* receipt read will surface a clear error if this is missing */ }
+    return { mod, native };
   } catch {
     return null;
   }
@@ -147,23 +168,39 @@ async function postReceiptForValidation(receipt: string): Promise<{ ok: boolean;
  * endpoint (which validate-apple-receipt speaks) requires the base64 APP
  * RECEIPT from the bundle — NOT purchase.transactionReceipt, which in
  * expo-iap 2.9.7 is a StoreKit 2 JWS that /verifyReceipt rejects with
- * status 21002. Sending the JWS meant every purchase charged the user but
- * never activated, and every restore failed.
+ * status 21002. We read the app receipt from the native module and, if
+ * it isn't written yet (fresh install / sandbox), ask StoreKit to refresh
+ * it. We deliberately do NOT fall back to the JWS: the server can't verify
+ * it, so sending it just burns a round-trip and shows an opaque error.
  */
-async function getVerifiableReceipt(iap: IapModule, fallbackJws?: string): Promise<string | null> {
+async function getVerifiableReceipt(native: NativeReceipt | null): Promise<string | null> {
+  if (!native) return null;
   try {
-    const appReceipt = await iap.getReceiptIOS();
-    if (appReceipt && appReceipt.length > 0) return appReceipt;
-  } catch { /* fall through to JWS-based fallback below */ }
-  return fallbackJws && fallbackJws.length > 0 ? fallbackJws : null;
+    if (native.getReceiptIOS) {
+      const r = await native.getReceiptIOS();
+      if (r && r.length > 0) return r;
+    }
+  } catch { /* try a refresh below */ }
+  try {
+    if (native.requestReceiptRefreshIOS) {
+      const r = await native.requestReceiptRefreshIOS();
+      if (r && r.length > 0) return r;
+    }
+  } catch { /* no receipt available */ }
+  return null;
 }
+
+const NO_RECEIPT_MESSAGE =
+  "We couldn't read your App Store receipt yet. Wait a few seconds and tap Restore Purchases — if it keeps happening, reopen the app and try again.";
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { data: profile } = useProfile(user?.id);
   const qc = useQueryClient();
 
-  const [iap] = useState<IapModule | null>(() => loadIap());
+  const [loaded] = useState<LoadedIap | null>(() => loadIap());
+  const iap = loaded?.mod ?? null;
+  const native = loaded?.native ?? null;
   const [isReady, setIsReady] = useState(false);
   const [products, setProducts] = useState<Partial<Record<ProductId, StoreSubscriptionProduct>>>({});
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -250,9 +287,9 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       // Validate with the app receipt, not purchase.transactionReceipt —
       // see getVerifiableReceipt. The purchase object is still what we
       // finish (finishTransaction reads purchase.id).
-      const receipt = await getVerifiableReceipt(iap, purchase.transactionReceipt);
+      const receipt = await getVerifiableReceipt(native);
       if (!receipt) {
-        Alert.alert('Could not verify subscription', 'No receipt was available from the App Store. Please try Restore Purchases.');
+        Alert.alert('Could not verify subscription', NO_RECEIPT_MESSAGE);
         return;
       }
       const result = await postReceiptForValidation(receipt);
@@ -318,9 +355,9 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         Alert.alert('No subscription found', 'No active Brewed subscription was found on this Apple ID.');
         return;
       }
-      const receipt = await getVerifiableReceipt(iap, sub.transactionReceipt);
+      const receipt = await getVerifiableReceipt(native);
       if (!receipt) {
-        Alert.alert('Could not restore', 'No receipt was available from the App Store. Please relaunch the app and try again.');
+        Alert.alert('Could not restore', NO_RECEIPT_MESSAGE);
         return;
       }
       const result = await postReceiptForValidation(receipt);
