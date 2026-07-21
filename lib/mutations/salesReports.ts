@@ -4,6 +4,7 @@ import { File } from 'expo-file-system';
 import * as LegacyFS from 'expo-file-system/legacy';
 import { supabase } from '@/lib/supabase';
 import { parseCSVSalesReport } from '@/lib/parsers/csvSales';
+import { decodeTextBytes } from '@/lib/docscan/decode';
 import { parsePDFSalesReport } from '@/lib/parsers/pdfSales';
 import { parseXLSXSalesReport } from '@/lib/parsers/xlsxSales';
 import { reconcileLines } from '@/lib/parsers/productMatcher';
@@ -45,6 +46,26 @@ interface ReadResult {
  */
 async function readFileAsText(asset: { uri: string; name: string }): Promise<ReadResult> {
   const attempts: ReadAttempt[] = [];
+
+  // Byte-first: Square's transaction-items CSV is UTF-16LE with a BOM.
+  // Reading it as UTF-8 text yields NUL-interleaved mojibake the parser
+  // can't use — so decode from raw bytes (decodeTextBytes handles
+  // UTF-16LE/BE, UTF-8 BOM and Latin-1 fallback) before any text API.
+  try {
+    const bytes = await readFileAsBytes(asset);
+    if (bytes && bytes.length > 0) {
+      const text = decodeTextBytes(bytes);
+      attempts.push({ strategy: 'bytes+decode', ok: text.trim().length > 0, bytes: bytes.length });
+      if (text.trim().length > 0) return { text, fileEmptyOnDisk: false, attempts };
+    } else if (bytes && bytes.length === 0) {
+      attempts.push({ strategy: 'bytes+decode', ok: false, bytes: 0, reason: '0 bytes on disk' });
+      return { text: '', fileEmptyOnDisk: true, attempts };
+    } else {
+      attempts.push({ strategy: 'bytes+decode', ok: false, reason: 'byte read failed' });
+    }
+  } catch (e) {
+    attempts.push({ strategy: 'bytes+decode', ok: false, reason: e instanceof Error ? e.message : String(e) });
+  }
 
   try {
     const file = new File(asset.uri);
@@ -451,19 +472,28 @@ export function useAssignProduct() {
         .eq('id', lineItemId);
       if (error) throw error;
 
-      const { data: allItems } = await lineItemsTable()
+      const { data: allItems, error: readErr } = await lineItemsTable()
         .select('cogs_calculated, is_matched')
         .eq('sales_report_id', reportId);
+      // A failed read-back must NOT zero the report's aggregates — writing
+      // calculated_cogs: 0 / matched: 0 for a fully-reconciled report made
+      // 'Apply COGS' stamp £0 cost of goods into the event P&L. Leave the
+      // stored aggregates alone; the invalidation below refreshes the UI
+      // and the next assignment recomputes them.
+      if (readErr) throw readErr;
 
       const items = (allItems ?? []) as { cogs_calculated: number | null; is_matched: boolean }[];
       const newCogs    = items.reduce((s, i) => s + (i.cogs_calculated ?? 0), 0);
       const newMatched = items.filter((i) => i.is_matched).length;
 
-      await reportsTable()
+      const { error: aggErr } = await reportsTable()
         .update({ calculated_cogs: newCogs, matched_line_items: newMatched })
         .eq('id', reportId);
+      if (aggErr) throw aggErr;
     },
-    onSuccess: (_data, { reportId }) => {
+    onSettled: (_data, _err, { reportId }) => {
+      // Settled (not success): the line-item update may have landed even
+      // when the aggregate step failed — repaint either way.
       qc.invalidateQueries({ queryKey: ['sales_line_items', reportId] });
       qc.invalidateQueries({ queryKey: ['sales_reports'] });
     },

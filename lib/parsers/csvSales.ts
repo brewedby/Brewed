@@ -44,15 +44,52 @@ function normalise(s: unknown): string {
   return asString(s).toLowerCase().replace(/[^a-z0-9. ]/g, '').trim();
 }
 
+// Deduction/qualifier words that must not let a GENERIC money alias
+// ('amount', 'total', 'sales', 'revenue') bind to a sub-total column
+// ("Discount Amount", "Tax Amount", "Refund Total").
+const DEDUCTION_WORDS = new Set(['discount', 'refund', 'tax', 'vat', 'fee', 'tip', 'gratuity', 'service', 'change', 'rounding', 'cost']);
+
+/** Whole-word phrase match: is `needle` a contiguous run of whole words
+ *  within `hay`? ('sales' in 'gross sales' → true; 'item' in 'items sold'
+ *  → false because 'item' ≠ the word 'items'). */
+function phraseInWords(hay: string[], needle: string[]): boolean {
+  if (needle.length === 0 || needle.length > hay.length) return false;
+  for (let i = 0; i + needle.length <= hay.length; i++) {
+    let ok = true;
+    for (let j = 0; j < needle.length; j++) {
+      if (hay[i + j] !== needle[j]) { ok = false; break; }
+    }
+    if (ok) return true;
+  }
+  return false;
+}
+
 function findColumn(headers: string[], aliases: string[]): number {
   const lower = headers.map((h) => normalise(h));
+  // 1. Exact header == alias.
   for (const alias of aliases) {
     const exact = lower.indexOf(alias);
     if (exact !== -1) return exact;
   }
+  // 2. Whole-word partial, in BOTH directions but only across word
+  //    boundaries. This keeps 'Sales'→total and 'Units'→qty working while
+  //    rejecting 'Item'→'items sold'. A generic single-word alias is
+  //    additionally rejected when a deduction word immediately precedes it
+  //    in the header ("Discount Amount" must not be the line total).
   for (const alias of aliases) {
-    const partial = lower.findIndex((h) => h.length > 0 && (h.includes(alias) || alias.includes(h)));
-    if (partial !== -1) return partial;
+    const aliasWords = alias.split(' ').filter(Boolean);
+    const idx = lower.findIndex((h) => {
+      if (h.length === 0) return false;
+      const hWords = h.split(' ').filter(Boolean);
+      const matched = phraseInWords(hWords, aliasWords) || phraseInWords(aliasWords, hWords);
+      if (!matched) return false;
+      if (aliasWords.length === 1) {
+        const at = hWords.indexOf(aliasWords[0]);
+        if (at > 0 && DEDUCTION_WORDS.has(hWords[at - 1])) return false;
+      }
+      return true;
+    });
+    if (idx !== -1) return idx;
   }
   return -1;
 }
@@ -111,6 +148,57 @@ function stripBOM(s: string): string {
   return s.charCodeAt(0) === 0xFEFF ? s.slice(1) : s;
 }
 
+/**
+ * Split CSV text into records respecting quoted fields. A newline inside a
+ * quoted field is legal CSV (and xlsxSales.toCsv deliberately produces it
+ * for any Excel cell containing a line break) — the old blanket
+ * split('\n') tore such rows into two malformed halves that were both
+ * silently skipped, losing the sale. Embedded newlines are flattened to a
+ * space so product names stay single-line.
+ */
+function splitRecords(text: string): string[] {
+  const records: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  // A quote only OPENS a field when it is the first character of that field
+  // (RFC4180). This keeps a literal inch-mark in an unquoted value
+  // ("6\" Sub") from flipping quote state and swallowing the rest of the
+  // file — the failure mode of a naive toggle-on-every-quote splitter.
+  let atFieldStart = true;
+  const FIELD_SEPS = new Set([',', ';', '\t']);
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { current += '""'; i++; }   // escaped quote
+        else { inQuotes = false; current += '"'; atFieldStart = false; }
+      } else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && text[i + 1] === '\n') i++;
+        current += ' ';                                       // newline inside a field
+      } else {
+        current += ch;
+      }
+      continue;
+    }
+    if (ch === '"' && atFieldStart) {
+      inQuotes = true; current += '"'; atFieldStart = false;
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      records.push(current);
+      current = '';
+      atFieldStart = true;
+    } else if (FIELD_SEPS.has(ch)) {
+      current += ch;
+      atFieldStart = true;
+    } else {
+      current += ch;
+      if (ch !== ' ' && ch !== '\t') atFieldStart = false;
+    }
+  }
+  records.push(current);
+  return records;
+}
+
 /** Score a line for "looks like a column-header row". A row that's mostly
  *  short alphabetic tokens with header-vocabulary hits scores higher than
  *  a metadata/title row or a numeric data row. */
@@ -167,7 +255,7 @@ export function parseCSVSalesReport(
   fileSizeBytes: number | null = null,
 ): ParseResult {
   const safe = stripBOM(asString(content));
-  const rawLines = safe.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const rawLines = splitRecords(safe);
   const lines = rawLines.filter((l) => l.trim().length > 0);
 
   const diagnostics: ParseDiagnostics = {
@@ -224,9 +312,13 @@ export function parseCSVSalesReport(
   }
 
   const productCol = findColumn(headers, PRODUCT_ALIASES);
-  const qtyCol     = findColumn(headers, QUANTITY_ALIASES);
-  const priceCol   = findColumn(headers, UNIT_PRICE_ALIASES);
-  const totalCol   = findColumn(headers, TOTAL_ALIASES);
+  let qtyCol     = findColumn(headers, QUANTITY_ALIASES);
+  let priceCol   = findColumn(headers, UNIT_PRICE_ALIASES);
+  let totalCol   = findColumn(headers, TOTAL_ALIASES);
+  // A numeric column can never be the product-name column itself.
+  if (qtyCol === productCol) qtyCol = -1;
+  if (priceCol === productCol) priceCol = -1;
+  if (totalCol === productCol) totalCol = -1;
 
   const errors: string[] = [];
   if (productCol === -1) {

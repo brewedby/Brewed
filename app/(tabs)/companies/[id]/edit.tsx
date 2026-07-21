@@ -18,7 +18,25 @@ export default function EditCompanyScreen() {
   const updateCompany = useUpdateCompany();
 
   if (isLoading) return <LoadingSpinner message="Loading company..." />;
-  if (!company) return null;
+  // Avoid a blank dead-end screen if the record fails to load; keep a
+  // working Cancel (it lives in the JSX below a bare `return null`).
+  if (!company) {
+    return (
+      <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 2, borderBottomColor: p.text }}>
+          <Text style={{ fontFamily: tokens.type.display, fontSize: 24, letterSpacing: -0.5, color: p.text }}>Edit Company</Text>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 16, right: 8 }} accessibilityRole="button" accessibilityLabel="Cancel">
+            <Text style={{ fontSize: 13, color: p.brand, fontWeight: '600' }}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+          <Text style={{ fontSize: 13, color: p.textMuted, textAlign: 'center', lineHeight: 19 }}>
+            This company couldn't be loaded. Go back and open it again.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>

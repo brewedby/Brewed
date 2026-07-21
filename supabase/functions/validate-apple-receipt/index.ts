@@ -152,6 +152,23 @@ serve(async (req) => {
       });
     }
 
+    // Guard: a StoreKit 2 JWS (three dot-separated base64url segments) is
+    // NOT a legacy app receipt — /verifyReceipt rejects it with opaque
+    // status 21002. The client sends the base64 app receipt; if a JWS ever
+    // arrives, return 200 with ok:false so the actionable message reaches
+    // the app (a non-2xx status is surfaced by supabase.functions.invoke
+    // as a generic FunctionsHttpError and the body text is lost). A real
+    // base64 app receipt is long and contains '+' '/' '=' — none of which
+    // appear in a JWS's base64url segments — so this cannot false-positive.
+    if (/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(receiptData)) {
+      return new Response(JSON.stringify({
+        ok: false,
+        error: 'A StoreKit 2 transaction token was sent instead of an App Store receipt. Update to the latest app version, then try Restore Purchases.',
+      }), {
+        status: 200, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Try production first; on 21007 retry against sandbox
     let resp = await verifyWithApple(receiptData, sharedSecret, false);
     if (resp.status === 21007) resp = await verifyWithApple(receiptData, sharedSecret, true);

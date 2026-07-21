@@ -285,6 +285,30 @@ const SQUARE_FIXTURE = [
     'contract costs are planned, not yet deducted');
 }
 
+// ── 9b. Contract amounts without thousands separators (regression) ───────────
+// AMOUNT_RE used to anchor the integer part to \d{1,3}, so a 4-digit fee
+// with no comma ("£1500") was read as £150 — a 10x understatement of a
+// planned cost the user could accept on the review screen.
+{
+  const doc = scanFinancialText([
+    'Book your place at Big Event', 'Karamu Limited (T/A Togather)',
+    'Fee table',
+    'Pitch fee', '1 x pitch fee £1500 (Inc. VAT)',
+    'Event fee', '1 x event fee £12000.00 + VAT',
+    'Admin fee', '1 x admin fee £1,250.00 + VAT',
+  ]);
+  const terms = extractContractTerms(doc);
+  const pitch = terms.candidateCosts.find((c) => /pitch/i.test(c.description));
+  const eventFee = terms.candidateCosts.find((c) => /event fee/i.test(c.description));
+  const admin = terms.candidateCosts.find((c) => /admin/i.test(c.description));
+  expect('contract_uncommaed_1500_not_150', !!pitch && pitch.gross === 1500,
+    JSON.stringify(pitch && { g: pitch.gross }));
+  expect('contract_uncommaed_12000_net', !!eventFee && eventFee.net === 12000,
+    JSON.stringify(eventFee && { n: eventFee.net }));
+  expect('contract_commaed_still_works', !!admin && admin.net === 1250,
+    JSON.stringify(admin && { n: admin.net }));
+}
+
 // ── 10. Forecast vs actual ───────────────────────────────────────────────────
 {
   const variance = compareForecastToActual(

@@ -33,10 +33,26 @@ export default function ForgotPasswordScreen() {
     });
     setLoading(false);
     if (error) {
-      Alert.alert(
-        'Could not send code',
-        'No account found with that email address. Double-check the address and try again.',
-      );
+      // Distinguish the rate-limit case: Supabase throttles OTP requests
+      // to one per 60s, which the "Resend code" button hits easily. The
+      // old copy told a real account-holder "No account found", so they
+      // assumed their account was gone. Also avoid asserting non-existence
+      // for other failures (network, generic) — that both misleads and
+      // leaks whether an email is registered.
+      const msg = (error.message ?? '').toLowerCase();
+      const isRateLimit =
+        error.status === 429 ||
+        msg.includes('rate limit') ||
+        msg.includes('after 60 seconds') ||
+        msg.includes('only request this after');
+      if (isRateLimit) {
+        Alert.alert('Please wait a moment', 'You can request another code in about a minute. Check your inbox and spam folder in the meantime.');
+      } else {
+        Alert.alert(
+          'Could not send code',
+          "We couldn't send a code to that address. Check it's typed correctly and that you have signal, then try again.",
+        );
+      }
       return;
     }
     setStep('code');

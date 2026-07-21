@@ -66,7 +66,17 @@ export function SalesReconciliation({ report, eventId, existingCogs, onCogsAppli
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: () => { deleteReport.mutate({ reportId: report.id, eventId }); onDeleted(); },
+          // Hide the report only AFTER the delete lands. Hiding it on tap
+          // meant an offline/RLS failure looked like success — the report
+          // reappeared on the next visit.
+          onPress: async () => {
+            try {
+              await deleteReport.mutateAsync({ reportId: report.id, eventId });
+              onDeleted();
+            } catch (e) {
+              Alert.alert('Could not remove', e instanceof Error ? e.message : 'Check your connection and try again.');
+            }
+          },
         },
       ],
     );

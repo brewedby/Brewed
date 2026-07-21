@@ -23,6 +23,7 @@
  */
 
 import pako from 'pako';
+import { splitTextBlocks } from './pdfSales';
 
 // ── Binary helpers ───────────────────────────────────────────────────────────
 
@@ -244,11 +245,11 @@ function extractLines(content: string, fonts: Map<string, CMap>): string[] {
     return { str: raw, next: j };
   };
 
-  const btRe = /BT([\s\S]*?)ET/g;
-  let bm: RegExpExecArray | null;
-  while ((bm = btRe.exec(content)) !== null) {
+  // String-aware BT…ET block splitting — the lazy /BT([\s\S]*?)ET/ regex
+  // truncated the block at any literal 'ET' inside a (…) string operand
+  // ('SETTLEMENT', 'NET SALES'), dropping every line after it.
+  for (const block of splitTextBlocks(content)) {
     flush();
-    const block = bm[1];
     let i = 0;
     while (i < block.length) {
       const ch = block[i];

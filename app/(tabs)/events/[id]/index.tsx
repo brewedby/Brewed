@@ -111,7 +111,7 @@ export default function EventDetailScreen() {
   const p = tokens.palette;
   const S = farStatus(isDark);
 
-  const { data: event, isLoading, refetch } = useEvent(id);
+  const { data: event, isLoading, isError, refetch } = useEvent(id);
   // Shared trader profile resolver — see lib/queries/traderProfile.ts.
   // Returns canonical tradeType plus a four-state status so the card
   // can never render an error banner when the user actually has
@@ -258,11 +258,46 @@ export default function EventDetailScreen() {
   }
 
   if (isLoading) return <LoadingSpinner message="Loading application..." />;
-  if (!event) return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: p.bg }}>
-      <Text style={{ color: p.textMuted }}>Event not found</Text>
-    </View>
-  );
+  if (!event) {
+    // A fetch error (flaky signal, server hiccup) is NOT the same as a
+    // genuinely missing row — the old screen said "Event not found" for
+    // both, implying the event had been deleted, and gave no way back or
+    // to retry. Distinguish the two and always offer a route out.
+    return (
+      <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+        <BackBar trail={trail} fallbackLabel="Events" />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 14 }}>
+          <Text style={{ fontFamily: tokens.type.display, fontSize: 20, color: p.text, textAlign: 'center' }}>
+            {isError ? "Couldn't load this event" : 'Event not found'}
+          </Text>
+          <Text style={{ fontSize: 13, color: p.textMuted, textAlign: 'center', lineHeight: 19 }}>
+            {isError
+              ? 'Something went wrong reaching your data. Check your connection and try again.'
+              : 'This event may have been deleted. Head back to your events list.'}
+          </Text>
+          {isError ? (
+            <TouchableOpacity
+              onPress={() => refetch()}
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading event"
+              style={{ backgroundColor: p.text, paddingHorizontal: 20, paddingVertical: 12, minHeight: 44, justifyContent: 'center' }}
+            >
+              <Text style={{ color: p.bg, fontWeight: '700', fontSize: 13, letterSpacing: 1 }}>TRY AGAIN</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/events'))}
+              accessibilityRole="button"
+              accessibilityLabel="Back to events"
+              style={{ borderWidth: 1, borderColor: p.text, paddingHorizontal: 20, paddingVertical: 12, minHeight: 44, justifyContent: 'center' }}
+            >
+              <Text style={{ color: p.text, fontWeight: '700', fontSize: 13, letterSpacing: 1 }}>BACK TO EVENTS</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  }
 
   const dotColor = STATUS_DOT[event.status] ?? p.textFaint;
 
