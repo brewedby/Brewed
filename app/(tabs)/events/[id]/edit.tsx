@@ -26,7 +26,26 @@ export default function EditEventScreen() {
   const { data: units = [] } = useUnits();
 
   if (isLoading) return <LoadingSpinner message="Loading event..." />;
-  if (!event) return null;
+  // A failed/empty load must not leave a blank screen with no way out
+  // (reachable via a stale deep link or an evicted cache). Give the user
+  // a titled screen with a working Cancel instead of a bare `null`.
+  if (!event) {
+    return (
+      <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 2, borderBottomColor: p.text }}>
+          <Text style={{ fontFamily: tokens.type.display, fontSize: 22, letterSpacing: -0.5, color: p.text }}>Edit event</Text>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 16, right: 8 }} accessibilityRole="button" accessibilityLabel="Cancel">
+            <Text style={{ fontSize: 13, color: p.brand, fontWeight: '600' }}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+          <Text style={{ fontSize: 13, color: p.textMuted, textAlign: 'center', lineHeight: 19 }}>
+            This event couldn't be loaded. Go back and open it again.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   const fin = event.event_financials;
   const defaultValues: Partial<EventFormValues> = {

@@ -18,7 +18,12 @@ import { completeVat } from './vat';
 const FEE_LABELS = /^(sales commission|commission|deposit|admin fee|confirmation fee|epos terminals?|terminal hire|wi.?fi( fee)?|power( fee)?|pitch fee|event fee|minimum guarantee)/i;
 
 const PCT_RE = /(\d{1,2}(?:\.\d{1,2})?)\s*%/;
-const AMOUNT_RE = /£\s*\d{1,3}(?:,\d{3})*(?:\.\d{2})?/;
+// Comma-grouped (£1,500.00) OR a plain digit run (£1500). The earlier
+// /\d{1,3}(?:,\d{3})*/ matched only the first three digits of an
+// un-grouped amount, so "£1500" was read as £150 — a 10× understatement
+// of a planned cost. parseFloat below strips any commas, so a plain run
+// is safe to capture whole.
+const AMOUNT_RE = /£\s*\d{1,3}(?:,\d{3})+(?:\.\d{2})?|£\s*\d+(?:\.\d{2})?/;
 
 export interface ContractTerms {
   eventName: string | null;

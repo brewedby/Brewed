@@ -20,7 +20,26 @@ export default function EditUnitScreen() {
   const updateUnit = useUpdateUnit();
 
   if (isLoading) return <LoadingSpinner message="Loading unit..." />;
-  if (!unit) return null;
+  // Don't strand the user on a blank screen if the record fails to load
+  // (stale deep link / evicted cache) — the Cancel control lives in the
+  // JSX below, so a bare `return null` would leave no way out.
+  if (!unit) {
+    return (
+      <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: insets.top }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 2, borderBottomColor: p.text }}>
+          <Text style={{ fontFamily: tokens.type.display, fontSize: 24, letterSpacing: -0.5, color: p.text }}>Edit Unit</Text>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 16, right: 8 }} accessibilityRole="button" accessibilityLabel="Cancel">
+            <Text style={{ fontSize: 13, color: p.brand, fontWeight: '600' }}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+          <Text style={{ fontSize: 13, color: p.textMuted, textAlign: 'center', lineHeight: 19 }}>
+            This unit couldn't be loaded. Go back and open it again.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   async function handleSubmit(data: UnitFormValues) {
     try {
