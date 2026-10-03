@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/lib/themeContext';
 import { farStatus, STATUS_DOT } from '@/lib/theme';
-import { formatCurrency, formatDateRange } from '@/lib/formatters';
+import { formatCurrency } from '@/lib/formatters';
 import type { EventWithFinancials } from '@/types';
 
 const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];

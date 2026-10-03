@@ -13,8 +13,6 @@ const CALENDAR_TRAIL = encodeTrail([
   { label: 'Calendar', pathname: '/(tabs)/events' },
 ]);
 
-export { scoreEvent } from '@/lib/scoring';
-export type { ScoreResult } from '@/lib/scoring';
 
 const DOW = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -63,7 +61,7 @@ function eventsInMonth(events: EventWithFinancials[], year: number, month: numbe
 }
 
 function formatShortDate(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
+  const [, m, d] = iso.split('-').map(Number);
   const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return `${d} ${monthNames[m - 1]}`;
 }

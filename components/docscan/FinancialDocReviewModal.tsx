@@ -11,8 +11,7 @@ import {
   type DocLineItem, type LineCategory, type VatTreatment,
 } from '@/lib/docscan/model';
 import { completeVat } from '@/lib/docscan/vat';
-import { reconcilePayout } from '@/lib/docscan/reconcile';
-import { RECONCILIATION_LABELS } from '@/lib/docscan/reconcile';
+import { reconcilePayout , RECONCILIATION_LABELS } from '@/lib/docscan/reconcile';
 
 interface Props {
   pending: PendingFinancialImport;

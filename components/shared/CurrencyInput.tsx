@@ -74,15 +74,3 @@ export function CurrencyInput({
     </View>
   );
 }
-
-export function currencySymbolFor(code: string | null | undefined): string {
-  switch ((code ?? 'GBP').toUpperCase()) {
-    case 'EUR':
-      return '€';
-    case 'USD':
-      return '$';
-    case 'GBP':
-    default:
-      return '£';
-  }
-}

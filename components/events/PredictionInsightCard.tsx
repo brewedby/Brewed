@@ -141,7 +141,7 @@ export function PredictionInsightCard({
     if (isProfileLoading) return;
     if (isProfileError) return;
     if (isProfileLoaded === false) return;
-    // eslint-disable-next-line no-console
+     
     console.log('[Prediction]', {
       rawBusinessType,
       canonical: canonicalTradeType,

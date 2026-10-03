@@ -153,6 +153,3 @@ export function emptySales(): SalesSummary {
     salesVat: null, cashSales: null, cardSales: null,
   };
 }
-
-/** UK VAT rates offered in the review UI. Custom rates are allowed. */
-export const VAT_RATES = [0.20, 0.05, 0] as const;

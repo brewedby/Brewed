@@ -129,7 +129,7 @@ export function useUpdateProfile() {
       // rewrite the value. We compare per-field so a silent miswrite
       // on ANY editable column ("Saved!" alert but business name still
       // blank on next view) surfaces as an error rather than passing.
-      for (const key of Object.keys(updates) as Array<keyof EditableProfileFields>) {
+      for (const key of Object.keys(updates) as (keyof EditableProfileFields)[]) {
         const sent = updates[key];
         const got = (data as Record<string, unknown>)[key];
         if (sent === undefined) continue;

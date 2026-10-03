@@ -57,7 +57,7 @@ export default function SignUpScreen() {
     if (password.length < 6) { Alert.alert('Error', 'Password must be at least 6 characters.'); return; }
     if (password !== confirmPassword) { Alert.alert('Error', 'Passwords do not match.'); return; }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: { data: { business_name: businessName.trim() } },
@@ -66,7 +66,14 @@ export default function SignUpScreen() {
     if (error) {
       Alert.alert('Sign up failed', error.message);
     } else {
-      Alert.alert('Account created!', 'Check your email to confirm your account before signing in.');
+      // With email confirmation on, no session comes back — send the user
+      // to sign-in rather than leaving them on a filled-in sign-up form.
+      // (With confirmation off, the root layout redirects on the session.)
+      Alert.alert(
+        'Account created!',
+        'Check your email to confirm your account before signing in.',
+        data.session ? undefined : [{ text: 'OK', onPress: () => router.replace('/(auth)/sign-in') }],
+      );
     }
   }
 

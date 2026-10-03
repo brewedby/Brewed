@@ -263,20 +263,3 @@ export function useUpdateEvent() {
     },
   });
 }
-
-export function useLogSales() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ eventId, grossSales }: { eventId: string; grossSales: number }) => {
-      const { error } = await supabase
-        .from('event_financials')
-        .upsert({ event_id: eventId, gross_sales: grossSales }, { onConflict: 'event_id' });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['events'] });
-      qc.invalidateQueries({ queryKey: ['dashboard'] });
-      qc.invalidateQueries({ queryKey: ['reports'] });
-    },
-  });
-}

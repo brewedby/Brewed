@@ -45,7 +45,7 @@ const DEFAULT_FORECAST_PREFS: Metric[] = [
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
-const THEME_OPTIONS: Array<{ id: ThemeMode; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = [
+const THEME_OPTIONS: { id: ThemeMode; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
   { id: 'auto',  label: 'Auto',  icon: 'phone-portrait-outline' },
   { id: 'light', label: 'Light', icon: 'sunny-outline' },
   { id: 'dark',  label: 'Dark',  icon: 'moon-outline' },

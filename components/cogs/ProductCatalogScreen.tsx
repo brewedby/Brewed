@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Modal, View, Text, FlatList, TouchableOpacity,
+  Modal, View, Text, TouchableOpacity,
   Alert, ActivityIndicator, TextInput, SectionList,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

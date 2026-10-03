@@ -339,13 +339,6 @@ export function getTradeConfig(tradeType: string | null | undefined): TradeTypeC
   return CONFIG_BY_KEY[normalizeTradeType(tradeType)] ?? OTHER;
 }
 
-/** Convenience: just the prediction kinds for a trade. Used by callers
- *  who need to know whether to fetch supporting data (e.g. daily takings
- *  for the drink-split engine). */
-export function getPredictionKinds(tradeType: string | null | undefined): PredictionKind[] {
-  return getTradeConfig(tradeType).predictionLenses.map((l) => l.kind);
-}
-
 /**
  * Normalise free-text trade type input into one of the canonical config keys.
  * Handles capitalisation, separators, and common aliases ("coffee_cart",
@@ -361,7 +354,7 @@ export function normalizeTradeType(raw: string | null | undefined): string {
   if (!cleaned) return 'Other';
 
   // Direct alias hits — match by substring on the simplified input.
-  const aliasMap: Array<[RegExp, string]> = [
+  const aliasMap: [RegExp, string][] = [
     [/\bcoffee\b/,        'Coffee'],
     [/\bespresso\b/,      'Coffee'],
     [/\bcafe\b/,          'Coffee'],

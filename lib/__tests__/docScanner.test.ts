@@ -19,7 +19,7 @@ function expect(name: string, cond: boolean, detail: string = '') {
 
 import { completeVat, inferRate, calcVatPosition, roundPence } from '../docscan/vat';
 import { reconcilePayout } from '../docscan/reconcile';
-import { scanFinancialText, classifyDocument, scrubPII, parseMoney, rejoinSplitAmounts } from '../docscan/parse';
+import { scanFinancialText, scrubPII, parseMoney, rejoinSplitAmounts } from '../docscan/parse';
 import { extractContractTerms, compareForecastToActual } from '../docscan/contract';
 import { decodeTextBytes } from '../docscan/decode';
 import { sha256Hex } from '../docscan/hash';

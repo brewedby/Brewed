@@ -1,4 +1,4 @@
-import type { Database, ApplicationStatus, UnitStatus } from './database';
+import type { Database, ApplicationStatus } from './database';
 
 export type { ApplicationStatus, UnitStatus } from './database';
 

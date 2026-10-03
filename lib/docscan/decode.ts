@@ -20,7 +20,7 @@ export function decodeTextBytes(bytes: Uint8Array): string {
   let s = '';
   for (let i = start; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
   try {
-    // eslint-disable-next-line no-undef
+     
     return decodeURIComponent(escape(s)); // UTF-8 re-decode
   } catch {
     return s; // already Latin-1/ASCII-safe

@@ -2,8 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { calcEventFinancials } from '@/lib/calculations';
 import { formatMonthLabel } from '@/lib/formatters';
-import { EMPTY_CALCULATIONS } from '@/types';
-import type { ReportData, MonthlyBreakdown, CompanyPerformance, ApplicationStatus } from '@/types';
+import type { ReportData, MonthlyBreakdown, CompanyPerformance } from '@/types';
 
 export function useReports(year: number) {
   return useQuery({

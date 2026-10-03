@@ -21,8 +21,6 @@ const EVENTS_TRAIL = encodeTrail([
   { label: 'Applications', pathname: '/(tabs)/events' },
 ]);
 
-const CURRENT_YEAR = new Date().getFullYear();
-const YEARS_LIST = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i);
 
 const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -144,12 +142,11 @@ export default function EventsScreen() {
   const p = tokens.palette;
 
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all');
-  const [yearFilter, setYearFilter] = useState<number | undefined>(undefined);
   const [viewFilter, setViewFilter] = useState<'upcoming' | 'completed' | 'all'>('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data: eventsRaw, isLoading, isError, error, refetch } = useEvents({ status: statusFilter, year: yearFilter });
+  const { data: eventsRaw, isLoading, isError, error, refetch } = useEvents({ status: statusFilter });
   const { data: companies } = useCompanies();
 
   async function handleRefresh() {
@@ -182,7 +179,7 @@ export default function EventsScreen() {
   }, [companies]);
 
   const overlappingPairs = useMemo(() => {
-    const pairs: Array<{ a: EventWithFinancials; b: EventWithFinancials }> = [];
+    const pairs: { a: EventWithFinancials; b: EventWithFinancials }[] = [];
     const upcomingAccepted = upcoming.filter((e) => e.status === 'accepted' || e.status === 'pending' || e.status === 'waitlisted');
     for (let i = 0; i < upcomingAccepted.length; i++) {
       for (let j = i + 1; j < upcomingAccepted.length; j++) {

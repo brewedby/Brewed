@@ -133,19 +133,6 @@ export function useDeleteProduct() {
   });
 }
 
-export function useReorderProducts() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (orderedIds: string[]) => {
-      const updates = orderedIds.map((id, idx) =>
-        supabase.from('product_catalog').update({ sort_order: idx }).eq('id', id)
-      );
-      await Promise.all(updates);
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['product_catalog'] }),
-  });
-}
-
 /**
  * Bulk-update product categories. Used by the "Auto-fix legacy categories"
  * button on the menu screen — the caller computes the mapping with
@@ -158,7 +145,7 @@ export function useRecategorizeProducts() {
     mutationFn: async ({
       mappings,
     }: {
-      mappings: Array<{ id: string; newCategory: string }>;
+      mappings: { id: string; newCategory: string }[];
     }) => {
       if (mappings.length === 0) return;
       const results = await Promise.all(

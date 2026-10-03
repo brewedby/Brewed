@@ -51,7 +51,7 @@ function makePdf(contentStream: string): Uint8Array {
  * Build a PDF content stream with typical POS report rows.
  * Format: product name  quantity  unit_price  total (in BT/ET blocks with Td positioning)
  */
-function makeSalesContent(rows: Array<{ name: string; qty: number; price: number; total: number }>): string {
+function makeSalesContent(rows: { name: string; qty: number; price: number; total: number }[]): string {
   let content = 'BT\n/F1 12 Tf\n';
   let y = 700;
   // Header
@@ -223,7 +223,7 @@ const importReviewSrc = fs.readFileSync(path.join(ROOT, 'components', 'cogs', 'I
 
 expect(
   'pdf_parser_uses_pako_locally',
-  pdfParserSrc.includes("import pako from 'pako'"),
+  /from 'pako'/.test(pdfParserSrc),
   'PDF parser must import pako for local zlib decompression',
 );
 

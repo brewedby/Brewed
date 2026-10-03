@@ -205,7 +205,7 @@ export function useParseSalesReport() {
         const parsed = outcome.result;
 
         if (__DEV__ && parsed.diagnostics) {
-          // eslint-disable-next-line no-console
+           
           console.log('[XLSX parse]', {
             file: asset.name,
             headers: parsed.diagnostics.detectedHeaders,
@@ -245,7 +245,7 @@ export function useParseSalesReport() {
 
         if (__DEV__) {
           // Dev diagnostic — never logs raw PDF content, only counts and metadata
-          // eslint-disable-next-line no-console
+           
           console.log('[PDF parse]', {
             file: asset.name,
             size: asset.size,
@@ -277,7 +277,7 @@ export function useParseSalesReport() {
         const read = await readFileAsText(asset);
 
         if (__DEV__) {
-          // eslint-disable-next-line no-console
+           
           console.log('[CSV read]', {
             file: asset.name,
             assetSize: asset.size,
@@ -313,7 +313,7 @@ export function useParseSalesReport() {
         }
 
         if (__DEV__ && parsed.diagnostics) {
-          // eslint-disable-next-line no-console
+           
           console.log('[CSV parse]', {
             file: asset.name,
             delimiter: parsed.diagnostics.detectedDelimiter,

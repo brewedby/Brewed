@@ -14,7 +14,7 @@ import { FarDivider } from '@/components/far/Divider';
 import { useAuth } from '@/lib/auth';
 import { useProfile } from '@/lib/queries/profile';
 import { useTheme } from '@/lib/themeContext';
-import { TONE, farStatus } from '@/lib/theme';
+import { farStatus } from '@/lib/theme';
 import { encodeTrail } from '@/lib/navTrail';
 import type { UnitWithStatus } from '@/types';
 

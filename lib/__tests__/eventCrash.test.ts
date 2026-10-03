@@ -245,10 +245,10 @@ expect('safe_event_days_documents_root_cause',
 let pass = 0, fail = 0;
 for (const r of results) {
   const tag = r.pass ? 'PASS' : 'FAIL';
-  // eslint-disable-next-line no-console
+   
   console.log(`${tag}  ${r.name.padEnd(52)} ${r.detail}`);
   if (r.pass) pass++; else fail++;
 }
-// eslint-disable-next-line no-console
+ 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);

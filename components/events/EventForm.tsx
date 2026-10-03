@@ -72,6 +72,9 @@ function DatePickerModal({
     setDayIdx(parsed.getDate() - 1);
     setMonthIdx(parsed.getMonth());
     setYearIdx(yi >= 0 ? yi : 5);
+    // Seed the wheels only when the picker opens — re-seeding on every
+    // value change would fight the user's scrolling.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   const numDays = daysInMonth(monthIdx + 1, years[yearIdx]);

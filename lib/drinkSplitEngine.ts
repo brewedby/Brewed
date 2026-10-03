@@ -1,5 +1,4 @@
 import type { DailyTakings, DrinkSplitPrediction } from '@/types';
-import { VAT_DIVISOR } from '@/constants';
 
 export interface EventFinancialSummary {
   standard_rated_sales: number;
@@ -146,54 +145,4 @@ export function predictDrinkSplit(
     totalDataPoints,
     bracketBreakdown,
   };
-}
-
-// Leave-one-out accuracy: predicts each saved day using all other data, compares to actual.
-// Returns null if any bracket being tested has fewer than 2 data points (insufficient
-// for a meaningful in-bracket prediction once the held-out day is removed).
-export function computePredictionAccuracy(
-  historicalDays: DailyTakings[],
-  historicalEventFinancials: EventFinancialSummary[],
-): { avgErrorPct: number; sampleCount: number } | null {
-  const validDays = historicalDays.filter(
-    (d) => d.avg_temp_c !== null && d.total_takings > 0 && (d.hot_drinks_sales + d.iced_drinks_sales) > 0,
-  );
-  if (validDays.length === 0) return null;
-
-  // Count points per bracket from BOTH sources (daily_takings + event financials)
-  const bracketCounts: Record<string, number> = { cold: 0, cool: 0, warm: 0, hot: 0 };
-  validDays.forEach((d) => { bracketCounts[getTempBracket(d.avg_temp_c!)]++; });
-  historicalEventFinancials
-    .filter((f) => (f.standard_rated_sales + f.zero_rated_sales) > 0)
-    .forEach((f) => {
-      const tempC = f.avg_temp_c ?? UK_MONTHLY_AVG_TEMP[f.month - 1];
-      bracketCounts[getTempBracket(tempC)]++;
-    });
-
-  // Only test days whose bracket has >= 2 points (so leave-one-out still has 1+ point left)
-  const testableDays = validDays.filter((d) => bracketCounts[getTempBracket(d.avg_temp_c!)] >= 2);
-  if (testableDays.length === 0) return null;
-
-  const errors: number[] = [];
-  for (const day of testableDays) {
-    const otherDays = historicalDays.filter((d) => d.id !== day.id);
-    const pred = predictDrinkSplit(day.avg_temp_c!, otherDays, historicalEventFinancials);
-    const actualHotPct = (day.hot_drinks_sales / (day.hot_drinks_sales + day.iced_drinks_sales)) * 100;
-    errors.push(Math.abs(pred.hotPct - actualHotPct));
-  }
-
-  if (errors.length === 0) return null;
-  return {
-    avgErrorPct: errors.reduce((a, b) => a + b, 0) / errors.length,
-    sampleCount: errors.length,
-  };
-}
-
-export function projectDayTakings(totalTakings: number, prediction: DrinkSplitPrediction) {
-  const hotGross = totalTakings * (prediction.hotPct / 100);
-  const icedGross = totalTakings * (prediction.icedPct / 100);
-  const hotNet = hotGross / VAT_DIVISOR;
-  const vatAmount = hotGross - hotNet;
-  const netSales = hotNet + icedGross;
-  return { hotGross, icedGross, hotNet, vatAmount, netSales };
 }
