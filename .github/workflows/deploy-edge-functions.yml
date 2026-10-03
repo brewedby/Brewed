@@ -1,4 +1,4 @@
-# Deploys Supabase Edge Functions whenever they change on main, so the
+# Deploys Supabase Edge Functions whenever they change on final-form, so the
 # deployed code can never drift from the repo again (the Oct 2026 audit
 # found validate-apple-receipt running a months-old version).
 #
