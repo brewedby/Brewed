@@ -42,6 +42,7 @@ export async function getDevTierOverride(): Promise<SubscriptionTier | null> {
   }
 }
 
+/** @public Dev-only: call from the JS debugger console to test feature gates. */
 export async function setDevTierOverride(tier: SubscriptionTier | null): Promise<void> {
   if (!__DEV__) return;
   try {

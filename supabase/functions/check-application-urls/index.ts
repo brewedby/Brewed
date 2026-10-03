@@ -12,8 +12,7 @@
 // The directory (uk_events_directory) URL check lives in sync-directory.
 // Push notifications are not sent: the app never registers push tokens.
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -50,7 +49,7 @@ async function fetchPageContent(url: string): Promise<string | null> {
   }
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
   }

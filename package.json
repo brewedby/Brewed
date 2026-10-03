@@ -6,7 +6,13 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "node scripts/run-tests.mjs",
+    "knip": "knip --no-config-hints",
+    "doctor": "npx expo-doctor@latest",
+    "check": "npm run typecheck && npm run lint && npm test && npm run knip"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

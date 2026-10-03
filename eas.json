@@ -10,21 +10,24 @@
       "ios": {
         "simulator": true,
         "image": "latest"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
       "ios": {
         "simulator": false,
         "image": "latest"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
       "ios": {
         "buildConfiguration": "Release",
         "image": "latest"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {

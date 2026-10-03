@@ -285,10 +285,4 @@ export function getCategoryDefinition(category: string | null | undefined): (Cat
   return { value: key, ...(CATEGORY_DEFINITIONS[key] ?? CATEGORY_DEFINITIONS.other) };
 }
 
-// Categories where the selling price includes 20% VAT (hot food/drinks).
-// Derived from CATEGORY_DEFINITIONS so the two stay in sync.
-export const VATABLE_CATEGORIES: ProductCategory[] = Object.entries(CATEGORY_DEFINITIONS)
-  .filter(([, def]) => def.vatable)
-  .map(([key]) => key);
-
 export const UNIT_OPTIONS = ['cup', 'item', 'portion', 'serving', 'kg', 'litre', 'slice', 'pack'];

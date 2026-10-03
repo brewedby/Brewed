@@ -48,3 +48,7 @@ yarn-error.*
 
 # Design port files (not shipped to production)
 design-port/
+
+# Whole-repo AI context dumps (regenerate with: npx repomix)
+repomix-output.*
+codebase.md

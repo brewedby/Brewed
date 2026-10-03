@@ -73,6 +73,11 @@
         "projectId": "4df43cb1-befc-4dc3-a6ce-88e3618ff243"
       },
       "router": {}
+    },
+    "updates": {
+      "url": "https://u.expo.dev/4df43cb1-befc-4dc3-a6ce-88e3618ff243",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     }
   }
 }

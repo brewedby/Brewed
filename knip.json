@@ -1,0 +1,27 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "app/**/*.{ts,tsx}",
+    "lib/__tests__/*.test.ts",
+    "scripts/*.mjs"
+  ],
+  "project": [
+    "app/**/*.{ts,tsx}",
+    "components/**/*.{ts,tsx}",
+    "lib/**/*.{ts,tsx}",
+    "constants/**/*.ts",
+    "types/**/*.ts",
+    "scripts/**/*.mjs"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "exclude": [
+    "types"
+  ],
+  "ignoreDependencies": [
+    "babel-preset-expo",
+    "react-native-svg",
+    "react-native-worklets",
+    "tsx",
+    "expo-system-ui"
+  ]
+}

@@ -1,0 +1,27 @@
+# EAS Workflow: build the iOS production binary and upload it to
+# App Store Connect (TestFlight) in one go.
+#
+# Run it:   npx eas-cli workflow:run .eas/workflows/build-and-submit-ios.yml
+# or link the GitHub repo in expo.dev (Project → GitHub) and uncomment
+# the `push` trigger to build every merge to main automatically.
+name: Build and submit iOS
+
+on:
+  workflow_dispatch: {}
+  # push:
+  #   branches: ['main']
+
+jobs:
+  build_ios:
+    name: Build iOS (production)
+    type: build
+    params:
+      platform: ios
+      profile: production
+
+  submit_ios:
+    name: Submit to App Store Connect
+    needs: [build_ios]
+    type: submit
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}

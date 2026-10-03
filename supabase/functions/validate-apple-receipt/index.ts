@@ -22,8 +22,7 @@
 // Apple's documentation says: always try production first; if you receive
 // status 21007, retry against sandbox.
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -108,7 +107,7 @@ function deriveStatus(latest: AppleLatestReceiptInfo, renewal: ApplePendingRenew
   return { status: 'expired', expiresAt, willRenew };
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
 
   try {
