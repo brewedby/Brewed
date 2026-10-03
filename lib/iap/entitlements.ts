@@ -107,3 +107,44 @@ export function hasFeature(
 export function requiredPlanName(feature: FeatureKey): string {
   return FEATURE_TIERS[feature] === 'pro' ? 'Brewed Pro' : 'Brewed Trader';
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+interface SubscriptionSnapshot {
+  subscription_status: string | null | undefined;
+  subscription_expires_at: string | null | undefined;
+  reviewer_grandfathered?: boolean | null;
+}
+
+/**
+ * Is the server-recorded subscription currently entitled? Active/grace
+ * statuses count until 24h past expiry (rides out Apple's renewal lag and
+ * gives the silent re-validation below time to land the renewal).
+ */
+export function isSubscriptionEntitled(p: SubscriptionSnapshot | null | undefined, now: number): boolean {
+  if (!p) return false;
+  if (p.reviewer_grandfathered) return true;
+  if (p.subscription_status !== 'active' && p.subscription_status !== 'in_grace_period') return false;
+  if (!p.subscription_expires_at) return true;
+  const expires = Date.parse(p.subscription_expires_at);
+  if (Number.isNaN(expires)) return true;
+  return expires > now - DAY_MS;
+}
+
+/**
+ * Should the app silently re-send the App Store receipt to the server?
+ *
+ * The server only learns about a renewal when the app posts a receipt
+ * (there is no App Store Server Notifications handler yet). Without this,
+ * a paying subscriber whose month rolled over would be shown the paywall
+ * 24h later. True when the recorded expiry is within a day, or lapsed in
+ * the last 30 days (a lapsed sub may have renewed from billing retry).
+ */
+export function needsSilentRevalidation(p: SubscriptionSnapshot | null | undefined, now: number): boolean {
+  if (!p || p.reviewer_grandfathered) return false;
+  if (!p.subscription_status || p.subscription_status === 'none' || p.subscription_status === 'revoked') return false;
+  if (!p.subscription_expires_at) return false;
+  const expires = Date.parse(p.subscription_expires_at);
+  if (Number.isNaN(expires)) return false;
+  return expires - now < DAY_MS && now - expires < 30 * DAY_MS;
+}

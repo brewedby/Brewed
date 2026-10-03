@@ -62,11 +62,10 @@ export default function ResetPasswordScreen() {
         [{ text: 'OK' }],
       );
     } else {
-      // Route through useAuth().signOut() so the biometric refresh
-      // token gets cleared too — otherwise the user who reset their
-      // password would still see "Sign in with Face ID" against a
-      // refresh token that's about to be revoked by Supabase.
-      await signOut();
+      // Route through useAuth().signOut() so the app lock and query
+      // cache are cleared too. Global scope: after a password change,
+      // every other device signed in with the old password is signed out.
+      await signOut({ scope: 'global' });
       Alert.alert(
         'Password updated',
         'Your password has been changed. Sign in with your new password.',

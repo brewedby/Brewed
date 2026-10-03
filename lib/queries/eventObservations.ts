@@ -14,6 +14,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { toISODateString } from '@/lib/formatters';
 import type { ProductCategory } from '@/types/cogs';
 
 export interface EventObservation {
@@ -130,9 +131,10 @@ export function useEventObservations() {
       // an upcoming event has been marked 'accepted' and pre-filled with
       // financial values, it must not influence the forecast for a NEXT
       // event — that would create a cycle where forecasts learn from
-      // forecasts. We compare today (UTC ISO yyyy-mm-dd) against the
+      // forecasts. We compare today (LOCAL yyyy-mm-dd — UTC would be a
+      // day behind between midnight and 1am during BST) against the
       // event's end_date (multi-day) or date (single-day).
-      const todayISO = new Date().toISOString().slice(0, 10);
+      const todayISO = toISODateString(new Date());
       const completedEvents = events.filter((e) => {
         const endISO = e.end_date ?? e.date;
         return endISO < todayISO;

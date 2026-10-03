@@ -7,15 +7,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
-import * as Linking from 'expo-linking';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ThemeProvider, useTheme } from '@/lib/themeContext';
 import { useProfile } from '@/lib/queries/profile';
 import { isProfileSetupComplete } from '@/lib/profileHelpers';
 import { SubscriptionProvider, useSubscription } from '@/lib/iap/SubscriptionContext';
-import { supabase } from '@/lib/supabase';
 import { useNetworkStatus } from '@/lib/useNetworkStatus';
 import { OfflineBanner } from '@/components/shared/OfflineBanner';
+import { AppLockGate } from '@/components/shared/AppLock';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,30 +23,17 @@ const queryClient = new QueryClient({
 });
 
 function RootLayoutNav() {
-  const { session, loading, user, isRecoveryMode, setIsRecoveryMode } = useAuth();
+  const { session, loading, user, isRecoveryMode } = useAuth();
   const { data: profile, isLoading: profileLoading } = useProfile(user?.id);
   const { isEntitled, isReady: subReady } = useSubscription();
   const segments = useSegments();
   const router = useRouter();
 
-  useEffect(() => {
-    function handleDeepLink(url: string) {
-      const hash = url.split('#')[1];
-      if (!hash) return;
-      const params = Object.fromEntries(new URLSearchParams(hash));
-      if (params.type === 'recovery' && params.access_token) {
-        setIsRecoveryMode(true);
-        supabase.auth.setSession({
-          access_token: params.access_token,
-          refresh_token: params.refresh_token ?? '',
-        });
-      }
-    }
-
-    Linking.getInitialURL().then((url) => { if (url) handleDeepLink(url); });
-    const sub = Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
-    return () => sub.remove();
-  }, [setIsRecoveryMode]);
+  // NOTE: there is deliberately no deep-link handler that calls
+  // supabase.auth.setSession() from URL tokens. Password recovery uses an
+  // emailed one-time code (forgot-password.tsx), and accepting tokens from
+  // any brewedbyboon:// link would let a crafted link silently sign the
+  // user into someone else's account.
 
   useEffect(() => {
     if (loading) return;
@@ -140,7 +126,7 @@ function RootLayoutNav() {
     if (isEntitled && onPaywall) {
       router.replace('/(tabs)/dashboard');
     }
-  }, [session, loading, segments, profile, profileLoading, isRecoveryMode, isEntitled, subReady]);
+  }, [session, loading, segments, profile, profileLoading, isRecoveryMode, isEntitled, subReady, router]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -180,6 +166,7 @@ export default function RootLayout() {
                 <View style={{ flex: 1 }}>
                   <OfflineBannerWrapper />
                   <RootLayoutNav />
+                  <AppLockGate />
                 </View>
                 <ThemedStatusBar />
               </SubscriptionProvider>

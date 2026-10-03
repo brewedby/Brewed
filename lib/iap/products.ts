@@ -45,7 +45,7 @@ export const SUBSCRIPTION_DETAILS: Record<ProductId, PlanDetail> = {
       'Core reports & annual P&L',
       'Discover: weekly directory of UK festivals + companies',
       'Fleet overview (one unit)',
-      'Face ID / Touch ID sign in · Multi-device sync',
+      'Face ID / Touch ID app lock · Multi-device sync',
     ],
   },
   [PRODUCT_IDS.proMonthly]: {
@@ -61,7 +61,6 @@ export const SUBSCRIPTION_DETAILS: Record<ProductId, PlanDetail> = {
       'PDF sales report import (item-level, on-device)',
       'Fleet reminders — MOT, tax & service notifications',
       'Multi-unit fleet management',
-      'Advanced reports & performance trends',
       'Priority support',
     ],
   },

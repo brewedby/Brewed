@@ -15,7 +15,11 @@ export default function OnboardingScreen() {
   const p = tokens.palette;
   const { user } = useAuth();
   const updateProfile = useUpdateProfile();
-  const [businessName, setBusinessName] = useState('');
+  // Pre-fill from the name entered at sign-up (stored in auth metadata).
+  const [businessName, setBusinessName] = useState(() => {
+    const fromSignUp = user?.user_metadata?.business_name;
+    return typeof fromSignUp === 'string' ? fromSignUp : '';
+  });
   const [businessType, setBusinessType] = useState('Coffee');
   const [saving, setSaving] = useState(false);
 

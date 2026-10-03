@@ -133,6 +133,8 @@ export interface ReportData {
   totalAltMilkLitres: number;
   monthly: MonthlyBreakdown[];
   topEvents: EventWithFinancials[];
+  /** Every event in the year, for CSV export. */
+  csvRows: import('@/lib/reportCsv').CsvEventRow[];
   companyPerformance: CompanyPerformance[];
 }
 

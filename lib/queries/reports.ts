@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { calcEventFinancials } from '@/lib/calculations';
 import { formatMonthLabel } from '@/lib/formatters';
+import type { CsvEventRow } from '@/lib/reportCsv';
 import type { ReportData, MonthlyBreakdown, CompanyPerformance } from '@/types';
 
 export function useReports(year: number) {
@@ -90,6 +91,17 @@ export function useReports(year: number) {
           calculations: calcEventFinancials(e.event_financials!),
         }));
 
+      const csvRows: CsvEventRow[] = allEvents.map((e) => ({
+        name: e.name,
+        date: e.date,
+        end_date: e.end_date,
+        location: e.location,
+        status: e.status,
+        companyName: e.concessions_companies?.name ?? null,
+        financials: e.event_financials,
+        calculations: e.event_financials ? calcEventFinancials(e.event_financials) : null,
+      }));
+
       const companyPerformance: CompanyPerformance[] = allCompanies.map((company) => {
         const companyEvents = allEvents.filter((e) => e.company_id === company.id);
         const accepted = companyEvents.filter((e) => e.status === 'accepted').length;
@@ -115,6 +127,7 @@ export function useReports(year: number) {
         totalAltMilkLitres,
         monthly: Array.from(monthlyMap.values()),
         topEvents,
+        csvRows,
         companyPerformance,
       };
     },

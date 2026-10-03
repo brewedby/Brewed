@@ -108,7 +108,7 @@ const resetSrc  = fs.readFileSync(RESET_PATH,  'utf8');
 {
   // (a) Centralized signOut() is used (not the raw supabase call).
   expect('reset_password_uses_useauth_signout',
-    /\bsignOut\(\)/.test(resetSrc) && /useAuth\(\)/.test(resetSrc),
+    /\bsignOut\(/.test(resetSrc) && /useAuth\(\)/.test(resetSrc),
     'reset-password must use useAuth().signOut() for cleanup');
 
   // (b) No more raw supabase.auth.signOut() in reset-password.

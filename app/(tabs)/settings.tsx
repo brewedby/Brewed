@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, RefreshControl, Linking } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, RefreshControl, Linking, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
@@ -7,6 +7,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { deleteUserStorage } from '@/lib/accountDeletion';
+import {
+  authenticate, biometricLabel, disableBiometric, enableAppLock,
+  getBiometricType, isAppLockEnabled, isBiometricAvailable,
+} from '@/lib/biometrics';
 import { useProfile, useUpdateProfile } from '@/lib/queries/profile';
 import type { Metric } from '@/lib/queries/profile';
 import { useSubscription } from '@/lib/iap/SubscriptionContext';
@@ -79,6 +84,32 @@ export default function SettingsScreen() {
   const [showCatalog, setShowCatalog] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [showAllTypes, setShowAllTypes] = useState(false);
+  // Face ID app lock (device-local, SecureStore).
+  const [lockAvailable, setLockAvailable] = useState(false);
+  const [lockEnabled, setLockEnabled] = useState(false);
+  const [lockLabel, setLockLabel] = useState('Face ID');
+
+  useEffect(() => {
+    Promise.all([isBiometricAvailable(), isAppLockEnabled(), getBiometricType()])
+      .then(([available, enabled, type]) => {
+        setLockAvailable(available);
+        setLockEnabled(enabled);
+        setLockLabel(biometricLabel(type));
+      })
+      .catch(() => {});
+  }, []);
+
+  async function toggleAppLock(next: boolean) {
+    if (next) {
+      // Confirm the user can actually pass the check before relying on it.
+      const result = await authenticate(`Turn on ${lockLabel} lock`);
+      if (result !== 'success') return;
+      await enableAppLock();
+    } else {
+      await disableBiometric();
+    }
+    setLockEnabled(next);
+  }
   // Hydrate local form state ONCE from the profile. Refetches must not
   // overwrite live edits — that was the source of the "lost my settings" bug.
   const hydratedRef = useRef(false);
@@ -112,9 +143,15 @@ export default function SettingsScreen() {
     // every table cascades, so all financial data goes with it.
     Alert.alert(
       'Delete your account?',
-      'This permanently erases your account and ALL data — events, financials, products, imports and fleet. This cannot be undone.',
+      'This permanently erases your account and ALL data — events, financials, products, imports, documents and fleet. This cannot be undone.' +
+        (subscription.isEntitled && !profile?.reviewer_grandfathered
+          ? '\n\nDeleting your account does NOT cancel your App Store subscription. Cancel it first in Manage Subscription, or Apple will keep billing you.'
+          : ''),
       [
         { text: 'Cancel', style: 'cancel' },
+        ...(subscription.isEntitled && !profile?.reviewer_grandfathered
+          ? [{ text: 'Manage Subscription', onPress: () => { Linking.openURL(APPLE_MANAGE_SUBSCRIPTIONS_URL); } }]
+          : []),
         {
           text: 'Continue',
           style: 'destructive',
@@ -129,6 +166,10 @@ export default function SettingsScreen() {
                 onPress: async () => {
                   setDeletingAccount(true);
                   try {
+                    // Files first: Storage objects don't cascade from
+                    // auth.users, and after the RPC the user can no
+                    // longer authenticate to remove them.
+                    if (user) await deleteUserStorage(user.id);
                     const { error } = await supabase.rpc('delete_own_account');
                     if (error) throw error;
                     await signOut();
@@ -670,6 +711,34 @@ export default function SettingsScreen() {
             )}
           </TouchableOpacity>
 
+          {/* ── Security ── */}
+          {lockAvailable && (
+            <View>
+              <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 10 }}>
+                {'SECURITY'}
+              </Text>
+              <View style={{
+                flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12,
+                borderTopWidth: 1, borderTopColor: p.border, borderBottomWidth: 1, borderBottomColor: p.border,
+              }}>
+                <View style={{ width: 32, height: 32, borderWidth: 1, borderColor: p.text, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name={lockLabel === 'Touch ID' ? 'finger-print-outline' : 'scan-outline'} size={16} color={p.text} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: tokens.type.display, fontSize: 16, color: p.text }}>{`${lockLabel} lock`}</Text>
+                  <Text style={{ fontSize: 11, color: p.textMuted, fontStyle: 'italic', marginTop: 1 }}>
+                    Ask for {lockLabel} when Brewed opens.
+                  </Text>
+                </View>
+                <Switch
+                  value={lockEnabled}
+                  onValueChange={toggleAppLock}
+                  accessibilityLabel={`${lockLabel} lock`}
+                />
+              </View>
+            </View>
+          )}
+
           {/* ── Privacy & Legal ── */}
           <View>
             <Text style={{ fontSize: 10, color: p.textMuted, letterSpacing: 1.5, fontWeight: '700', marginBottom: 10 }}>
@@ -722,7 +791,7 @@ export default function SettingsScreen() {
           </View>
 
           <TouchableOpacity
-            onPress={signOut}
+            onPress={() => signOut()}
             accessibilityRole="button"
             accessibilityLabel="Sign out"
             style={{

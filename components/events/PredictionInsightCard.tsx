@@ -15,6 +15,7 @@
 // COGS guarantee: we never display, suggest, or compute cost-of-goods
 // here. The engine reads only quantities and revenue.
 
+import { toISODateString } from '@/lib/formatters';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -193,7 +194,7 @@ export function PredictionInsightCard({
     if (loading) return null;
     return predict(
       tradeType,
-      { forecastTempC, eventDate: eventDate ?? new Date().toISOString().slice(0, 10) },
+      { forecastTempC, eventDate: eventDate ?? toISODateString(new Date()) },
       observations,
       dailyTakings,
     );

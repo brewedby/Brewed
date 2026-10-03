@@ -201,6 +201,7 @@ const prodMutSrc  = fs.readFileSync(PRODMUT_PATH, 'utf8');
   const legacyValues = ['food', 'drinks', 'totally_made_up', ''];
   // Re-derive valid categories per trade for the property check.
   // Importing TRADE_CATEGORIES + DEFAULT_CATEGORIES from types/cogs.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { TRADE_CATEGORIES, DEFAULT_CATEGORIES } = require('../../types/cogs') as {
     TRADE_CATEGORIES: Record<string, string[]>;
     DEFAULT_CATEGORIES: string[];

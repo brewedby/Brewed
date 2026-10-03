@@ -10,8 +10,8 @@ import * as SecureStore from 'expo-secure-store';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/lib/themeContext';
 import {
-  isBiometricAvailable, isBiometricEnabled, enableBiometric,
-  signInWithBiometric, getBiometricType, REMEMBER_ME_KEY,
+  isBiometricAvailable, isAppLockEnabled, enableAppLock,
+  getBiometricType, biometricLabel, REMEMBER_ME_KEY,
 } from '@/lib/biometrics';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -33,9 +33,8 @@ export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [appLockEnabled, setAppLockEnabled] = useState(false);
   const [biometricType, setBiometricType] = useState<'face' | 'touch' | 'none'>('none');
-  const [biometricLoading, setBiometricLoading] = useState(false);
   const passwordRef = useRef<TextInput>(null);
   const dateline = formatDateline(new Date());
 
@@ -43,11 +42,11 @@ export default function SignInScreen() {
     async function checkBiometrics() {
       const [available, enabled, type] = await Promise.all([
         isBiometricAvailable(),
-        isBiometricEnabled(),
+        isAppLockEnabled(),
         getBiometricType(),
       ]);
       setBiometricAvailable(available);
-      setBiometricEnabled(enabled);
+      setAppLockEnabled(enabled);
       setBiometricType(type);
     }
     checkBiometrics();
@@ -74,37 +73,26 @@ export default function SignInScreen() {
       Alert.alert('Sign in failed', msg);
       return;
     }
-    if (biometricAvailable && !biometricEnabled && data.session) {
-      const label = biometricType === 'face' ? 'Face ID' : 'Touch ID';
+    // Offer the Face ID app lock once the user has chosen to stay signed
+    // in — with "Keep me signed in" off there's no session to protect.
+    if (biometricAvailable && !appLockEnabled && rememberMe && data.session) {
+      const label = biometricLabel(biometricType);
       Alert.alert(
-        `Enable ${label}?`,
-        `Sign in faster next time using ${label} — no password needed.`,
+        `Lock Brewed with ${label}?`,
+        `Keep your figures private — Brewed will ask for ${label} when you open it. You can change this in Settings.`,
         [
           { text: 'Not now', style: 'cancel' },
           {
-            text: `Enable ${label}`,
+            text: `Use ${label}`,
             onPress: async () => {
-              await enableBiometric(data.session!.refresh_token);
-              setBiometricEnabled(true);
+              await enableAppLock();
+              setAppLockEnabled(true);
             },
           },
         ],
       );
     }
   }
-
-  async function handleBiometricSignIn() {
-    setBiometricLoading(true);
-    const result = await signInWithBiometric();
-    setBiometricLoading(false);
-    if (!result.success && (result.error === 'session_expired' || result.error === 'no_token')) {
-      setBiometricEnabled(false);
-      Alert.alert('Session expired', 'Please sign in with your password. You can re-enable Face ID after signing in.');
-    }
-  }
-
-  const biometricIcon = biometricType === 'face' ? 'scan-outline' : 'finger-print-outline';
-  const biometricLabel = biometricType === 'face' ? 'Face ID' : 'Touch ID';
 
   return (
     <KeyboardAvoidingView
@@ -255,33 +243,6 @@ export default function SignInScreen() {
               ? <ActivityIndicator color={p.bg} />
               : <Text style={{ color: p.bg, fontWeight: '700', fontSize: 12, letterSpacing: 2 }}>{'SIGN IN'}</Text>}
           </TouchableOpacity>
-
-          {/* Biometric sign-in */}
-          {biometricEnabled && (
-            <TouchableOpacity
-              onPress={handleBiometricSignIn}
-              disabled={biometricLoading || loading}
-              accessibilityRole="button"
-              accessibilityLabel={`Sign in with ${biometricLabel}`}
-              style={{
-                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-                borderWidth: 1, borderColor: p.text,
-                paddingVertical: 12, minHeight: 44,
-                opacity: biometricLoading || loading ? 0.5 : 1,
-              }}
-            >
-              {biometricLoading
-                ? <ActivityIndicator color={p.brand} />
-                : (
-                  <>
-                    <Ionicons name={biometricIcon} size={14} color={p.text} />
-                    <Text style={{ color: p.text, fontWeight: '700', fontSize: 12, letterSpacing: 1 }}>
-                      {`SIGN IN WITH ${biometricLabel.toUpperCase()}`}
-                    </Text>
-                  </>
-                )}
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* ── Footer — sign up ── */}
