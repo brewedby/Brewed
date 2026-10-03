@@ -48,13 +48,13 @@ export default function SignUpScreen() {
   const passwordsMatch = confirmPassword.length === 0 || confirmPassword === password;
   const canSubmit =
     email.trim().length > 0 &&
-    password.length >= 6 &&
+    password.length >= 8 &&
     confirmPassword === password &&
     !loading;
 
   async function handleSignUp() {
     if (!canSubmit) return;
-    if (password.length < 6) { Alert.alert('Error', 'Password must be at least 6 characters.'); return; }
+    if (password.length < 8) { Alert.alert('Error', 'Password must be at least 8 characters.'); return; }
     if (password !== confirmPassword) { Alert.alert('Error', 'Passwords do not match.'); return; }
     setLoading(true);
     const { data, error } = await supabase.auth.signUp({
@@ -160,7 +160,7 @@ export default function SignUpScreen() {
               <TextInput
                 ref={passwordRef}
                 style={{ flex: 1, fontSize: 16, color: p.text, padding: 0, fontFamily: tokens.type.mono, letterSpacing: showPassword ? 0 : 4 }}
-                placeholder="Min. 6 characters"
+                placeholder="Min. 8 characters"
                 placeholderTextColor={p.textFaint}
                 secureTextEntry={!showPassword}
                 autoComplete="password-new"

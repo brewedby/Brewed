@@ -63,8 +63,17 @@ App Store Connect → My Apps → Brewed → **Monetization → Subscriptions**.
 - [ ] Reference name: `Brewed Pro` (group reference name — internal)
 - [ ] Subscription Group Display Name: `Brewed Pro` (user-visible)
 
-### Add a subscription to the group
-- [ ] Reference name: `Brewed Pro Monthly`
+### Add BOTH subscriptions to the group
+The paywall sells two plans (`lib/iap/products.ts`). Create both in the same group so Apple handles upgrades/downgrades:
+
+| Reference name | Product ID | Price (UK) |
+|---|---|---|
+| Brewed Trader Monthly | `com.brewedbyboon.app.trader.monthly` | £5.00 / month |
+| Brewed Pro Monthly | `com.brewedbyboon.app.pro.monthly` | £9.00 / month |
+
+Rank Pro above Trader in the group (Subscription Group → order by level). For each:
+
+- [ ] Reference name: `Brewed Pro Monthly` (and `Brewed Trader Monthly`)
 - [ ] **Product ID**: `com.brewedbyboon.app.pro.monthly`  ← **must match** `lib/iap/products.ts` exactly.
 - [ ] Subscription duration: **1 month**
 - [ ] Subscription price: **£9.00** in United Kingdom; let App Store Connect auto-convert other tiers, or set per-territory if you prefer.
@@ -79,7 +88,7 @@ App Store Connect → My Apps → Brewed → **Monetization → Subscriptions**.
 - [ ] Copy the value, then in your terminal:
   ```bash
   supabase secrets set APPLE_SHARED_SECRET='paste-it-here'
-  supabase secrets set ALLOWED_PRODUCT_IDS='com.brewedbyboon.app.pro.monthly'
+  supabase secrets set ALLOWED_PRODUCT_IDS='com.brewedbyboon.app.pro.monthly,com.brewedbyboon.app.trader.monthly'
   ```
 
 ### Optional: free trial / intro offer
@@ -113,29 +122,33 @@ For everything else, tick **Not Collected** (location, contacts, browsing histor
 
 In your Supabase project (or new "Brewed Production" project):
 
-- [ ] Run all SQL migrations in order: `migrations.sql`, `migration_004.sql`, `migration_005.sql`, `migration_006.sql`, `migration_007.sql`, `migration_008.sql`, `migration_009_subscriptions.sql`, `migration_010_weekly_brave_sync.sql`.
-- [ ] Enable extensions in Database → Extensions: `pg_cron`, `pg_net`, `uuid-ossp` (if not already on by default).
-- [ ] In `migration_004` and `migration_010`, replace `YOUR_PROJECT_REF` and `YOUR_SERVICE_ROLE_KEY` with real values before running.
-- [ ] Deploy edge functions:
+> **Existing production project (`npdlbtnyivawjaqgvpkt`):** it already has migrations up to 018 except the parts of 009/010 that were never applied. Run only the two steps below, then **`migration_019_launch_hardening.sql`** — see `docs/LAUNCH_AUDIT_2026-10.md`. Do not re-run 004/010 (019 replaces their cron jobs).
+
+- [ ] Enable extensions in Database → Extensions: `pg_cron`, `pg_net` (already on in production).
+- [ ] Store the two Vault secrets the cron jobs read (SQL editor; values never appear in `cron.job`):
+  ```sql
+  select vault.create_secret('https://<project-ref>.supabase.co', 'project_url');
+  select vault.create_secret('<legacy service_role JWT, starts eyJ>', 'service_role_key');
+  ```
+- [ ] Run `supabase/migration_019_launch_hardening.sql` in the SQL editor.
+- [ ] *(Fresh project only)* run, in order: `migrations.sql`, `migration_005` … `migration_018`, then `migration_019` (skip `migration_004` and `migration_010` — their cron jobs need placeholder edits and 019 replaces them).
+- [ ] Deploy edge functions (or let `.github/workflows/deploy-edge-functions.yml` do it on every merge to main):
   ```bash
-  supabase functions deploy discover-events
   supabase functions deploy sync-directory
   supabase functions deploy check-application-urls
-  supabase functions deploy parse-pdf
-  supabase functions deploy send-push-notification
   supabase functions deploy validate-apple-receipt --no-verify-jwt
   ```
 - [ ] Set secrets:
   ```bash
   supabase secrets set BRAVE_SEARCH_API_KEY='your-brave-key'
   supabase secrets set APPLE_SHARED_SECRET='your-apple-shared-secret'
-  supabase secrets set ALLOWED_PRODUCT_IDS='com.brewedbyboon.app.pro.monthly'
+  supabase secrets set ALLOWED_PRODUCT_IDS='com.brewedbyboon.app.pro.monthly,com.brewedbyboon.app.trader.monthly'
   ```
 - [ ] Verify weekly cron is scheduled:
   ```sql
   SELECT jobname, schedule, active FROM cron.job;
   ```
-  You should see `sync-directory-weekly` (Sun 03:00) and `check-application-urls-weekly` (Sun 04:00).
+  You should see `sync-directory-weekly` (Sun 03:00 UTC) and `check-application-urls-daily` (07:00 UTC). After the next run, `SELECT status_code, error_msg FROM net._http_response ORDER BY created DESC LIMIT 5;` should show 200s.
 - [ ] Storage buckets created (see comments in `migration_007.sql` and `migration_008.sql`):
   - `event-documents` (private)
   - `sales-reports` (private)
@@ -213,11 +226,13 @@ Sandbox subscriptions renew on accelerated timers (1 month = 5 minutes). Watch t
 - [ ] Add a unit (fleet) → MOT alert appears if date is in the past
 - [ ] Open Discover → list loads (or shows empty state cleanly if Brave key not set)
 - [ ] Tap manual "refresh directory" — runs the sync function
-- [ ] Reports → CSV export → file shares via the iOS share sheet
+- [ ] Reports → CSV export → shares via the iOS share sheet and contains EVERY event for the year
+- [ ] Sign out on the phone → the iPad (same account) stays signed in
+- [ ] Settings → Delete Account on a throwaway account → warns about the App Store subscription; afterwards its files are gone from Storage → `sales-reports` / `event-documents`
 - [ ] Sign out → sign back in → data is still there
 - [ ] Toggle airplane mode mid-screen → "No connection" banner appears, cached data still visible
 - [ ] Force-quit and re-open → still signed in (Remember Me default)
-- [ ] Enable Face ID after first sign-in → sign out → sign in via Face ID button
+- [ ] Accept "Lock Brewed with Face ID?" after first sign-in → force-quit → reopen: lock screen appears, Face ID unlocks; background > 1 min → re-locks; Settings → Security toggle turns it off
 - [ ] Settings → Privacy summary → opens the privacy modal
 - [ ] Settings → Manage → opens App Store subscriptions page
 - [ ] Settings → Restore — confirms entitlement (or shows "no subscription found" for grandfathered reviewer)
@@ -266,7 +281,7 @@ Open the books. Get back to the pitch.
 • Multi-device — sign in on your phone and your van's iPad.
 
 Designed for the road
-• Face ID / Touch ID sign in — straight back to the books.
+• Face ID / Touch ID lock — your figures stay private, straight back to the books.
 • Works offline on poor festival signal — cached data, syncs when reconnected.
 • A "Private ledger" mode that hides every £ figure behind redaction blocks for when someone's looking over your shoulder.
 

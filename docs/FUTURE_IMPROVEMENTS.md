@@ -36,7 +36,7 @@ If `iap.initConnection()` fails (e.g. user has no Apple ID signed in) the paywal
 Host `docs/PRIVACY_POLICY.md` (rendered to HTML) at <https://brewedbyboon.com/privacy>. Use a static site (Vercel, Netlify, GitHub Pages). Same site can host a `/support` page with FAQ + contact form.
 
 ### 1.6 In-app push notification permission flow  *(2 hours)*
-The `expo-notifications` plugin is installed and `profiles.push_token` exists, but the app never requests permission or saves the token. Add to `app/_layout.tsx` an effect that, after first sign-in, requests permission and saves the token. Then build the `send-push-notification` Edge Function caller (already exists) so MOT/tax/event reminders fire.
+The `expo-notifications` plugin is installed and `profiles.push_token` exists, but the app never requests permission or saves the token. Add to `app/_layout.tsx` an effect that, after first sign-in, requests permission and saves the token. Fleet MOT/tax/service reminders already work as local notifications. For server-sent pushes, write a new service-role-only sender (the old `send-push-notification` function was an unauthenticated relay and was removed in the Oct 2026 audit).
 
 ---
 
