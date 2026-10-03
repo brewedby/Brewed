@@ -3,13 +3,13 @@
 #
 # Run it:   npx eas-cli workflow:run .eas/workflows/build-and-submit-ios.yml
 # or link the GitHub repo in expo.dev (Project → GitHub) and uncomment
-# the `push` trigger to build every merge to main automatically.
+# the `push` trigger to build every merge to final-form automatically.
 name: Build and submit iOS
 
 on:
   workflow_dispatch: {}
   # push:
-  #   branches: ['main']
+  #   branches: ['final-form']
 
 jobs:
   build_ios:

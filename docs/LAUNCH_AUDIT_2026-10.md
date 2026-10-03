@@ -72,8 +72,8 @@ Everything else is below, prioritised.
 |---|---|---|
 | `npm run check` | typecheck + lint + all 16 test suites + knip. One pre-push gate. | none |
 | `npm test` | `scripts/run-tests.mjs` runs every `lib/__tests__` suite (667 assertions). | none |
-| **GitHub Actions CI** (`.github/workflows/ci.yml`) | On every PR/push to main: typecheck, ESLint, tests, knip (dead code/unused deps), Expo SDK alignment, Deno typecheck of edge functions. | none |
-| **Edge-function deploys** (`deploy-edge-functions.yml`) | Deploys all 3 functions when `supabase/functions/**` changes on main — prevents the drift found in this audit. | Repo secrets `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF` |
+| **GitHub Actions CI** (`.github/workflows/ci.yml`) | On every PR/push to final-form: typecheck, ESLint, tests, knip (dead code/unused deps), Expo SDK alignment, Deno typecheck of edge functions. | none |
+| **Edge-function deploys** (`deploy-edge-functions.yml`) | Deploys all 3 functions when `supabase/functions/**` changes on final-form — prevents the drift found in this audit. | Repo secrets `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF` |
 | **Dependabot** | Weekly grouped minor/patch npm PRs (Expo/RN excluded — those move with SDK upgrades), monthly Actions updates. | none |
 | **EAS Update** (OTA) | `app.json` `updates.url` + per-profile channels. Ship JS-only fixes to live users without App Review. | Takes effect from the next native build |
 | **EAS Workflows** (`.eas/workflows/`) | `build-and-submit-ios.yml` (build → TestFlight in one command, optional on-merge trigger); `publish-update.yml` (OTA to production). | `npx eas-cli workflow:run …`; link repo in expo.dev for auto-trigger |

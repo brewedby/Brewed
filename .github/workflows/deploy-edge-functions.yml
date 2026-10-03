@@ -9,7 +9,7 @@ name: Deploy edge functions
 
 on:
   push:
-    branches: [main]
+    branches: [final-form]
     paths: ['supabase/functions/**']
   workflow_dispatch:
 

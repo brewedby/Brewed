@@ -132,7 +132,7 @@ In your Supabase project (or new "Brewed Production" project):
   ```
 - [ ] Run `supabase/migration_019_launch_hardening.sql` in the SQL editor.
 - [ ] *(Fresh project only)* run, in order: `migrations.sql`, `migration_005` … `migration_018`, then `migration_019` (skip `migration_004` and `migration_010` — their cron jobs need placeholder edits and 019 replaces them).
-- [ ] Deploy edge functions (or let `.github/workflows/deploy-edge-functions.yml` do it on every merge to main):
+- [ ] Deploy edge functions (or let `.github/workflows/deploy-edge-functions.yml` do it on every merge to final-form):
   ```bash
   supabase functions deploy sync-directory
   supabase functions deploy check-application-urls
