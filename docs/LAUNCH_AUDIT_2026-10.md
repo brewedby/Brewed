@@ -101,6 +101,7 @@ Current status: **0** TypeScript errors, **0** ESLint problems, **0** knip findi
 - [ ] Confirm EAS environment variables `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` exist for the **production** environment (`eas env:list`). `eas.json` has none, so builds depend on them.
 - [ ] Consider removing `com.apple.developer.in-app-payments` from `app.json` → that entitlement is **Apple Pay**, not In-App Purchase (IAP needs no entitlement). Harmless if it already builds, but it enables an unused capability.
 - [ ] `NSCameraUsageDescription` / `NSPhotoLibraryUsageDescription` describe features the app doesn't use (it uses the document picker). Remove or keep — unused purpose strings occasionally draw reviewer questions.
+- [ ] Optional before the build: `npx expo install --fix` applies 4 SDK 54 patch updates CI flagged (`expo` 54.0.35→54.0.37, `expo-constants`, `expo-file-system`, `expo-local-authentication`). Patch-level, but they change the native binary — do it before the TestFlight build you test, not after.
 - [ ] New native build required (app lock, IAP listener, EAS Update config, dependency changes) → TestFlight.
 
 **Legal / web**
