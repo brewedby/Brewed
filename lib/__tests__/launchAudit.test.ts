@@ -81,6 +81,8 @@ expect('app_lock_mounted', /<AppLockGate \/>/.test(layoutSrc));
 const bioSrc = read('lib/biometrics.ts');
 expect('no_refresh_token_storage', !/refreshSession|setItemAsync\(REFRESH_TOKEN_KEY/.test(bioSrc),
   'the replay-a-stored-refresh-token design can never work with token rotation');
+expect('faceid_purpose_string_matches_app_lock', /lock/i.test(JSON.parse(read('app.json')).expo.ios.infoPlist.NSFaceIDUsageDescription) && !/sign you in/i.test(read('app.json')),
+  'Apple checks the Face ID permission text matches what the app does');
 expect('signin_no_dead_faceid_button', !/signInWithBiometric/.test(read('app/(auth)/sign-in.tsx')));
 expect('supabase_foreground_autorefresh', /startAutoRefresh\(\)/.test(read('lib/supabase.ts')));
 
@@ -109,9 +111,12 @@ expect('observations_use_local_date', !/toISOString\(\)\.slice\(0, 10\)/.test(re
 
 // ── Backend ─────────────────────────────────────────────────────────────
 const urlFn = read('supabase/functions/check-application-urls/index.ts');
-expect('url_check_service_role_only', /Bearer \$\{serviceRoleKey\}/.test(urlFn) && /status: 403/.test(urlFn));
+expect('url_check_service_role_only', /claims\?\.role === 'service_role'/.test(urlFn) && /if \(!isServiceRoleCaller\(req\)\)/.test(urlFn) && /status: 403/.test(urlFn),
+  'role claim, not a raw key comparison (the runtime key differs from the Vault JWT)');
 expect('url_check_no_push_relay', !/send-push-notification/.test(urlFn));
 const syncFn = read('supabase/functions/sync-directory/index.ts');
+expect('sync_finishes_within_time_limit', /TIME_BUDGET_MS/.test(syncFn) && /URL_CHECK_CONCURRENCY/.test(syncFn),
+  'the sequential page check ran past the 150s edge-function limit and was killed');
 expect('sync_no_hardcoded_years', !/\b2025\b/.test(syncFn), 'queries must compute the season');
 expect('sync_has_cooldown', /MIN_HOURS_BETWEEN_SYNCS/.test(syncFn));
 expect('receipt_fn_fails_closed', /existingErr/.test(read('supabase/functions/validate-apple-receipt/index.ts')));

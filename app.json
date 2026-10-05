@@ -26,7 +26,7 @@
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSFaceIDUsageDescription": "Brewed uses Face ID to sign you in securely without typing your password.",
+        "NSFaceIDUsageDescription": "Brewed uses Face ID to keep your ledger locked and unlock it when you open the app.",
         "NSPhotoLibraryUsageDescription": "Brewed needs access to your photo library to attach images to event documents.",
         "NSCameraUsageDescription": "Brewed uses the camera to photograph event documents and receipts.",
         "NSDocumentsFolderUsageDescription": "Brewed accesses Files to attach documents such as insurance certificates to events.",

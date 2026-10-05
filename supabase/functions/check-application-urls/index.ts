@@ -4,6 +4,8 @@
 // "page changed" banner on the event (app/(tabs)/events/[id]/index.tsx).
 //
 // Deploy with: supabase functions deploy check-application-urls
+//   (keep verify_jwt ON — isServiceRoleCaller() relies on the gateway
+//   having verified the token's signature)
 // Schedule: pg_cron with the SERVICE ROLE key (see
 // supabase/migration_019_launch_hardening.sql). The function refuses any
 // other caller — it reads every user's events, so it must not be
@@ -49,6 +51,26 @@ async function fetchPageContent(url: string): Promise<string | null> {
   }
 }
 
+/**
+ * True only for service-role callers (the pg_cron job). The function is
+ * deployed WITH verify_jwt, so the Supabase gateway has already rejected any
+ * token without a valid project signature before this code runs — the role
+ * claim can therefore be trusted. (Comparing the raw token to
+ * SUPABASE_SERVICE_ROLE_KEY does not work: the runtime's copy of the key is
+ * not byte-identical to the legacy JWT the cron job sends.)
+ */
+function isServiceRoleCaller(req: Request): boolean {
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+  const payload = token.split('.')[1];
+  if (!payload) return false;
+  try {
+    const claims = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    return claims?.role === 'service_role';
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
@@ -64,7 +86,7 @@ Deno.serve(async (req) => {
     );
   }
 
-  if (req.headers.get('Authorization') !== `Bearer ${serviceRoleKey}`) {
+  if (!isServiceRoleCaller(req)) {
     return new Response(
       JSON.stringify({ error: 'Forbidden' }),
       { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
