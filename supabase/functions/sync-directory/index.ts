@@ -49,6 +49,12 @@ function searchQueries(now = new Date()): string[] {
 // directory URL, so runs are rate-limited globally.
 const MIN_HOURS_BETWEEN_SYNCS = 12;
 
+// Edge functions are killed at 150s wall-clock (free plan). Page checks run
+// in parallel and stop being started at this budget so the function always
+// returns; anything skipped is checked first next run (stalest first).
+const URL_CHECK_CONCURRENCY = 10;
+const TIME_BUDGET_MS = 110_000;
+
 interface BraveResult {
   title: string;
   url: string;
@@ -168,6 +174,8 @@ Deno.serve(async (req) => {
   }
 
   const supabase = createClient(supabaseUrl, serviceKey);
+  const startedAt = Date.now();
+  const outOfTime = () => Date.now() - startedAt > TIME_BUDGET_MS;
 
   const { data: lastRow } = await supabase
     .from('uk_events_directory')
@@ -237,24 +245,28 @@ Deno.serve(async (req) => {
     await new Promise((r) => setTimeout(r, 1100));
   }
 
-  // Also run the URL freshness check inline (same as check-application-urls)
+  // URL freshness check for directory entries — stalest first, in parallel,
+  // within the time budget.
   const { data: directoryEntries } = await supabase
     .from('uk_events_directory')
     .select('id, name, application_url, page_hash')
     .not('application_url', 'is', null)
-    .not('application_url', 'eq', '');
+    .not('application_url', 'eq', '')
+    .order('last_verified_at', { ascending: true, nullsFirst: true });
 
   let urlsChecked = 0;
   let urlsChanged = 0;
+  let urlsDeferred = 0;
+  const queue = [...(directoryEntries ?? [])];
 
-  for (const entry of directoryEntries ?? []) {
-    if (!entry.application_url) continue;
+  async function checkEntry(entry: { id: string; application_url: string | null; page_hash: string | null }) {
+    if (!entry.application_url) return;
     try {
       const res = await fetch(entry.application_url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BrewedByBoon/1.0)' },
         signal: AbortSignal.timeout(8_000),
       });
-      if (!res.ok) continue;
+      if (!res.ok) return;
       const html = await res.text();
       const cleaned = html
         .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
@@ -264,13 +276,11 @@ Deno.serve(async (req) => {
         .trim()
         .slice(0, 50_000);
 
-      const encoder = new TextEncoder();
-      const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(cleaned));
+      const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(cleaned));
       const newHash = Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, '0')).join('');
 
       urlsChecked++;
       const now = new Date().toISOString();
-
       if (!entry.page_hash) {
         await supabase.from('uk_events_directory').update({ page_hash: newHash, last_verified_at: now }).eq('id', entry.id);
       } else if (newHash !== entry.page_hash) {
@@ -284,11 +294,20 @@ Deno.serve(async (req) => {
     }
   }
 
+  async function worker() {
+    while (queue.length > 0) {
+      if (outOfTime()) { urlsDeferred += queue.length; queue.length = 0; return; }
+      const entry = queue.shift()!;
+      await checkEntry(entry);
+    }
+  }
+  await Promise.all(Array.from({ length: URL_CHECK_CONCURRENCY }, worker));
+
   return new Response(
     JSON.stringify({
       success: true,
       sync: { added, updated, skipped, queriesRun: allQueries.length },
-      urlCheck: { checked: urlsChecked, changed: urlsChanged },
+      urlCheck: { checked: urlsChecked, changed: urlsChanged, deferred: urlsDeferred },
       timestamp: new Date().toISOString(),
     }),
     { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
