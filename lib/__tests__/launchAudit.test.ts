@@ -81,6 +81,8 @@ expect('app_lock_mounted', /<AppLockGate \/>/.test(layoutSrc));
 const bioSrc = read('lib/biometrics.ts');
 expect('no_refresh_token_storage', !/refreshSession|setItemAsync\(REFRESH_TOKEN_KEY/.test(bioSrc),
   'the replay-a-stored-refresh-token design can never work with token rotation');
+expect('faceid_purpose_string_matches_app_lock', /lock/i.test(JSON.parse(read('app.json')).expo.ios.infoPlist.NSFaceIDUsageDescription) && !/sign you in/i.test(read('app.json')),
+  'Apple checks the Face ID permission text matches what the app does');
 expect('signin_no_dead_faceid_button', !/signInWithBiometric/.test(read('app/(auth)/sign-in.tsx')));
 expect('supabase_foreground_autorefresh', /startAutoRefresh\(\)/.test(read('lib/supabase.ts')));
 
