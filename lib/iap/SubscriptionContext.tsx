@@ -20,15 +20,18 @@
  * via EAS after first install. See docs/APP_STORE_LAUNCH.md.
  */
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, AppState, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { useProfile } from '@/lib/queries/profile';
 import { supabase } from '@/lib/supabase';
 import { ALL_PRODUCT_IDS, FALLBACK_PRICE, FALLBACK_PRICES, PRODUCT_IDS, type ProductId } from './products';
-import { hasFeature, tierForSubscription, type FeatureKey, type SubscriptionTier } from './entitlements';
+import {
+  hasFeature, isSubscriptionEntitled, needsSilentRevalidation, tierForSubscription,
+  type FeatureKey, type SubscriptionTier,
+} from './entitlements';
 import { getDevTierOverride } from './devEntitlement';
 
 // expo-iap types we care about, matching the INSTALLED 2.9.7 API surface.
@@ -104,8 +107,8 @@ function loadIap(): LoadedIap | null {
     let native: NativeReceipt | null = null;
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { requireNativeModule } = require('expo-modules-core');
-      native = requireNativeModule('ExpoIap') as NativeReceipt;
+      const { requireOptionalNativeModule } = require('expo') as typeof import('expo');
+      native = requireOptionalNativeModule<NativeReceipt>('ExpoIap');
     } catch { /* receipt read will surface a clear error if this is missing */ }
     return { mod, native };
   } catch {
@@ -158,7 +161,21 @@ async function postReceiptForValidation(receipt: string): Promise<{ ok: boolean;
   const { data, error } = await supabase.functions.invoke('validate-apple-receipt', {
     body: { receiptData: receipt },
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    // A non-2xx response surfaces as FunctionsHttpError whose message is
+    // the generic "Edge Function returned a non-2xx status code". The
+    // function's JSON body carries the actionable reason ("associated
+    // with another account", Apple status codes…) — read it from context.
+    let message = error.message;
+    const ctx = (error as { context?: unknown }).context;
+    if (ctx && typeof (ctx as Response).json === 'function') {
+      try {
+        const body = await (ctx as Response).clone().json();
+        if (body && typeof body.error === 'string') message = body.error;
+      } catch { /* body wasn't JSON — keep the generic message */ }
+    }
+    return { ok: false, error: message };
+  }
   if (data && typeof data === 'object' && 'ok' in data && data.ok) return { ok: true };
   return { ok: false, error: data?.error ?? 'Validation failed' };
 }
@@ -207,16 +224,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [isRestoring, setIsRestoring] = useState(false);
 
   // Derive entitlement from server-validated profile. Reviewer grandfather bypasses.
-  const isEntitled = useMemo(() => {
-    if (!profile) return false;
-    if (profile.reviewer_grandfathered) return true;
-    if (profile.subscription_status === 'active' || profile.subscription_status === 'in_grace_period') {
-      const expires = profile.subscription_expires_at ? new Date(profile.subscription_expires_at).getTime() : Number.MAX_SAFE_INTEGER;
-      // 24h grace beyond expiry to ride out Apple's renewal lag
-      return expires > Date.now() - 24 * 60 * 60 * 1000;
-    }
-    return false;
-  }, [profile]);
+  const isEntitled = useMemo(() => isSubscriptionEntitled(profile, Date.now()), [profile]);
 
   // Tier resolution lives in lib/iap/entitlements.ts — single source of truth.
   const statusKnown = !!profile;
@@ -280,26 +288,44 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     };
   }, [iap]);
 
-  // Listen for purchase updates (after the system sheet returns)
+  // Refs so the purchase listener (registered once, at mount) always sees
+  // the current user without being torn down and re-added.
+  const userIdRef = useRef<string | null>(user?.id ?? null);
+  userIdRef.current = user?.id ?? null;
+  const pendingPurchases = useRef<IapPurchase[]>([]);
+
+  const processPurchase = useCallback(async (purchase: IapPurchase) => {
+    const userId = userIdRef.current;
+    if (!iap) return;
+    if (!userId) {
+      // StoreKit replays unfinished transactions (incl. renewals) right
+      // after initConnection — often before the session has loaded.
+      // Queue them instead of dropping them.
+      pendingPurchases.current.push(purchase);
+      return;
+    }
+    // Validate with the app receipt, not purchase.transactionReceipt —
+    // see getVerifiableReceipt. The purchase object is still what we
+    // finish (finishTransaction reads purchase.id).
+    const receipt = await getVerifiableReceipt(native);
+    if (!receipt) {
+      Alert.alert('Could not verify subscription', NO_RECEIPT_MESSAGE);
+      return;
+    }
+    const result = await postReceiptForValidation(receipt);
+    if (result.ok) {
+      await iap.finishTransaction({ purchase, isConsumable: false });
+      await qc.invalidateQueries({ queryKey: ['profile', userId] });
+    } else {
+      Alert.alert('Could not verify subscription', result.error ?? 'Please try Restore Purchases.');
+    }
+  }, [iap, native, qc]);
+
+  // Listen for purchase updates from mount — NOT gated on the user, so
+  // transactions delivered during app launch are never missed.
   useEffect(() => {
-    if (!iap || !user) return;
-    const updateSub = iap.purchaseUpdatedListener(async (purchase) => {
-      // Validate with the app receipt, not purchase.transactionReceipt —
-      // see getVerifiableReceipt. The purchase object is still what we
-      // finish (finishTransaction reads purchase.id).
-      const receipt = await getVerifiableReceipt(native);
-      if (!receipt) {
-        Alert.alert('Could not verify subscription', NO_RECEIPT_MESSAGE);
-        return;
-      }
-      const result = await postReceiptForValidation(receipt);
-      if (result.ok) {
-        await iap.finishTransaction({ purchase, isConsumable: false });
-        await qc.invalidateQueries({ queryKey: ['profile', user.id] });
-      } else {
-        Alert.alert('Could not verify subscription', result.error ?? 'Please try Restore Purchases.');
-      }
-    });
+    if (!iap) return;
+    const updateSub = iap.purchaseUpdatedListener((purchase) => { processPurchase(purchase); });
     const errorSub = iap.purchaseErrorListener((error) => {
       // Code "E_USER_CANCELLED" is expected — ignore. Surface other errors.
       if (error.code === 'E_USER_CANCELLED') return;
@@ -309,7 +335,49 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       updateSub.remove();
       errorSub.remove();
     };
-  }, [iap, user, qc]);
+  }, [iap, processPurchase]);
+
+  // Drain purchases that arrived before the session loaded.
+  useEffect(() => {
+    if (!user || pendingPurchases.current.length === 0) return;
+    const queued = pendingPurchases.current;
+    pendingPurchases.current = [];
+    queued.forEach((p) => { processPurchase(p); });
+  }, [user, processPurchase]);
+
+  // Silent renewal sync. The server only learns about a renewal when the
+  // app posts a receipt; /verifyReceipt returns the LATEST renewal info
+  // for any valid receipt. When the recorded expiry is near or just past,
+  // re-post the on-device receipt on launch/foreground (throttled). Reads
+  // the receipt without requesting a refresh, which could show an Apple ID
+  // sign-in prompt.
+  const lastSilentCheck = useRef(0);
+  const profileRef = useRef(profile);
+  profileRef.current = profile;
+  const silentRevalidate = useCallback(async () => {
+    const userId = userIdRef.current;
+    if (!iap || !native?.getReceiptIOS || !userId) return;
+    if (!needsSilentRevalidation(profileRef.current, Date.now())) return;
+    if (Date.now() - lastSilentCheck.current < 6 * 60 * 60 * 1000) return;
+    lastSilentCheck.current = Date.now();
+    try {
+      const receipt = await native.getReceiptIOS();
+      if (!receipt) return;
+      const result = await postReceiptForValidation(receipt);
+      if (result.ok) await qc.invalidateQueries({ queryKey: ['profile', userId] });
+    } catch { /* silent by design — Restore Purchases is the manual path */ }
+  }, [iap, native, qc]);
+
+  useEffect(() => {
+    if (profile) silentRevalidate();
+  }, [profile, silentRevalidate]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') silentRevalidate();
+    });
+    return () => sub.remove();
+  }, [silentRevalidate]);
 
   const purchase = useCallback(async (productId: ProductId = PRODUCT_IDS.proMonthly) => {
     if (!iap) {
@@ -372,7 +440,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     } finally {
       setIsRestoring(false);
     }
-  }, [iap, user, qc]);
+  }, [iap, native, user, qc]);
 
   const refresh = useCallback(async () => {
     if (!user) return;

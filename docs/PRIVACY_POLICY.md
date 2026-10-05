@@ -3,7 +3,7 @@
 **Effective date:** [INSERT EFFECTIVE DATE — e.g. 1 June 2026]
 **Last updated:** [INSERT LAST UPDATED DATE]
 **Controller:** Brewed by Boon Ltd, a company registered in [INSERT JURISDICTION] (company no. [INSERT NUMBER]), of [INSERT REGISTERED ADDRESS].
-**Contact:** [INSERT SUPPORT EMAIL — e.g. support@brewedbyboon.com]
+**Contact:** support@brewedbyboon.com
 
 This privacy policy explains what personal information Brewed by Boon Ltd ("**we**", "**us**", "**Brewed**") collects when you use the Brewed mobile app and connected services, why we collect it, how it is stored, who else (if anyone) sees it, and the rights you have over it. It is written for traders who use the app to manage their own catering / mobile food and beverage business, and is intended to be read in plain English.
 
@@ -55,9 +55,9 @@ This is the body of what you put into the app:
 - Whether the subscription is in Sandbox or Production environment
 
 ### 2.4 Device data
-- Push notification token (only if you grant notification permission), used to remind you about MOT/tax expiries and similar
 - A securely stored Supabase session token (so you stay signed in)
-- A securely stored Apple-issued refresh token if you enable Face ID / Touch ID sign-in
+- If you turn on the Face ID / Touch ID lock, a single on/off setting in the iOS Keychain. The face or fingerprint check itself is performed by iOS — Brewed never receives biometric data.
+- Fleet reminders (MOT, tax, service) are scheduled as local notifications on your device. No push token is collected and nothing is sent to our servers to deliver them.
 
 ### 2.5 What we do not collect
 - We do **not** collect advertising identifiers (IDFA / IDFV).
@@ -142,7 +142,7 @@ Your data is stored in the European Union (Supabase EU region). When Apple proce
 ## 9. Data retention
 
 - Account data and the data you enter into Brewed are retained for as long as your account is active.
-- If you delete your account, we delete all of your data (account, events, financials, sales reports, documents, fleet, companies, etc.) within **30 days**.
+- If you delete your account in the app (Settings → Delete Account), your account, all records and all uploaded files are deleted immediately. If you ask us by email instead, we do it within **30 days**. Copies in our database backups expire within 30 days.
 - Subscription receipts are retained for 6 years to comply with UK tax law.
 - Server logs (which do not contain your financial data) are retained for 14 days for security and incident investigation.
 - Backups are retained for 30 days and then permanently deleted.
@@ -157,9 +157,9 @@ Your data is stored in the European Union (Supabase EU region). When Apple proce
 - The Supabase service role key is stored only on our server-side edge functions, never in the app.
 - Subscription state can only be written by our server-side receipt verification function — the app cannot forge entitlement.
 - We do not log financial data anywhere — not in the app, not in our edge functions, not in our error reports.
-- Refresh tokens used by Face ID / Touch ID sign-in are stored in iOS Keychain (a hardware-backed secure store).
+- Session tokens are stored in on-device app storage; the optional Face ID / Touch ID lock uses Apple's on-device check and stores no credentials.
 
-No system is perfectly secure. If you become aware of a security issue, please email [INSERT SECURITY EMAIL — e.g. security@brewedbyboon.com] and we will respond promptly.
+No system is perfectly secure. If you become aware of a security issue, please email support@brewedbyboon.com (subject: "Security") and we will respond promptly.
 
 ---
 
@@ -169,13 +169,13 @@ Under UK GDPR and EU GDPR you have the right to:
 
 - **Access** the personal data we hold about you. The app already shows you everything you have entered. For a machine-readable export of your event financials, use **Reports → Export CSV**. For a wider export, email us.
 - **Rectify** inaccurate data. You can edit any record in the app yourself.
-- **Erase** your data ("right to be forgotten"). Email us from the address registered on your account, and we will delete your account and all associated data within 30 days.
+- **Erase** your data ("right to be forgotten"). Use **Settings → Delete Account** in the app (immediate), or email us from the address registered on your account and we will delete your account and all associated data within 30 days. Deleting your account does not cancel an App Store subscription — cancel that in your Apple ID settings.
 - **Restrict** or **object to** certain processing.
 - **Port** your data to another service (CSV export covers most of this).
 - **Withdraw consent** for push notifications by disabling them in iOS Settings.
 - **Lodge a complaint** with your supervisory authority. In the UK that is the Information Commissioner's Office (ICO): <https://ico.org.uk>.
 
-To exercise any of these rights, email us at [INSERT SUPPORT EMAIL].
+To exercise any of these rights, email us at support@brewedbyboon.com.
 
 ---
 
@@ -199,7 +199,7 @@ We may update this policy from time to time. When we do, we will:
 
 [Brewed by Boon Ltd]
 [INSERT REGISTERED ADDRESS]
-Email: [INSERT SUPPORT EMAIL]
+Email: support@brewedbyboon.com
 Apple developer team: TN2433BJWJ
 
 For privacy-specific enquiries please put "Privacy" in the subject line.

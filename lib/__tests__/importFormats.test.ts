@@ -6,7 +6,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import pako from 'pako';
+import { deflateRaw } from 'pako';
 
 interface Test { name: string; pass: boolean; detail: string }
 const results: Test[] = [];
@@ -127,7 +127,7 @@ function buildZip(files: { name: string; content: string; deflate?: boolean }[])
 
   for (const f of files) {
     const raw = new Uint8Array(encoder(f.content));
-    const data = f.deflate ? pako.deflateRaw(raw) : raw;
+    const data = f.deflate ? deflateRaw(raw) : raw;
     const method = f.deflate ? 8 : 0;
     const crc = crc32(raw);
     const nameBytes = encoder(f.name);

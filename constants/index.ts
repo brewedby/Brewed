@@ -3,9 +3,6 @@ import type { ApplicationStatus, InfrastructureCategory, UnitStatus } from '@/ty
 // UK standard rate VAT divisor (gross ÷ 1.2 = net, i.e. 20% VAT)
 export const VAT_DIVISOR = 1.2;
 
-// Minimum data points before the drink-split prediction engine shows real confidence
-export const MIN_PREDICTION_DATA_POINTS = 5;
-
 export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   pending: 'Pending',
   accepted: 'Accepted',
@@ -20,14 +17,6 @@ export const STATUS_COLORS: Record<ApplicationStatus, { bg: string; text: string
   rejected:   { bg: 'bg-red-100',    text: 'text-red-800',    dot: '#ef4444', bgHex: '#fee2e2', textHex: '#991b1b' },
   waitlisted: { bg: 'bg-blue-100',   text: 'text-blue-800',   dot: '#3b82f6', bgHex: '#dbeafe', textHex: '#1e40af' },
   withdrawn:  { bg: 'bg-stone-100',  text: 'text-stone-700',  dot: '#a8a29e', bgHex: '#f5f5f4', textHex: '#1c1917' },
-};
-
-export const STATUS_PIE_COLORS: Record<ApplicationStatus, string> = {
-  accepted:   '#22c55e',
-  pending:    '#f59e0b',
-  rejected:   '#ef4444',
-  waitlisted: '#3b82f6',
-  withdrawn:  '#a8a29e',
 };
 
 export const INFRASTRUCTURE_CATEGORY_LABELS: Record<InfrastructureCategory, string> = {
@@ -65,10 +54,3 @@ export const BUSINESS_TYPES = [
   'Ice Cream', 'Crepes', 'Waffles', 'Cocktails', 'Craft Beer', 'Wine',
   'Juice & Smoothies', 'Asian Food', 'Mexican Food', 'Other',
 ];
-
-export const BRAND = {
-  primary:   '#6b3a2a',
-  secondary: '#c9813a',
-  dark:      '#1c1917',
-  light:     '#fdf8f0',
-};

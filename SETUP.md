@@ -69,10 +69,10 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...your-service-role-key...
 
 ## Part 2 — Deploy Edge Functions (Backend Logic)
 
-The app uses three serverless functions on Supabase for:
-- **discover-events** — searches for UK events via Brave Search
-- **check-application-urls** — monitors application pages for changes
-- **send-push-notification** — sends push alerts to your iPhone
+The app uses three serverless functions on Supabase:
+- **sync-directory** — refreshes the Discover directory via Brave Search (weekly cron + manual refresh, 12h cooldown)
+- **check-application-urls** — flags events whose application page changed (daily cron, service-role only)
+- **validate-apple-receipt** — verifies App Store subscriptions server-side
 
 ### 2.1 Install Supabase CLI
 
@@ -99,36 +99,23 @@ supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ### 2.4 Deploy all three functions
 
 ```bash
-supabase functions deploy discover-events
+supabase functions deploy sync-directory
 supabase functions deploy check-application-urls
-supabase functions deploy send-push-notification
+supabase functions deploy validate-apple-receipt --no-verify-jwt
 ```
 
 Each deploy takes about 30 seconds. You should see "Deployed Function" in the output.
 
-### 2.5 Schedule automatic URL checking (optional)
+### 2.5 Schedule the background jobs
 
-To have the app automatically check application pages daily:
+`supabase/migration_019_launch_hardening.sql` schedules both jobs with pg_cron (weekly directory sync, daily application-URL check). They read the project URL and service-role key from Supabase Vault, so store those first — never paste the key into a cron command:
 
-1. In Supabase → **SQL Editor**, run:
 ```sql
--- Enable pg_cron extension (may already be enabled)
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-
--- Schedule daily URL check at 9am UTC
-SELECT cron.schedule(
-  'check-application-urls-daily',
-  '0 9 * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://your-project-ref.supabase.co/functions/v1/check-application-urls',
-    headers := '{"Authorization": "Bearer your-service-role-key"}'::jsonb
-  );
-  $$
-);
+select vault.create_secret('https://your-project-ref.supabase.co', 'project_url');
+select vault.create_secret('your-legacy-service-role-jwt', 'service_role_key');
 ```
 
-Replace `your-project-ref` and `your-service-role-key` with your actual values.
+Then run the migration in the SQL Editor.
 
 ---
 

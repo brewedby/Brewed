@@ -328,7 +328,7 @@ export default function PaywallScreen() {
             Not the right time?
           </Text>
           <TouchableOpacity
-            onPress={signOut}
+            onPress={() => signOut()}
             accessibilityRole="button"
             accessibilityLabel="Sign out"
             style={{ paddingVertical: 6, marginTop: 2 }}

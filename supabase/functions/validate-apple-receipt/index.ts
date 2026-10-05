@@ -22,8 +22,7 @@
 // Apple's documentation says: always try production first; if you receive
 // status 21007, retry against sandbox.
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -108,7 +107,7 @@ function deriveStatus(latest: AppleLatestReceiptInfo, renewal: ApplePendingRenew
   return { status: 'expired', expiresAt, willRenew };
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
 
   try {
@@ -194,12 +193,20 @@ serve(async (req) => {
 
     // Anti-fraud: if a DIFFERENT user's profile already owns this original_transaction_id,
     // refuse to assign it to the current user (Apple ID sharing / receipt theft).
-    const { data: existing } = await admin
+    // Fail closed: if this lookup errors (e.g. the column is missing because
+    // a migration wasn't applied) we must not skip the check silently.
+    const { data: existing, error: existingErr } = await admin
       .from('profiles')
       .select('id')
       .eq('apple_original_transaction_id', latest.original_transaction_id)
       .neq('id', userId)
+      .limit(1)
       .maybeSingle();
+    if (existingErr) {
+      return new Response(JSON.stringify({ ok: false, error: `Subscription lookup failed: ${existingErr.message}` }), {
+        status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
     if (existing) {
       return new Response(JSON.stringify({ ok: false, error: 'This subscription is associated with another account.' }), {
         status: 409, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },

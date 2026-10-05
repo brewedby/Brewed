@@ -1,4 +1,4 @@
-import type { Database, ApplicationStatus, UnitStatus } from './database';
+import type { Database, ApplicationStatus } from './database';
 
 export type { ApplicationStatus, UnitStatus } from './database';
 
@@ -133,6 +133,8 @@ export interface ReportData {
   totalAltMilkLitres: number;
   monthly: MonthlyBreakdown[];
   topEvents: EventWithFinancials[];
+  /** Every event in the year, for CSV export. */
+  csvRows: import('@/lib/reportCsv').CsvEventRow[];
   companyPerformance: CompanyPerformance[];
 }
 

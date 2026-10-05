@@ -81,30 +81,3 @@ export function calcEventFinancials(
     totalStaffingCost,
   };
 }
-
-export function calcGrossProfit(f: EventFinancials): number {
-  return calcEventFinancials(f).grossProfit;
-}
-export function calcTotalCosts(f: EventFinancials): number {
-  return calcEventFinancials(f).totalCosts;
-}
-export function calcNetProfit(f: EventFinancials): number {
-  return calcEventFinancials(f).netProfit;
-}
-export function calcProfitMargin(f: EventFinancials): number {
-  return calcEventFinancials(f).profitMargin;
-}
-
-export function calcAvgRevenuePerEvent(financials: EventFinancials[]): number {
-  if (financials.length === 0) return 0;
-  return financials.reduce((sum, f) => sum + calcEventFinancials(f).totalNetSales, 0) / financials.length;
-}
-
-export const emptyFinancials: Omit<EventFinancials, 'id' | 'event_id' | 'created_at' | 'updated_at'> = {
-  gross_sales: 0, zero_rated_sales: 0, standard_rated_sales: 0,
-  concessions_commission_pct: 0, commission_basis: 'net', pitch_fee_refund_pct: 0,
-  cost_of_goods: 0, pitch_fee: 0, power_fee: 0,
-  travel_costs: 0, camping_costs: 0, equipment_costs: 0, other_costs: 0,
-  staffing_costs: 0, fresh_milk_litres: 0, alt_milk_litres: 0,
-  miles_driven: null,
-};

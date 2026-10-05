@@ -8,7 +8,7 @@
  * Supported stream filters: none (raw), FlateDecode (zlib via pako).
  * Unsupported: LZWDecode, ASCIIHexDecode, JBIG2, CCITTFax.
  */
-import pako from 'pako';
+import { inflate as pakoInflate } from 'pako';
 import type { ParsedSalesLine } from '@/types/cogs';
 import { detectProvider } from './providerDetect';
 
@@ -66,7 +66,7 @@ function streamFilter(dict: string): string | null {
 
 function inflate(data: string): string {
   try {
-    return bytesToLatin1(pako.inflate(latin1ToBytes(data)));
+    return bytesToLatin1(pakoInflate(latin1ToBytes(data)));
   } catch {
     return '';
   }

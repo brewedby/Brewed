@@ -285,20 +285,4 @@ export function getCategoryDefinition(category: string | null | undefined): (Cat
   return { value: key, ...(CATEGORY_DEFINITIONS[key] ?? CATEGORY_DEFINITIONS.other) };
 }
 
-// ── Legacy exports kept for backward compatibility with existing
-// imports. New code should call getCategoriesForTrade(profile.business_type).
-export const PRODUCT_CATEGORIES: { value: ProductCategory; label: string; emoji: string }[] = [
-  { value: 'hot_drinks',  label: 'Hot Drinks',  emoji: '☕' },
-  { value: 'cold_drinks', label: 'Cold Drinks', emoji: '🥤' },
-  { value: 'specials',    label: 'Specials',    emoji: '⭐' },
-  { value: 'food',        label: 'Food',        emoji: '🍞' },
-  { value: 'other',       label: 'Other',       emoji: '📦' },
-];
-
-// Categories where the selling price includes 20% VAT (hot food/drinks).
-// Derived from CATEGORY_DEFINITIONS so the two stay in sync.
-export const VATABLE_CATEGORIES: ProductCategory[] = Object.entries(CATEGORY_DEFINITIONS)
-  .filter(([, def]) => def.vatable)
-  .map(([key]) => key);
-
 export const UNIT_OPTIONS = ['cup', 'item', 'portion', 'serving', 'kg', 'litre', 'slice', 'pack'];

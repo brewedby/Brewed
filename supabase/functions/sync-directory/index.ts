@@ -4,13 +4,12 @@
 //
 // Deploy:   supabase functions deploy sync-directory
 // Secrets:  supabase secrets set BRAVE_SEARCH_API_KEY=your_key
-// Schedule: run daily at 03:00 UTC via pg_cron (see migrations.sql)
+// Schedule: weekly via pg_cron (supabase/migration_019_launch_hardening.sql)
 //
 // The function is idempotent — it uses ON CONFLICT (name) DO UPDATE,
 // so running it multiple times will not create duplicates.
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -19,27 +18,36 @@ const CORS_HEADERS = {
 
 const BRAVE_API_URL = 'https://api.search.brave.com/res/v1/web/search';
 
-// Search queries designed to find UK trader application pages
-const SEARCH_QUERIES = [
-  'UK music festival street food coffee trader application 2025 apply',
-  'UK food festival concessions trader application 2025',
-  'UK street food market stall holder application 2025 apply now',
-  'UK Christmas market trader application 2025 2026',
-  'UK outdoor festival catering pitch application open',
-  'UK county show food trader stall application 2025',
-  'UK motorsport event catering trader apply 2025',
-  'Glastonbury Latitude Victorious food trader application',
-  'UK farmers market artisan food stall application',
-];
+// Search queries designed to find UK trader application pages. Years are
+// computed per run — hardcoded years went stale and kept returning last
+// season's (closed) application pages.
+function searchQueries(now = new Date()): string[] {
+  const y = now.getUTCFullYear();
+  // From September, applications mostly open for next season.
+  const season = now.getUTCMonth() >= 8 ? y + 1 : y;
+  return [
+    `UK music festival street food coffee trader application ${season} apply`,
+    `UK food festival concessions trader application ${season}`,
+    `UK street food market stall holder application ${season} apply now`,
+    `UK Christmas market trader application ${y}`,
+    'UK outdoor festival catering pitch application open',
+    `UK county show food trader stall application ${season}`,
+    `UK motorsport event catering trader apply ${season}`,
+    'Glastonbury Latitude Victorious food trader application',
+    'UK farmers market artisan food stall application',
+    // Known concessions companies to specifically check
+    `Togather traders festival UK apply coffee ${season}`,
+    'D&J Catering Events traders apply UK',
+    `Eat Drink Festivals trader application ${season}`,
+    'Severn Events trader stall apply',
+    'NCASS food truck trader application UK',
+  ];
+}
 
-// Known concessions companies to specifically check
-const COMPANY_QUERIES = [
-  'Togather traders festival UK apply coffee 2025',
-  'D&J Catering Events traders apply UK',
-  'Eat Drink Festivals trader application 2025',
-  'Severn Events trader stall apply',
-  'NCASS food truck trader application UK',
-];
+// Any signed-in user can trigger this from the Discover screen. Each run
+// costs ~14 Brave queries (free tier: 2,000/month) plus a fetch of every
+// directory URL, so runs are rate-limited globally.
+const MIN_HOURS_BETWEEN_SYNCS = 12;
 
 interface BraveResult {
   title: string;
@@ -143,7 +151,7 @@ async function searchBrave(query: string, apiKey: string): Promise<BraveResult[]
   }
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
   }
@@ -161,12 +169,26 @@ serve(async (req) => {
 
   const supabase = createClient(supabaseUrl, serviceKey);
 
+  const { data: lastRow } = await supabase
+    .from('uk_events_directory')
+    .select('last_verified_at')
+    .order('last_verified_at', { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  const lastSync = lastRow?.last_verified_at ? Date.parse(lastRow.last_verified_at) : 0;
+  if (Date.now() - lastSync < MIN_HOURS_BETWEEN_SYNCS * 3600_000) {
+    return new Response(
+      JSON.stringify({ success: true, skipped: 'recently_synced', lastSync: new Date(lastSync).toISOString() }),
+      { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } },
+    );
+  }
+
   let added = 0;
   let updated = 0;
   let skipped = 0;
 
   // Combine event queries + company queries
-  const allQueries = [...SEARCH_QUERIES, ...COMPANY_QUERIES];
+  const allQueries = searchQueries();
 
   for (const queryStr of allQueries) {
     const results = await searchBrave(queryStr, braveKey);

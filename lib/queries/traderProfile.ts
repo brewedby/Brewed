@@ -156,13 +156,13 @@ export function useTraderProfile(): ResolvedTraderProfile {
   useEffect(() => {
     if (!__DEV__) return;
     if (!profileIsError) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const e = profileError as any;
     const code    = e?.code    ?? null;
     const message = e?.message ?? (e instanceof Error ? e.message : String(e));
     const details = e?.details ?? null;
     const hint    = e?.hint    ?? null;
-    // eslint-disable-next-line no-console
+     
     console.warn('[useTraderProfile] profile fetch error:', { code, message, details, hint });
   }, [profileIsError, profileError]);
 

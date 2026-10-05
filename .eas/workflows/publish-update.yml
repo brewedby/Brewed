@@ -1,0 +1,17 @@
+# EAS Workflow: ship a JavaScript-only fix over the air to installed
+# production apps — no new binary, no App Review wait. Only valid when
+# the change touches no native code/config (runtimeVersion policy
+# "appVersion" keeps updates scoped to the matching store version).
+#
+# Run it:   npx eas-cli workflow:run .eas/workflows/publish-update.yml
+name: Publish OTA update (production)
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  publish_update:
+    name: Publish update
+    type: update
+    params:
+      channel: production

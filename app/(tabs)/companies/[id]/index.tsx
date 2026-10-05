@@ -2,9 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCompany } from '@/lib/queries/companies';
+import { useCompany , useDeleteCompany } from '@/lib/queries/companies';
 import { useEvents } from '@/lib/queries/events';
-import { useDeleteCompany } from '@/lib/queries/companies';
 import { EventCard } from '@/components/events/EventCard';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -37,7 +36,7 @@ export default function CompanyDetailScreen() {
   );
 
   const today = toISODateString(new Date());
-  const events = allEvents ?? [];
+  const events = useMemo(() => allEvents ?? [], [allEvents]);
 
   const { upcomingEvents, completedEvents } = useMemo(() => {
     const upcoming = events

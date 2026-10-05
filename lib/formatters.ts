@@ -39,17 +39,6 @@ export function formatDate(dateStr: string | null | undefined): string {
   }
 }
 
-export function formatDateShort(dateStr: string | null | undefined): string {
-  if (!dateStr) return '';
-  try {
-    const date = parseISO(dateStr);
-    if (!isValid(date)) return dateStr;
-    return format(date, 'd MMM');
-  } catch {
-    return dateStr;
-  }
-}
-
 export function formatDateRange(startStr: string | null | undefined, endStr?: string | null): string {
   if (!startStr) return '';
   const start = formatDate(startStr);

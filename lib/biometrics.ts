@@ -1,10 +1,28 @@
+/**
+ * Face ID / Touch ID app lock.
+ *
+ * Design: the Supabase session stays persisted as normal ("Keep me signed
+ * in"); when the lock is on, the app content is covered on cold start and
+ * after RELOCK_AFTER_MS in the background until the user passes a
+ * biometric (or device-passcode) check. See components/shared/AppLock.tsx.
+ *
+ * Why not "sign in with Face ID"? The previous design stored a Supabase
+ * refresh token in SecureStore and replayed it from the sign-in screen.
+ * It could never work: every path back to the sign-in screen (sign-out,
+ * remember-me off) had to wipe that token, and when a session expired on
+ * its own the stored token had long since been rotated by auto-refresh,
+ * so the replay always failed with "Session expired". No refresh token is
+ * stored by this module any more; the legacy keys are purged on sight.
+ */
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
-import { supabase } from './supabase';
 
-const REFRESH_TOKEN_KEY = 'brewed_refresh_token';
-const BIOMETRIC_ENABLED_KEY = 'brewed_biometric_enabled';
+const APP_LOCK_KEY = 'brewed_app_lock';
+// Legacy keys from the refresh-token design — deleted, never read.
+const LEGACY_KEYS = ['brewed_refresh_token', 'brewed_biometric_enabled'];
 export const REMEMBER_ME_KEY = 'brewed_remember_me';
+
+export { RELOCK_AFTER_MS, shouldRelock } from './appLockLogic';
 
 export async function isBiometricAvailable(): Promise<boolean> {
   const [hasHardware, isEnrolled] = await Promise.all([
@@ -14,11 +32,6 @@ export async function isBiometricAvailable(): Promise<boolean> {
   return hasHardware && isEnrolled;
 }
 
-export async function isBiometricEnabled(): Promise<boolean> {
-  const flag = await SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY);
-  return flag === 'true';
-}
-
 export async function getBiometricType(): Promise<'face' | 'touch' | 'none'> {
   const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
   if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) return 'face';
@@ -26,41 +39,59 @@ export async function getBiometricType(): Promise<'face' | 'touch' | 'none'> {
   return 'none';
 }
 
-export async function enableBiometric(refreshToken: string): Promise<void> {
-  await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
-  await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, 'true');
+export function biometricLabel(type: 'face' | 'touch' | 'none'): string {
+  return type === 'touch' ? 'Touch ID' : 'Face ID';
 }
 
+export async function isAppLockEnabled(): Promise<boolean> {
+  try {
+    return (await SecureStore.getItemAsync(APP_LOCK_KEY)) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export async function enableAppLock(): Promise<void> {
+  await SecureStore.setItemAsync(APP_LOCK_KEY, 'true');
+  await purgeLegacyKeys();
+}
+
+/**
+ * Turn the app lock off and purge any legacy stored refresh token.
+ * Called on sign-out so the next account on this device starts unlocked
+ * and opts in for itself.
+ */
 export async function disableBiometric(): Promise<void> {
-  await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
-  await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY);
+  await SecureStore.deleteItemAsync(APP_LOCK_KEY);
+  await purgeLegacyKeys();
 }
 
-export async function signInWithBiometric(): Promise<{ success: boolean; error?: string }> {
-  const isEnabled = await isBiometricEnabled();
-  if (!isEnabled) return { success: false, error: 'not_configured' };
-
-  const result = await LocalAuthentication.authenticateAsync({
-    promptMessage: 'Sign in to Brewed',
-    cancelLabel: 'Use password',
-    disableDeviceFallback: false,
-  });
-
-  if (!result.success) return { success: false, error: 'cancelled' };
-
-  const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
-  if (!refreshToken) {
-    await disableBiometric();
-    return { success: false, error: 'no_token' };
+async function purgeLegacyKeys(): Promise<void> {
+  for (const key of LEGACY_KEYS) {
+    try { await SecureStore.deleteItemAsync(key); } catch { /* absent */ }
   }
+}
 
-  const { data, error } = await supabase.auth.refreshSession({ refresh_token: refreshToken });
-  if (error || !data.session) {
-    await disableBiometric();
-    return { success: false, error: 'session_expired' };
+export type UnlockResult = 'success' | 'cancelled' | 'unavailable';
+
+/**
+ * Prompt for Face ID / Touch ID, falling back to the device passcode.
+ * 'unavailable' means the device has no biometrics AND no passcode, so a
+ * lock cannot be enforced — the caller should not trap the user.
+ */
+export async function authenticate(promptMessage: string): Promise<UnlockResult> {
+  try {
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage,
+      cancelLabel: 'Cancel',
+      disableDeviceFallback: false,
+    });
+    if (result.success) return 'success';
+    if (result.error === 'not_enrolled' || result.error === 'passcode_not_set' || result.error === 'not_available') {
+      return 'unavailable';
+    }
+    return 'cancelled';
+  } catch {
+    return 'cancelled';
   }
-
-  // Supabase rotates refresh tokens — always store the latest
-  await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.session.refresh_token);
-  return { success: true };
 }

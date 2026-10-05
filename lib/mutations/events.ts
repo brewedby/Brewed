@@ -222,8 +222,12 @@ export function useUpdateEvent() {
       }
       if (finError) throw finError;
 
+      // Steps 3–5 replace child rows (delete then insert). A failed delete
+      // must abort: inserting after it would duplicate the rows, and
+      // duplicated staffing entries double-count staffing costs.
       // 3. Replace unit assignments
-      await supabase.from('event_units').delete().eq('event_id', id);
+      const { error: unitDelError } = await supabase.from('event_units').delete().eq('event_id', id);
+      if (unitDelError) throw unitDelError;
       if (data.unit_ids.length > 0) {
         const { error: unitError } = await supabase.from('event_units').insert(
           data.unit_ids.map((uid) => ({ event_id: id, unit_id: uid }))
@@ -232,7 +236,8 @@ export function useUpdateEvent() {
       }
 
       // 4. Replace staffing entries
-      await supabase.from('staffing_entries').delete().eq('event_id', id);
+      const { error: staffDelError } = await supabase.from('staffing_entries').delete().eq('event_id', id);
+      if (staffDelError) throw staffDelError;
       if (data.staffing_entries.length > 0) {
         const { error: staffError } = await supabase.from('staffing_entries').insert(
           data.staffing_entries.map((e) => ({
@@ -243,7 +248,8 @@ export function useUpdateEvent() {
       }
 
       // 5. Replace infrastructure items
-      await supabase.from('infrastructure_items').delete().eq('event_id', id);
+      const { error: infraDelError } = await supabase.from('infrastructure_items').delete().eq('event_id', id);
+      if (infraDelError) throw infraDelError;
       if (data.infrastructure_items.length > 0) {
         const { error: infraError } = await supabase.from('infrastructure_items').insert(
           data.infrastructure_items.map((item) => ({
@@ -260,23 +266,6 @@ export function useUpdateEvent() {
       qc.invalidateQueries({ queryKey: ['reports'] });
       qc.invalidateQueries({ queryKey: ['companies'] });
       qc.invalidateQueries({ queryKey: ['units'] });
-    },
-  });
-}
-
-export function useLogSales() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ eventId, grossSales }: { eventId: string; grossSales: number }) => {
-      const { error } = await supabase
-        .from('event_financials')
-        .upsert({ event_id: eventId, gross_sales: grossSales }, { onConflict: 'event_id' });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['events'] });
-      qc.invalidateQueries({ queryKey: ['dashboard'] });
-      qc.invalidateQueries({ queryKey: ['reports'] });
     },
   });
 }

@@ -36,7 +36,7 @@ export class SectionErrorBoundary extends React.Component<Props, State> {
   componentDidCatch(error: Error) {
     if (__DEV__) {
       // Sanitised: error type + section only — never event or financial data.
-      // eslint-disable-next-line no-console
+       
       console.warn(`[SectionErrorBoundary] ${this.props.section}: ${error.name} — ${error.message}`);
     }
   }

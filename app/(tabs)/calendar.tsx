@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, RefreshControl, ScrollView } from 'react-native';
+import { View, RefreshControl, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEvents } from '@/lib/queries/events';
 import { CalendarView } from '@/components/events/CalendarView';

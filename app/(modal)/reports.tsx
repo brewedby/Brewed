@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Share, Alert } from 'react-native';
+import { buildReportCsv } from '@/lib/reportCsv';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,27 +41,7 @@ export default function ReportsScreen() {
 
   async function handleExport() {
     if (!data) return;
-    const header = 'Event,Date,End Date,Location,Company,Status,Gross Sales,Cost of Goods,Pitch Fee,Power Fee,Travel,Camping,Equipment,Other,Staffing,Net Profit,Margin%\n';
-    const rows = data.topEvents.map((e) => [
-      `"${e.name.replace(/"/g, '""')}"`,
-      e.date,
-      e.end_date ?? '',
-      `"${e.location.replace(/"/g, '""')}"`,
-      `"${(e.concessions_companies?.name ?? '').replace(/"/g, '""')}"`,
-      e.status,
-      e.event_financials?.gross_sales ?? 0,
-      e.event_financials?.cost_of_goods ?? 0,
-      e.event_financials?.pitch_fee ?? 0,
-      e.event_financials?.power_fee ?? 0,
-      e.event_financials?.travel_costs ?? 0,
-      e.event_financials?.camping_costs ?? 0,
-      e.event_financials?.equipment_costs ?? 0,
-      e.event_financials?.other_costs ?? 0,
-      e.event_financials?.staffing_costs ?? 0,
-      e.calculations.netProfit.toFixed(2),
-      e.calculations.profitMargin.toFixed(1),
-    ].join(',')).join('\n');
-    const csv = header + rows;
+    const csv = buildReportCsv(data.csvRows);
     try {
       await Share.share({ message: csv, title: `${profile?.business_name ?? 'My Business'} - ${year} Report` });
     } catch {

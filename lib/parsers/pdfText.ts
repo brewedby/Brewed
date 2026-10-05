@@ -22,7 +22,7 @@
  * image-only/scanned pages (no OCR — detected + reported), JBIG2/CCITT.
  */
 
-import pako from 'pako';
+import { inflate } from 'pako';
 import { splitTextBlocks } from './pdfSales';
 
 // ── Binary helpers ───────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ function latin1ToBytes(s: string): Uint8Array {
 interface PdfObj { dict: string; stream: string | null }
 
 function inflateOrNull(data: string): string | null {
-  try { return bytesToLatin1(pako.inflate(latin1ToBytes(data))); } catch { return null; }
+  try { return bytesToLatin1(inflate(latin1ToBytes(data))); } catch { return null; }
 }
 
 /** Parse every indirect object; decode Flate streams; unpack /ObjStm. */

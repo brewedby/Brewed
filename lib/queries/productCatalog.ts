@@ -22,14 +22,3 @@ export function useProductCatalog() {
     staleTime: 1000 * 60 * 5,
   });
 }
-
-export function useProductCatalogByCategory() {
-  const { data: products = [], ...rest } = useProductCatalog();
-  // Group by whatever categories actually exist in the data — supports
-  // trade-specific keys (mains, sides, bakes…) added in CATEGORY_DEFINITIONS.
-  const byCategory: Record<string, ProductCatalogItem[]> = {};
-  for (const p of products) {
-    (byCategory[p.category] ??= []).push(p);
-  }
-  return { ...rest, data: products, byCategory };
-}

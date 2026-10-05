@@ -18,8 +18,6 @@ import { useTheme } from '@/lib/themeContext';
 import { farStatus } from '@/lib/theme';
 import type { DiscoveredEvent } from '@/types';
 
-const REGIONS = ['All UK', 'London', 'South East', 'South West', 'East of England', 'Midlands', 'West Midlands', 'North West', 'Yorkshire', 'North East', 'Scotland', 'Wales', 'National'];
-
 const EVENT_CATEGORIES = ['All', 'Music Festival', 'Food Festival', 'Street Food Market', 'Christmas Market', 'Garden and Lifestyle', 'Motorsport', 'Equestrian'];
 const COMPANY_CATEGORIES = ['All', 'Concessions Company', 'Industry Body'];
 
@@ -251,9 +249,9 @@ export default function DiscoverScreen() {
     });
   }, [appliedStorageKey]);
 
-  useFocusEffect(useCallback(() => { refetch(); }, []));
-
   const { data: allResults = [], isLoading, refetch, error } = useDiscoverEvents({});
+
+  useFocusEffect(useCallback(() => { refetch(); }, [refetch]));
   const { data: companies = [] } = useCompanies();
   const createEvent = useCreateEvent();
 

@@ -201,6 +201,7 @@ const prodMutSrc  = fs.readFileSync(PRODMUT_PATH, 'utf8');
   const legacyValues = ['food', 'drinks', 'totally_made_up', ''];
   // Re-derive valid categories per trade for the property check.
   // Importing TRADE_CATEGORIES + DEFAULT_CATEGORIES from types/cogs.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { TRADE_CATEGORIES, DEFAULT_CATEGORIES } = require('../../types/cogs') as {
     TRADE_CATEGORIES: Record<string, string[]>;
     DEFAULT_CATEGORIES: string[];
@@ -228,11 +229,11 @@ const prodMutSrc  = fs.readFileSync(PRODMUT_PATH, 'utf8');
 let pass = 0, fail = 0;
 for (const r of results) {
   const tag = r.pass ? 'PASS' : 'FAIL';
-  // eslint-disable-next-line no-console
+   
   console.log(`${tag}  ${r.name.padEnd(52)} ${r.detail}`);
   if (r.pass) pass++; else fail++;
 }
-// eslint-disable-next-line no-console
+ 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);
 

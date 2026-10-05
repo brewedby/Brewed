@@ -1,0 +1,28 @@
+version: 2
+updates:
+  # Expo SDK packages must move together via `npx expo install` (or an SDK
+  # upgrade), so Dependabot only proposes patch/minor bumps for everything
+  # else, grouped into one weekly PR. CI checks SDK alignment on each PR.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "expo"
+      - dependency-name: "expo-*"
+      - dependency-name: "react"
+      - dependency-name: "react-native"
+      - dependency-name: "react-native-*"
+      - dependency-name: "@react-native*"
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

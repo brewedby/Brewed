@@ -1,5 +1,7 @@
 # Brewed — Pre-Launch Audit Report
 
+> **Superseded:** see [`LAUNCH_AUDIT_2026-10.md`](LAUNCH_AUDIT_2026-10.md). The October 2026 audit found that migrations 009/010 described here were never fully applied to the live database; migration 019 reconciles it.
+
 **Audit date:** 2 May 2026
 **App version audited:** 1.0.0
 **Branch:** `claude/coffee-truck-tracker-app-133ZK`

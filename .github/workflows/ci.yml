@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [final-form]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck · Lint · Test · Dead code
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Tests never hit the network, but lib/supabase.ts refuses to load
+      # without these — dummy values keep any accidental import honest.
+      EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ci-dummy-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Unit + regression tests
+        run: npm test
+      - name: Dead code / unused dependencies (knip)
+        run: npm run knip
+      # Advisory: Expo ships SDK patch releases continuously, so a hard
+      # gate here would turn CI red with no code change. Mismatches show as
+      # a warning; apply them with `npx expo install --fix` + a new build.
+      - name: Expo SDK dependency alignment (advisory)
+        run: |
+          if ! npx expo install --check; then
+            echo "::warning title=Expo SDK patches available::Run 'npx expo install --fix' and ship it with the next native build."
+          fi
+
+  edge-functions:
+    name: Edge functions typecheck (Deno)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check --config supabase/functions/deno.json supabase/functions/*/index.ts

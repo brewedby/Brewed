@@ -1,11 +1,18 @@
 // Supabase Edge Function: check-application-urls
-// Fetches all event application URLs, hashes content, flags changes, sends push notifications
+// Fetches every tracked event's application URL, hashes the page text and
+// sets events.url_changed when it changes. The app shows the flag as a
+// "page changed" banner on the event (app/(tabs)/events/[id]/index.tsx).
+//
 // Deploy with: supabase functions deploy check-application-urls
-// Schedule daily via pg_cron (see migrations.sql)
-// Required secrets: SUPABASE_SERVICE_ROLE_KEY
+// Schedule: pg_cron with the SERVICE ROLE key (see
+// supabase/migration_019_launch_hardening.sql). The function refuses any
+// other caller — it reads every user's events, so it must not be
+// triggerable with the public anon key.
+//
+// The directory (uk_events_directory) URL check lives in sync-directory.
+// Push notifications are not sent: the app never registers push tokens.
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -42,7 +49,7 @@ async function fetchPageContent(url: string): Promise<string | null> {
   }
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
   }
@@ -57,14 +64,24 @@ serve(async (req) => {
     );
   }
 
+  if (req.headers.get('Authorization') !== `Bearer ${serviceRoleKey}`) {
+    return new Response(
+      JSON.stringify({ error: 'Forbidden' }),
+      { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
+    );
+  }
+
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  // Fetch all events that have an application URL and haven't been flagged yet
+  // Upcoming events with an application URL that haven't been flagged yet.
+  // Finished events are skipped — their application pages no longer matter.
+  const today = new Date().toISOString().slice(0, 10);
   const { data: events, error } = await supabase
     .from('events')
     .select('id, name, user_id, application_url, page_hash, url_changed')
     .not('application_url', 'is', null)
-    .eq('url_changed', false);
+    .eq('url_changed', false)
+    .or(`date.gte.${today},end_date.gte.${today}`);
 
   if (error) {
     return new Response(
@@ -73,7 +90,7 @@ serve(async (req) => {
     );
   }
 
-  const results = { checked: 0, changed: 0, errors: 0, notified: 0 };
+  const results = { checked: 0, changed: 0, errors: 0 };
 
   for (const event of events ?? []) {
     if (!event.application_url) continue;
@@ -101,33 +118,6 @@ serve(async (req) => {
         .from('events')
         .update({ page_hash: newHash, url_last_checked_at: now, url_changed: true })
         .eq('id', event.id);
-
-      // Get the user's push token
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('push_token')
-        .eq('id', event.user_id)
-        .single();
-
-      if (profile?.push_token) {
-        // Send push notification via our send-push-notification function
-        try {
-          await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${serviceRoleKey}`,
-            },
-            body: JSON.stringify({
-              to: profile.push_token,
-              title: '📋 Application Page Changed',
-              body: `"${event.name}" — the application page has been updated. Tap to check your status.`,
-              data: { eventId: event.id, type: 'url_changed' },
-            }),
-          });
-          results.notified++;
-        } catch { /* notification failed silently */ }
-      }
     } else {
       // No change — just update the check timestamp
       await supabase
@@ -137,48 +127,8 @@ serve(async (req) => {
     }
   }
 
-  // ── Also check uk_events_directory application URLs ──────────────────────
-  const { data: directoryEntries } = await supabase
-    .from('uk_events_directory')
-    .select('id, name, application_url, page_hash')
-    .not('application_url', 'is', null);
-
-  const dirResults = { checked: 0, changed: 0, errors: 0 };
-
-  for (const entry of directoryEntries ?? []) {
-    if (!entry.application_url) continue;
-    dirResults.checked++;
-
-    const content = await fetchPageContent(entry.application_url);
-    if (!content) { dirResults.errors++; continue; }
-
-    const newHash = await hashContent(content);
-    const now = new Date().toISOString();
-
-    if (!entry.page_hash) {
-      await supabase
-        .from('uk_events_directory')
-        .update({ page_hash: newHash, last_verified_at: now })
-        .eq('id', entry.id);
-      continue;
-    }
-
-    if (newHash !== entry.page_hash) {
-      dirResults.changed++;
-      await supabase
-        .from('uk_events_directory')
-        .update({ page_hash: newHash, last_verified_at: now, application_changed: true })
-        .eq('id', entry.id);
-    } else {
-      await supabase
-        .from('uk_events_directory')
-        .update({ last_verified_at: now })
-        .eq('id', entry.id);
-    }
-  }
-
   return new Response(
-    JSON.stringify({ success: true, events: results, directory: dirResults }),
+    JSON.stringify({ success: true, events: results }),
     { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
   );
 });

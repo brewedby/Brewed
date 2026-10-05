@@ -18,7 +18,7 @@
  * showing the Save-As-CSV guidance for it.
  */
 
-import pako from 'pako';
+import { inflateRaw } from 'pako';
 import { parseCSVSalesReport } from './csvSales';
 import type { ParseResult } from '@/types/cogs';
 
@@ -85,7 +85,7 @@ function extractEntry(bytes: Uint8Array, entry: ZipEntry): string | null {
       return decodeUtf8Latin(s);
     }
     if (entry.method === 8) {
-      const inflated = pako.inflateRaw(data);
+      const inflated = inflateRaw(data);
       let s = '';
       for (let i = 0; i < inflated.length; i++) s += String.fromCharCode(inflated[i]);
       return decodeUtf8Latin(s);
@@ -99,7 +99,7 @@ function extractEntry(bytes: Uint8Array, entry: ZipEntry): string | null {
 /** XLSX entries are UTF-8; re-decode the byte-per-char string properly. */
 function decodeUtf8Latin(s: string): string {
   try {
-    // eslint-disable-next-line no-undef
+     
     return decodeURIComponent(escape(s));
   } catch {
     return s; // already ASCII-safe
